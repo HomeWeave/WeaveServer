@@ -10,4 +10,5 @@ if __name__ == '__main__':
 
     server = Flask(__name__)
     server.wsgi_app = app
-    server.run(host="", port=port, threaded=True)
+    server.run(host="", port=port, threaded=True, debug=True)
+

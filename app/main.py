@@ -1,16 +1,30 @@
 import signal
+from threading import Thread
 
 from flask import Flask
 
 from .controllers import controllers
 from .core import server_timer
+from .services import ServiceManager, SERVICES
+from .views import view_manager
+
 
 class HomePiServer(Flask):
     def __init__(self, config):
-        super(HomePiServer, self).__init__(__name__)
+        params = {
+            "template_folder": "../templates"
+        }
+        super(HomePiServer, self).__init__(__name__, **params)
         self.config.from_object(config)
         self.register_blueprints(controllers)
+
         server_timer.start()
+
+        self.start_services()
+
+    def start_services(self):
+        self.service_manager = ServiceManager(SERVICES, view_manager)
+        self.service_thread = Thread(target=self.service_manager.start).start()
 
     def register_blueprints(self, controllers):
         for prefix, controller in controllers:
