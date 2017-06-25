@@ -1,4 +1,4 @@
-from app.system.updater import check_updates, do_upgrade
+from app.system.updater import check_updates, do_upgrade, run_ansible
 from app.views import SimpleBackgroundView
 from .base import BaseService, BlockingServiceStart
 
@@ -13,6 +13,8 @@ class UpdaterService(BaseService, BlockingServiceStart):
         for val in values:
             self._view.args["subtitle"] = val
             do_upgrade([val])
+        if values:
+            run_ansible()
 
     @property
     def view(self):

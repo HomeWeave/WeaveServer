@@ -18,6 +18,11 @@ def do_upgrade(repos):
         #TODO: Update script to exit with non-zero in case of failure.
         return p.returncode
 
-
+def run_ansible():
+    run_ansible_path = os.path.join(SCRIPTS_DIR, "run_ansible.sh")
+    args = [run_ansible_path]
+    with subprocess.Popen(args) as p:
+        p.wait()
+        return p.returncode
 
 
