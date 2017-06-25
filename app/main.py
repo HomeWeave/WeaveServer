@@ -23,11 +23,11 @@ class HomePiServer(object):
 
         self.app = SocketIO(self.flask_app)
 
-        self.nav_channel = NavigationChannel("/navigation", None)
+        self.nav_channel = NavigationChannel("/navigation", self.app)
         self.app.on_namespace(self.nav_channel)
 
         self.view_manager = ViewManager(self.nav_channel)
-        self.nav_channel.client = self.view_manager
+        self.nav_channel.display = self.view_manager
 
         self.service_manager = ServiceManager(SERVICES, self.view_manager)
 
