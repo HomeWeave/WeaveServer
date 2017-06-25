@@ -10,7 +10,7 @@ class UpdaterService(BaseService, BlockingServiceStart):
 
     def on_service_start(self):
         values = check_updates()
-        for val in value:
+        for val in values:
             do_upgrade([val])
             self._view.args["subtitle"] = val
 
