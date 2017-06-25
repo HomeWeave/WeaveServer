@@ -12,7 +12,7 @@ class UpdaterService(BaseService, BlockingServiceStart):
         values = check_updates()
         for val in value:
             do_upgrade([val])
-            self.view.args["module"] = val
+            self._view.args["subtitle"] = val
 
     @property
     def view(self):
