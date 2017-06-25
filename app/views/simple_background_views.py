@@ -10,5 +10,5 @@ class SimpleBackgroundView(BaseView):
         super().__init__()
 
     def html(self):
-        return render_template('simple.html', title=self.msg, **self.args)
+        return self.render_template('simple.html', title=self.msg, **self.args)
 

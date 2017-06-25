@@ -5,9 +5,9 @@ from .simple_background_views import SimpleBackgroundView
 
 
 class ViewManager(object):
-    def __init__(self):
+    def __init__(self, nav_channel):
         self._view = BaseView()
-        self.can_change = False
+        self.nav_channel = nav_channel
 
     @property
     def view(self):
@@ -16,6 +16,5 @@ class ViewManager(object):
     @view.setter
     def view(self, obj):
         self._view = obj
+        #self.nav_channel.send_view(obj.html())
 
-
-view_manager = ViewManager()
