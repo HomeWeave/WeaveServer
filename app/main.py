@@ -2,33 +2,45 @@ import signal
 from threading import Thread
 
 from flask import Flask
+from flask_socketio import SocketIO
 
 from .controllers import controllers
 from .core import server_timer
+from .core.socketchannel import NavigationChannel
 from .services import ServiceManager, SERVICES
-from .views import view_manager
+from .views import ViewManager
 
 
-class HomePiServer(Flask):
+class HomePiServer(object):
     def __init__(self, config):
         params = {
-            "template_folder": "../templates"
+            "template_folder": "../templates",
+            "static_folder": "../static"
         }
-        super(HomePiServer, self).__init__(__name__, **params)
-        self.config.from_object(config)
-        self.register_blueprints(controllers)
+        self.flask_app = Flask(__name__, **params)
+        self.flask_app.config.from_object(config)
+        self.register_blueprints(self.flask_app, controllers)
+
+        self.app = SocketIO(self.flask_app)
+
+        self.nav_channel = NavigationChannel("/navigation", None)
+        self.app.on_namespace(self.nav_channel)
+
+        self.view_manager = ViewManager(self.nav_channel)
+        self.nav_channel.client = self.view_manager
+
+        self.service_manager = ServiceManager(SERVICES, self.view_manager)
 
         server_timer.start()
 
         self.start_services()
 
     def start_services(self):
-        self.service_manager = ServiceManager(SERVICES, view_manager)
         self.service_thread = Thread(target=self.service_manager.start).start()
 
-    def register_blueprints(self, controllers):
+    def register_blueprints(self, app, controllers):
         for prefix, controller in controllers:
-            self.register_blueprint(controller, url_prefix=prefix)
+            app.register_blueprint(controller, url_prefix=prefix)
 
     def shutdown(self):
         print("Shutting down..")
@@ -50,6 +62,6 @@ def create_app(config=None):
 
     signal.signal(sig, lambda x, y: sig_handler(x, y, prev_handler))
 
-    return app
+    return app.flask_app, app.app
 
 
