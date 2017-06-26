@@ -1,6 +1,6 @@
 flask
 requests[security]
 apscheduler==3.0.5
-eventlet
+gevent
 flask-socketio
 
