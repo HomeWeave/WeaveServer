@@ -46,7 +46,7 @@ h3 {
 }
 
 #page-content {
-  overflow: scroll;
+  overflow: hidden;
   height: 100vh;
   position: relative;
   background-color: rgba(0, 0, 0, 0.3);
