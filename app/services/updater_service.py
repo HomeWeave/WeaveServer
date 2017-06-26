@@ -12,7 +12,7 @@ class UpdaterService(BaseService, BlockingServiceStart):
     def on_service_start(self):
         values = check_updates()
         for val in values:
-            self._view.args["subtitle"] = "Working with {}... ".format(str((val))
+            self._view.args["subtitle"] = "Working with {}... ".format(str((val)))
             do_upgrade([val])
         if values:
             self._view.args["subtitle"] = "Finishing up..."
