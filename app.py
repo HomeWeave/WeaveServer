@@ -5,7 +5,6 @@ from app.main import create_app
 
 if __name__ == '__main__':
     flask_app, sock_app = create_app()
-    print(flask_app.url_map)
 
     port = flask_app.config["PORT"]
 
