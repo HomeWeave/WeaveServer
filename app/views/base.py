@@ -11,5 +11,5 @@ class BaseView(object):
         return template.render(**kwargs)
 
     def html(self):
-        return render_template('simple.html', title="Hello!")
+        return self.render_template('simple.html', title="Hello!")
 
