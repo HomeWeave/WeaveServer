@@ -3,10 +3,13 @@ from flask_socketio import Namespace, emit
 
 
 class ClientSocket(object):
-    def __init__(self):
-        pass
+    def __init__(self, channel, sid, ns):
+        self.sid = sid
+        self.ns = ns
+        self.channel = channel
 
-    #def send_message(
+    def send_message(self, key, data):
+        self.channel.emit(key, data, namespace=self.ns, room=self.sid)
 
 class NavigationChannel(Namespace):
     def __init__(self, namespace, socketio):
@@ -14,19 +17,22 @@ class NavigationChannel(Namespace):
         self.ns = namespace
         self.display = None #Hack: Will be set from app/main.py.
 
-        self.clients = set()
+        self.clients = {}
 
         super(Namespace, self).__init__(namespace)
 
     def on_connect(self):
-        self.clients.add(request.sid)
+        self.clients[request.sid] = ClientSocket(self.socketio, request.sid, self.ns)
 
     def on_disconnect(self):
-        self.clients.remove(request.sid)
+        del self.clients[request.sid]
 
     def on_request_view(self, *args):
-        self.send_view(self.display.view.html(), room=request.sid)
+        data = {"html": self.display.get_view().html()}
+        self.clients[request.sid].send_message('view', data)
 
-    def send_view(self, html, room=None):
-        self.socketio.emit('view', {"html": html}, room=room, namespace=self.ns)
+    def update_view(self, html):
+        for sid, sock in self.clients.items():
+            data = {"html": html}
+            sock.send_message('view', data)
 

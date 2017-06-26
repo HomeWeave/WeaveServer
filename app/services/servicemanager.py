@@ -12,12 +12,12 @@ class ServiceManager(threading.Thread):
 
     def run(self):
         for service in self.services:
-            self.cur_service = service()
+            self.cur_service = service(observer=self.notify_view_updates)
             if isinstance(self.cur_service, BlockingServiceStart):
-                self.view_manager.view = self.cur_service.view
+                self.view_manager.replace_view(self.cur_service.view())
 
             self.cur_service.service_start()
 
-
-
+    def notify_view_updates(self):
+        self.view_manager.refresh_view()
 

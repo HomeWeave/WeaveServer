@@ -4,8 +4,8 @@ from .base import BaseService, BlockingServiceStart
 
 
 class UpdaterService(BaseService, BlockingServiceStart):
-    def __init__(self):
-        super().__init__()
+    def __init__(self, observer=None):
+        super().__init__(observer=observer)
         self._view = SimpleBackgroundView("Checking for updates.")
 
     def on_service_start(self):
@@ -16,6 +16,6 @@ class UpdaterService(BaseService, BlockingServiceStart):
         if values:
             run_ansible()
 
-    @property
     def view(self):
         return self._view
+

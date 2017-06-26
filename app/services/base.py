@@ -6,6 +6,7 @@ from app.views import SimpleBackgroundView
 class BaseService(object):
     def __init__(self, **kwargs):
         self.name =  kwargs.pop("name", self.__class__.__name__)
+        self.observer = kwargs.pop("observer", None)
         super().__init__(**kwargs)
 
     def view(self):
@@ -24,7 +25,8 @@ class BlockingServiceStart(object):
     def service_start(self):
         try:
             return self.target(*self.target_args, **self.target_kwargs)
-        except (FileNotFoundError,):
+        except Exception:
+            print("unable to start service:", self)
             return None
 
 class BackgroundServiceStart(object):

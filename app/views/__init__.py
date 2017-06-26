@@ -9,12 +9,13 @@ class ViewManager(object):
         self._view = BaseView()
         self.nav_channel = nav_channel
 
-    @property
-    def view(self):
+    def get_view(self):
         return self._view
 
-    @view.setter
-    def view(self, obj):
+    def replace_view(self, obj):
         self._view = obj
-        #self.nav_channel.send_view(obj.html())
+        self.refresh_view()
+
+    def refresh_view(self):
+        self.nav_channel.update_view(self._view.html())
 
