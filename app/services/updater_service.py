@@ -7,11 +7,12 @@ class UpdaterService(BaseService, BlockingServiceStart):
     def __init__(self, observer=None):
         super().__init__(observer=observer)
         self._view = SimpleBackgroundView("Checking for updates.")
+        self._view.args["subtitle"] = "Please wait ..."
 
     def on_service_start(self):
         values = check_updates()
         for val in values:
-            self._view.args["subtitle"] = "Working with: " + str(val)
+            self._view.args["subtitle"] = "Working with {}... ".format(str((val))
             do_upgrade([val])
         if values:
             self._view.args["subtitle"] = "Finishing up..."
