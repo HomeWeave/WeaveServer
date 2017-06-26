@@ -13,9 +13,11 @@ class UpdaterService(BaseService, BlockingServiceStart):
         values = check_updates()
         for val in values:
             self._view.args["subtitle"] = "Working with {}... ".format(str((val)))
+            self.observer()
             do_upgrade([val])
         if values:
             self._view.args["subtitle"] = "Finishing up..."
+            self.observer()
             run_ansible()
 
     def view(self):
