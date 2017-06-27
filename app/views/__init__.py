@@ -2,6 +2,7 @@ import sys
 
 from .base import BaseView
 from .simple_background_views import SimpleBackgroundView
+from .webcam_view import WebcamView
 
 
 class ViewManager(object):
