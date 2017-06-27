@@ -14,7 +14,6 @@ class PercentProgressIndicator(RemoteProgress):
         super().__init__()
 
     def update(self, op, cur_count, max_count=None, msg=""):
-        #print("OP:", op)
         if max_count is not None:
             self.callback(0)
         else:
