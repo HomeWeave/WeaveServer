@@ -1,3 +1,5 @@
+from os.path import basename
+
 from app.system.updater import check_updates, do_upgrade, run_ansible
 from app.system.updater import do_reboot
 from app.views import SimpleBackgroundView
@@ -13,7 +15,8 @@ class UpdaterService(BaseService, BlockingServiceStart):
     def on_service_start(self):
         values = check_updates()
         for val in values:
-            self._view.args["subtitle"] = "Working with {}... ".format(str((val)))
+            repo_name = basename(val.decode())
+            self._view.args["subtitle"] = "Working with {}... ".format(repo_name)
             self.observer()
             do_upgrade([val])
         if values:
