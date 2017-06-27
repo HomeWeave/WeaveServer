@@ -52,7 +52,7 @@ class Repository(object):
             self.clean_untracked()
             self.reset_hard()
             origin = self.repo.remotes.origin
-            origin.pull(PercentProgressIndicator(progress_observer))
+            origin.pull(progress=PercentProgressIndicator(progress_observer))
 
 
 def check_updates(progress=None):
