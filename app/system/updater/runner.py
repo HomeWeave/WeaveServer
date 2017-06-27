@@ -40,12 +40,17 @@ class Repository(object):
 
     def needs_pull(self):
         with self.repo.git.custom_environment(**self.environment_vars()):
+            for remote in self.repo.remotes:
+                remote.fetch()
+
             for x in self.repo.iter_commits('master..origin/master'):
                 return True
             return False
 
     def pull(self, progress_observer=None):
         with self.repo.git.custom_environment(**self.environment_vars()):
+            self.repo.clean_untracked()
+            self.repo.reset_hard()
             origin = self.repo.remotes.origin
             origin.pull(PercentProgressIndicator(progress_observer))
 
