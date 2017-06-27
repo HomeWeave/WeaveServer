@@ -12,6 +12,7 @@ CODE_DIR = "/home/rpi/Code"
 class PercentProgressIndicator(RemoteProgress):
     def __init__(self, callback):
         self.callback = callback
+        super().__init__()
 
     def update(self, op, cur_count, max_count=None, msg=""):
         #print("OP:", op)
