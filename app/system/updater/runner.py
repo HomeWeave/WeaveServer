@@ -49,8 +49,8 @@ class Repository(object):
 
     def pull(self, progress_observer=None):
         with self.repo.git.custom_environment(**self.environment_vars()):
-            self.repo.clean_untracked()
-            self.repo.reset_hard()
+            self.clean_untracked()
+            self.reset_hard()
             origin = self.repo.remotes.origin
             origin.pull(PercentProgressIndicator(progress_observer))
 
