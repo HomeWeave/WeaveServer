@@ -16,7 +16,7 @@ class UpdaterService(BaseService, BlockingServiceStart):
             self.observer()
             do_upgrade([val])
         if values:
-            self._view.args["subtitle"] = "Finishing up..."
+            self._view.args["subtitle"] = "Updating system configuration..."
             self.observer()
             run_ansible()
 
