@@ -7,7 +7,6 @@ from git.util import RemoteProgress
 
 SCRIPTS_DIR = "/home/rpi/scripts"
 CODE_DIR = "/home/rpi/Code"
-#CODE_DIR = "/home/thrustmaster/Temp/repo"
 
 class PercentProgressIndicator(RemoteProgress):
     def __init__(self, callback):
