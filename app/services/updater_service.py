@@ -1,4 +1,5 @@
 from app.system.updater import check_updates, do_upgrade, run_ansible
+from app.system.updater import do_reboot
 from app.views import SimpleBackgroundView
 from .base import BaseService, BlockingServiceStart
 
@@ -19,6 +20,10 @@ class UpdaterService(BaseService, BlockingServiceStart):
             self._view.args["subtitle"] = "Updating system configuration..."
             self.observer()
             run_ansible()
+
+            self._view.args["subtitle"] = "Restarting..."
+            self.observer()
+            do_reboot()
 
     def view(self):
         return self._view

@@ -25,4 +25,12 @@ def run_ansible():
         p.wait()
         return p.returncode
 
+def do_reboot():
+    reboot_path = os.path.join(SCRIPTS_DIR, "reboot.sh")
+    args = [reboot_path]
+    with subprocess.Popen(args)  as p:
+        p.wait()
+        #TODO: Update script to exit with non-zero in case of failure.
+        return p.returncode
+
 
