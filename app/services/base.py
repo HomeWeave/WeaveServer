@@ -1,4 +1,5 @@
 import threading
+import traceback
 
 from app.views import SimpleBackgroundView
 
@@ -25,7 +26,8 @@ class BlockingServiceStart(object):
     def service_start(self):
         try:
             return self.target(*self.target_args, **self.target_kwargs)
-        except Exception:
+        except Exception as e:
+            traceback.print_exc()
             print("unable to start service:", self)
             return None
 
