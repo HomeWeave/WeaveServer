@@ -1,3 +1,5 @@
+from threading import RLock
+
 from flask import request
 from flask_socketio import Namespace, emit
 
@@ -13,6 +15,7 @@ class ClientSocket(object):
 
 class NavigationChannel(Namespace):
     def __init__(self, namespace, socketio):
+        self.client_dict_lock = RLock()
         self.socketio = socketio
         self.ns = namespace
         self.display = None #Hack: Will be set from app/main.py.
@@ -22,17 +25,24 @@ class NavigationChannel(Namespace):
         super(Namespace, self).__init__(namespace)
 
     def on_connect(self):
-        self.clients[request.sid] = ClientSocket(self.socketio, request.sid, self.ns)
+        with self.client_dict_lock:
+            self.clients[request.sid] = ClientSocket(self.socketio, request.sid, self.ns)
 
     def on_disconnect(self):
-        del self.clients[request.sid]
+        with self.client_dict_lock:
+            del self.clients[request.sid]
 
     def on_request_view(self, *args):
         data = {"html": self.display.get_view().html()}
-        self.clients[request.sid].send_message('view', data)
+        with self.client_dict_lock:
+            sock = self.clients[request.sid]
+
+        sock.send_message('view', data)
 
     def update_view(self, html):
-        for sid, sock in self.clients.items():
+        with self.client_dict_lock:
+            items = list(self.clients.items())
+        for sid, sock in items:
             data = {"html": html}
             sock.send_message('view', data)
 
