@@ -1,8 +1,10 @@
 import threading
 import traceback
+import logging
 
 from app.views import SimpleBackgroundView
 
+logger = logging.getLogger(__name__)
 
 class BaseService(object):
     def __init__(self, **kwargs):
@@ -27,9 +29,8 @@ class BlockingServiceStart(object):
         try:
             return self.target(*self.target_args, **self.target_kwargs)
         except Exception as e:
-            traceback.print_exc()
-            print("unable to start service:", self)
-            return None
+            print("Failed to start..")
+            logger.exception("Failed to start service.")
 
 class BackgroundServiceStart(object):
     def __init__(self, **kwargs):
@@ -39,8 +40,13 @@ class BackgroundServiceStart(object):
         super().__init__(**kwargs)
 
     def service_start(self):
-        t = threading.Thread(target=self.target, args=self.target_args,
-                kwargs=self.target_kwargs)
+        t = threading.Thread(target=self.service_start_target)
         t.start()
+
+    def service_start_target(self):
+        try:
+            self.target(*self.target_args, **self.target_kwargs)
+        except Exception as e:
+            logger.exception("Failed to start service.")
 
 
