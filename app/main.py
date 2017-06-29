@@ -1,8 +1,10 @@
 from gevent import monkey
-monkey.patch_all()
-
 import signal
 from threading import Thread
+import json
+
+monkey.patch_all()
+
 
 from flask import Flask
 from flask_socketio import SocketIO
@@ -10,6 +12,7 @@ from flask_socketio import SocketIO
 from .controllers import controllers
 from .core import server_timer
 from .core.socketchannel import NavigationChannel
+from .core.logger import configure_logging
 from .services import ServiceManager, SERVICES
 from .views import ViewManager
 
@@ -34,6 +37,8 @@ class HomePiServer(object):
 
         self.service_manager = ServiceManager(SERVICES, self.view_manager)
 
+        configure_logging(self.flask_app)
+
         server_timer.start()
 
         self.start_services()
@@ -55,6 +60,7 @@ def create_app(config=None):
         config = app.config
     app = HomePiServer(config)
 
+
     for sig in (signal.SIGTERM, signal.SIGINT):
         prev_handler = signal.getsignal(sig)
 
@@ -66,5 +72,4 @@ def create_app(config=None):
     signal.signal(sig, lambda x, y: sig_handler(x, y, prev_handler))
 
     return app.flask_app, app.app
-
 
