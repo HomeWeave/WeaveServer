@@ -43,7 +43,7 @@ class Repository(object):
     def needs_pull(self):
         with self.repo.git.custom_environment(**self.environment_vars()):
             for remote in self.repo.remotes:
-                logger,info("Pulling remote for repo:" + self.repo_name)
+                logger.info("Pulling remote for repo:" + self.repo_name)
                 remote.fetch()
 
             for x in self.repo.iter_commits('master..origin/master'):
