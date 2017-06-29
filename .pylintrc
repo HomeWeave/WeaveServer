@@ -1,3 +1,6 @@
 [BASIC]
-good-names=logger
+good-names=logger,handler
 docstring-min-length=7
+
+enable=C0304
+disable=C0305
