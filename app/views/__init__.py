@@ -1,3 +1,6 @@
+"""
+Exposes a set of HTML based views that talk to view manager.
+"""
 import sys
 
 from .base import BaseView
