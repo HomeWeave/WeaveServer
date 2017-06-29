@@ -1,2 +1,2 @@
-from .scheduler import timer as server_timer
+from .scheduler import Timer
 
