@@ -26,7 +26,7 @@ class UpdaterService(BaseService, BlockingServiceStart):
             self.flash_message(base + " ... {:.0%}".format(val))
 
         values = check_updates(check_update_progress)
-        logger.info("Updates checked. Repos to update: " + str(value))
+        logger.info("Updates checked. Repos to update: " + str(values))
         for count, repo in enumerate(values):
             subtitle_params = count + 1, len(values), repo.repo_name
             subtitle = "({}/{}) Updating {}".format(*subtitle_params)
