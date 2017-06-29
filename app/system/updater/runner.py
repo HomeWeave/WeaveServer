@@ -1,5 +1,6 @@
 import os
 import subprocess
+import logging
 
 from git import Repo
 from git.util import RemoteProgress
@@ -7,6 +8,8 @@ from git.util import RemoteProgress
 
 SCRIPTS_DIR = "/home/rpi/scripts"
 CODE_DIR = "/home/rpi/Code"
+
+logger = logging.getLogger(__name__)
 
 class PercentProgressIndicator(RemoteProgress):
     def __init__(self, callback):
@@ -40,13 +43,16 @@ class Repository(object):
     def needs_pull(self):
         with self.repo.git.custom_environment(**self.environment_vars()):
             for remote in self.repo.remotes:
+                logger,info("Pulling remote for repo:" + self.repo_name)
                 remote.fetch()
 
             for x in self.repo.iter_commits('master..origin/master'):
+                logger.info("Repo {} needs update".format(self.repo_name))
                 return True
             return False
 
     def pull(self, progress_observer=None):
+        logger.info("Updating repo: " + self.repo_name)
         with self.repo.git.custom_environment(**self.environment_vars()):
             self.clean_untracked()
             self.reset_hard()
@@ -61,6 +67,7 @@ def check_updates(progress=None):
     if not all_repos:
         return []
 
+    logger.info("Checking for updates: " + str(all_repos))
     for count, path in enumerate(all_repos):
         repo = Repository(os.path.join(CODE_DIR, path))
 
@@ -77,6 +84,7 @@ def check_updates(progress=None):
 
 
 def run_ansible():
+    logger.info("Running ansible")
     run_ansible_path = os.path.join(SCRIPTS_DIR, "run_ansible.sh")
     args = [run_ansible_path]
     with subprocess.Popen(args) as p:
@@ -84,11 +92,11 @@ def run_ansible():
         return p.returncode
 
 def do_reboot():
+    logger.info("Running reboot script..")
     reboot_path = os.path.join(SCRIPTS_DIR, "reboot.sh")
     args = [reboot_path]
     with subprocess.Popen(args)  as p:
         p.wait()
         #TODO: Update script to exit with non-zero in case of failure.
         return p.returncode
-
 
