@@ -8,7 +8,8 @@ a new blueprint, add an entry to the controller variable below like:
 """
 from .static_content_handler import handler as root_handler
 
-controllers = [
+
+CONTROLLERS = [
     ("/", root_handler),
 ]
 

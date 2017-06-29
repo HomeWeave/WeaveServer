@@ -11,7 +11,7 @@ from gevent import monkey
 from flask import Flask
 from flask_socketio import SocketIO
 
-from .controllers import controllers
+from .controllers import CONTROLLERS
 from .core.socketchannel import NavigationChannel
 from .core.logger import configure_logging
 from .services import ServiceManager, SERVICES
@@ -30,7 +30,7 @@ class HomePiServer(object):
         }
         self.flask_app = Flask(__name__, **params)
         self.flask_app.config.from_object(config)
-        self.register_blueprints(self.flask_app, controllers)
+        self.register_blueprints(self.flask_app, CONTROLLERS)
 
         self.app = SocketIO(self.flask_app)
 
