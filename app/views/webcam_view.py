@@ -1,11 +1,11 @@
-from flask import render_template
-
+"""
+Contains WebcamView.
+"""
 from .base import BaseView
 
 
 class WebcamView(BaseView):
-    def __init__(self):
-        super().__init__()
+    """A simple view that show a <video> element that streams Webcam video."""
 
     def html(self):
         return self.render_template('webcam.html')

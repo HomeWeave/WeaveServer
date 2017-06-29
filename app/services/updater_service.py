@@ -1,4 +1,7 @@
-from os.path import basename
+"""
+Contains UpdaterService that shows a UI while updating components in the background.
+"""
+
 from functools import partial
 import logging
 
@@ -11,12 +14,20 @@ from .base import BaseService, BlockingServiceStart
 logger = logging.getLogger(__name__)
 
 class UpdaterService(BaseService, BlockingServiceStart):
+    """
+    Uses a SimpleBackgroundView to show "Checking for updates". Realtime update
+    information is shown in the view using the subtitle arg.
+    """
     def __init__(self, observer=None):
         super().__init__(observer=observer)
         self._view = SimpleBackgroundView("Checking for updates.")
         self.flash_message("Please wait ...")
 
-    def on_service_start(self):
+    def on_service_start(self, *args, **kwargs):
+        """
+        Calls check_updates() and then repo.pull() on each of the repo instance
+        while pushing the information out to the view.
+        """
         logger.info("Starting Updater Service.")
 
         def check_update_progress(val):
@@ -34,7 +45,7 @@ class UpdaterService(BaseService, BlockingServiceStart):
             self.flash_message(subtitle)
             repo.pull(partial(check_pull_progress, subtitle))
 
-        if len(values):
+        if values:
             self.flash_message("Updating system configuration...")
             run_ansible()
 

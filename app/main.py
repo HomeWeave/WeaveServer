@@ -1,23 +1,28 @@
-from gevent import monkey
+"""
+The main module for HomePiServer. Initializes SocketIO, ServiceManager, NavigationChannel,
+View Manager.
+"""
+
+
 import signal
 from threading import Thread
-import json
 
-monkey.patch_all()
-
-
+from gevent import monkey
 from flask import Flask
 from flask_socketio import SocketIO
 
-from .controllers import controllers
-from .core import server_timer
+from .controllers import CONTROLLERS
 from .core.socketchannel import NavigationChannel
 from .core.logger import configure_logging
 from .services import ServiceManager, SERVICES
 from .views import ViewManager
 
+monkey.patch_all()
 
 class HomePiServer(object):
+    """
+    Encapsulates the entire server.
+    """
     def __init__(self, config):
         params = {
             "template_folder": "../templates",
@@ -25,7 +30,7 @@ class HomePiServer(object):
         }
         self.flask_app = Flask(__name__, **params)
         self.flask_app.config.from_object(config)
-        self.register_blueprints(self.flask_app, controllers)
+        self.register_blueprints(self.flask_app, CONTROLLERS)
 
         self.app = SocketIO(self.flask_app)
 
@@ -39,37 +44,44 @@ class HomePiServer(object):
 
         configure_logging(self.flask_app)
 
-        server_timer.start()
-
         self.start_services()
 
     def start_services(self):
+        """Starts self.service_manager.start() on a new thread."""
         self.service_thread = Thread(target=self.service_manager.start).start()
 
-    def register_blueprints(self, app, controllers):
-        for prefix, controller in controllers:
+    @staticmethod
+    def register_blueprints(app, params):
+        """
+        Registers all the blueprints in controllers list.
+        Args:
+            app: Flask app to register the blueprint with.
+            controllers: List like: [(prefix, blueprint), ...]
+        """
+        for prefix, controller in params:
             app.register_blueprint(controller, url_prefix=prefix)
 
     def shutdown(self):
-        print("Shutting down..")
-        server_timer.stop()
+        pass
+
+def setup_signals(app):
+    """ Listen for SIGTERM and SIGINIT and calls app.shutdown()"""
+    def make_new_handler(prev_handler_func):
+        def new_handler(var1, var2):
+            app.shutdown()
+            if prev_handler_func:
+                prev_handler_func(var1, var2)
+        return new_handler
+
+    for sig in (signal.SIGTERM, signal.SIGINT):
+        prev_handler = signal.getsignal(sig)
+        signal.signal(sig, make_new_handler(prev_handler))
 
 def create_app(config=None):
+    """ Returns a new instance of HomePiServer."""
     if config is None:
         import app.config
         config = app.config
     app = HomePiServer(config)
-
-
-    for sig in (signal.SIGTERM, signal.SIGINT):
-        prev_handler = signal.getsignal(sig)
-
-    def sig_handler(x, y, prevFn):
-        app.shutdown()
-        if prevFn:
-            prevFn(x, y)
-
-    signal.signal(sig, lambda x, y: sig_handler(x, y, prev_handler))
-
+    setup_signals(app)
     return app.flask_app, app.app
-

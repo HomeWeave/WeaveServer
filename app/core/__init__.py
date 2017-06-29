@@ -1,2 +1,5 @@
-from .scheduler import timer as server_timer
+"""
+Brings `.scheduler.Timer` to the module level.
+"""
+from .scheduler import Timer
 
