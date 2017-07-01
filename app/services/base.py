@@ -8,7 +8,6 @@ thread without a UI.
 import threading
 import logging
 
-from app.views import SimpleBackgroundView
 
 logger = logging.getLogger(__name__)
 
@@ -16,15 +15,17 @@ class BaseService(object):
     """ Base class for all services """
     def __init__(self, **kwargs):
         self.name = kwargs.pop("name", self.__class__.__name__)
-        self.observer = kwargs.pop("observer", None)
+        self._view = kwargs.pop("view", None)
         super().__init__(**kwargs)
 
     def view(self):
         """ Returns an instance of SimpleBackgroundView()  for view_manager
         to display. The instance returns is also set to self.view. The function
         should typically be overriden"""
-        self._view = SimpleBackgroundView(msg="")
         return self._view
+
+    def get_sockets(self):
+        return self._view.get_sockets()
 
     def service_stop(self):
         pass
