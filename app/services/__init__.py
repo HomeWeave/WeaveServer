@@ -4,14 +4,12 @@ background thread.
 """
 
 
-from .servicemanager import ServiceManager
-from .updater_service import UpdaterService
-from .hello_service import HelloService
-from .webcam_service import WebcamService
+#from .updater_service import UpdaterService
+from .shell_service import ShellService
+
 
 SERVICES = [
-    UpdaterService,
-    #HelloService,
-    WebcamService
+    #UpdaterService,
+    ShellService
 ]
 
