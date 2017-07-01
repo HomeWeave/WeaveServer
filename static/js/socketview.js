@@ -11,8 +11,12 @@ function createView(namespace, selector, params) {
 	});
 	
 	socket.on('view', function(data) {
-		html = Handlebars.compile(data.html);
-		args = data.args;
+		if (data.html) {
+			html = Handlebars.compile(data.html);
+		}
+		if (data.args) {
+			args = data.args;
+		}
 		updateView();
 	});
 
@@ -30,9 +34,6 @@ function createView(namespace, selector, params) {
 	return {
 		render: function() {
 			requestView()
-		},
-		reload: function() {
-			requestView();
 		}
 	};
 

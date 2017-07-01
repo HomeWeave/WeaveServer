@@ -64,7 +64,7 @@ class BaseViewWebSocket(Namespace):
     def create_update_data(self):
         return {"args": self.view.args()}
 
-    def notify_update(self):
+    def notify_updates(self):
         """ Informs all connected clients about change in the view. """
         with self.client_dict_lock:
             items = list(self.clients.items())
@@ -96,9 +96,9 @@ class BaseView(object):
     def args(self):
         return self.view_args
 
-    def notify_update(self):
+    def notify_updates(self):
         if self.main_socket:
-            self.main_socket.notify_update()
+            self.main_socket.notify_updates()
 
     def add_socket(self, socket):
         self.sockets.append(socket)

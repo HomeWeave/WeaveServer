@@ -58,5 +58,5 @@ class UpdaterService(BaseService, BlockingServiceStart):
 
     def flash_message(self, msg):
         self._view.args["subtitle"] = msg
-        self._view.notify_update()
+        self._view.notify_updates()
 
