@@ -3,6 +3,10 @@ Contains components that manage services, their sequences and interdependence (l
 """
 
 import threading
+import logging
+
+
+logger = logging.getLogger(__name__)
 
 
 class ServiceManager(threading.Thread):
@@ -18,6 +22,7 @@ class ServiceManager(threading.Thread):
 
     def run(self):
         """ Sequentially starts all the services."""
+        logger.info("Starting services...")
         for service_cls in self.services:
             self.cur_service = service_cls(self.socket_manager)
             websocks = self.cur_service.get_sockets()
