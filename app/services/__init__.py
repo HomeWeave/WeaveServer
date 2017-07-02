@@ -4,12 +4,10 @@ background thread.
 """
 
 
-from .updater_service import UpdaterService
 from .shell_service import ShellService
 
 
 SERVICES = [
-    UpdaterService,
     ShellService
 ]
 

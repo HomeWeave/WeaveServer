@@ -9,11 +9,13 @@ from .wifi import WifiApp
 from .webcam import WebcamApp
 from .gmail import GmailApp
 from .calendar import CalendarApp
+from .updater import UpdaterApp
 
 APPS = [
     BluetoothApp,
     WifiApp,
     WebcamApp,
     GmailApp,
-    CalendarApp
+    CalendarApp,
+    UpdaterApp
 ]

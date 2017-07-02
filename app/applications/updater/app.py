@@ -1,38 +1,26 @@
 """
-Contains UpdaterService that shows a UI while updating components in the background.
+System Updates
 """
 
-from functools import partial
-import logging
-
+from app.applications.base import BaseApplication
 from app.system.updater import check_updates, run_ansible
 from app.system.updater import do_reboot
 from app.views import SimpleHeaderView
-from .base import BaseService, BlockingServiceStart
 
 
-logger = logging.getLogger(__name__)
+class UpdaterApp(BaseApplication):
+    NAME = "System Updates"
+    DESCRIPTION = "Check for System Updates."
+    ICON = "fa-arrow-circle-o-up"
 
-class UpdaterService(BaseService, BlockingServiceStart):
-    """
-    Uses a SimpleHeaderView to show "Checking for updates". Realtime update
-    information is shown in the view using the subtitle arg.
-    """
 
-    NAMESPACE = "/updater"
 
-    def __init__(self, socketio):
-        msg = "Checking for updates."
-        view = SimpleHeaderView(self.NAMESPACE, socketio, msg)
-        super().__init__(view=view)
-        self.flash_message("Please wait ...")
-
-    def on_service_start(self, *args, **kwargs):
+    def start(self):
         """
         Calls check_updates() and then repo.pull() on each of the repo instance
         while pushing the information out to the view.
         """
-        logger.info("Starting Updater Service.")
+        logger.info("Starting UpdaterApp")
 
         def check_update_progress(val):
             self.flash_message("Checking ... {:.0%}".format(val))
