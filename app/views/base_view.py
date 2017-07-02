@@ -3,9 +3,13 @@ Contains BaseView that acts as a base class for all websocket based views.
 """
 import os.path
 from threading import RLock
+import logging
 
 from flask_socketio import Namespace
 from flask import request
+
+
+logger = logging.getLogger(__name__)
 
 
 class ClientSocket(object): #pylint: disable=R0903
@@ -55,11 +59,14 @@ class BaseViewWebSocket(Namespace):
         """ Responds to the client with the latest HTML view."""
         with self.client_dict_lock:
             sock = self.clients[request.sid]
-
         sock.send_message('view', self.create_full_data())
 
     def create_full_data(self):
-        return {"html": self.view.html(), "args": self.view.args()}
+        return {
+            "html": self.view.html(),
+            "args": self.view.args(),
+            "innerViews": self.view.inner_views()
+        }
 
     def create_update_data(self):
         return {"args": self.view.args()}
@@ -82,9 +89,10 @@ class BaseView(object):
     def __init__(self, main_socket):
         self.view_args = {}
         self.sockets = []
+        self.nested_views = {}
         self.main_socket = main_socket
         if main_socket:
-            self.add_socket(main_socket)
+            self.sockets.append(main_socket)
 
     def html(self):
         """
@@ -96,12 +104,22 @@ class BaseView(object):
     def args(self):
         return self.view_args
 
+    def inner_views(self):
+        res = {}
+        for name, view in self.nested_views.items():
+            res[name] = {
+                "namespace": view.get_namespace()
+            }
+        return res
+
     def notify_updates(self):
         if self.main_socket:
             self.main_socket.notify_updates()
 
-    def add_socket(self, socket):
-        self.sockets.append(socket)
+    def add_inner_view(self, name, view):
+        self.nested_views[name] = view
+        for sock in view.get_sockets():
+            self.sockets.append(sock)
 
     def get_sockets(self):
         """
@@ -110,3 +128,8 @@ class BaseView(object):
         """
         return self.sockets
 
+    def get_namespace(self):
+        """
+        Returns the namespace of the main_socket.
+        """
+        return self.main_socket.namespace

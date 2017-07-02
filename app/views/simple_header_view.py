@@ -19,4 +19,3 @@ class SimpleHeaderView(BaseView):
         super().__init__(sock)
         self.view_args["title"] = msg
 
-
