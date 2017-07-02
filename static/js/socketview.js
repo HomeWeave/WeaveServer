@@ -23,8 +23,7 @@ function createView(namespace, target, params) {
 				var randomId = "innerview-" + Math.random().toString(36).substring(2);
 				var tempHtml = '<div id="' + randomId + '"></div>';
 				args[name] = tempHtml;
-				console.log("Will load " + namespace + " into " + randomId);
-
+				
 				var loadInner = function(html) {
 					$("#" + randomId).html(html);
 				}
