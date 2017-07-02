@@ -12,10 +12,10 @@ from flask import Flask
 from flask_socketio import SocketIO
 
 from .controllers import CONTROLLERS
-from .core.socketchannel import NavigationChannel
 from .core.logger import configure_logging
-from .services import ServiceManager, SERVICES
-from .views import ViewManager
+from .core.websocket_manager import WebSocketManager
+from .core.servicemanager import ServiceManager
+from .services import SERVICES
 
 monkey.patch_all()
 
@@ -34,13 +34,8 @@ class HomePiServer(object):
 
         self.app = SocketIO(self.flask_app)
 
-        self.nav_channel = NavigationChannel("/navigation", self.app)
-        self.app.on_namespace(self.nav_channel)
-
-        self.view_manager = ViewManager(self.nav_channel)
-        self.nav_channel.display = self.view_manager
-
-        self.service_manager = ServiceManager(SERVICES, self.view_manager)
+        self.socket_manager = WebSocketManager(self.app)
+        self.service_manager = ServiceManager(SERVICES, self.socket_manager)
 
         configure_logging(self.flask_app)
 
@@ -85,3 +80,4 @@ def create_app(config=None):
     app = HomePiServer(config)
     setup_signals(app)
     return app.flask_app, app.app
+

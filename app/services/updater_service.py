@@ -7,7 +7,7 @@ import logging
 
 from app.system.updater import check_updates, run_ansible
 from app.system.updater import do_reboot
-from app.views import SimpleBackgroundView
+from app.views import SimpleHeaderView
 from .base import BaseService, BlockingServiceStart
 
 
@@ -15,12 +15,16 @@ logger = logging.getLogger(__name__)
 
 class UpdaterService(BaseService, BlockingServiceStart):
     """
-    Uses a SimpleBackgroundView to show "Checking for updates". Realtime update
+    Uses a SimpleHeaderView to show "Checking for updates". Realtime update
     information is shown in the view using the subtitle arg.
     """
-    def __init__(self, observer=None):
-        super().__init__(observer=observer)
-        self._view = SimpleBackgroundView("Checking for updates.")
+
+    NAMESPACE = "/updater"
+
+    def __init__(self, socketio):
+        msg = "Checking for updates."
+        view = SimpleHeaderView(self.NAMESPACE, socketio, msg)
+        super().__init__(view=view)
         self.flash_message("Please wait ...")
 
     def on_service_start(self, *args, **kwargs):
@@ -54,8 +58,5 @@ class UpdaterService(BaseService, BlockingServiceStart):
 
     def flash_message(self, msg):
         self._view.args["subtitle"] = msg
-        self.observer()
-
-    def view(self):
-        return self._view
+        self._view.notify_updates()
 
