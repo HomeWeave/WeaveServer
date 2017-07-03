@@ -2,17 +2,28 @@
 System Updates
 """
 
+from functools import partial
+import logging
+
 from app.applications.base import BaseApplication
 from app.system.updater import check_updates, run_ansible
 from app.system.updater import do_reboot
 from app.views import SimpleHeaderView
 
 
+logger = logging.getLogger(__name__)
+
 class UpdaterApp(BaseApplication):
     NAME = "System Updates"
     DESCRIPTION = "Check for System Updates."
     ICON = "fa-arrow-circle-o-up"
 
+
+    NAMESPACE = "/app/UpdaterApp"
+
+    def __init__(self, service, socketio):
+        view = SimpleHeaderView(self.NAMESPACE, socketio, "Checking for updates")
+        super().__init__(service, socketio, view)
 
 
     def start(self):
