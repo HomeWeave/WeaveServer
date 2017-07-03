@@ -30,8 +30,8 @@ class ShellService(BaseService, BlockingServiceStart):
 
         self.app_stack = []
         self.quit_event = Event()
-        self.remote_control = RemoteControlServer(self)
-        self.translator = CommandsTranslator()
+        self.translator = CommandsTranslator(self)
+        self.remote_control = RemoteControlServer(self.translator)
 
 
     def build_view(self, socketio):
@@ -45,6 +45,6 @@ class ShellService(BaseService, BlockingServiceStart):
         gevent.spawn(self.remote_control.serve_forever)
         self.quit_event.wait()
 
-    def on_command(self, command_id):
-        command = self.translator.translate_command(command_id)
+    def on_command(self, command):
+        return "OK" if self.apps_stack[-1].on_command(command) else "BAD"
 
