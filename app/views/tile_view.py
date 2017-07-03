@@ -44,3 +44,5 @@ class TileView(BaseView):
 
         return True
 
+    def get_selected_tile(self):
+        return self.tiles[self.selected_tile_index]

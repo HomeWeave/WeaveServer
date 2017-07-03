@@ -22,10 +22,11 @@ class ShellService(BaseService, BlockingServiceStart):
     NAMESPACE = "/shell"
 
     def __init__(self, socketio):
+        self.socketio = socketio
         self.apps = [app(self, socketio) for app in APPS]
         self.apps_stack = [ShellApp(self, socketio, self.apps)]
         self.quit_event = Event()
-        view = self.build_view(socketio)
+        view, self.centre_view, self.top_view = self.build_view(socketio)
         super().__init__(view=view)
 
         self.app_stack = []
@@ -39,7 +40,7 @@ class ShellService(BaseService, BlockingServiceStart):
         front_app = self.apps_stack[-1]
         center_view = WrapperView(self.NAMESPACE + "/center", socketio, front_app.view())
         root_view = RootView(self.NAMESPACE, socketio, center_view, top_view)
-        return root_view
+        return root_view, center_view, top_view
 
     def on_service_start(self, *args, **kwargs):
         gevent.spawn(self.remote_control.serve_forever)
@@ -47,4 +48,17 @@ class ShellService(BaseService, BlockingServiceStart):
 
     def on_command(self, command):
         return "OK" if self.apps_stack[-1].on_command(command) else "BAD"
+
+    def launch_app(self, app):
+        old_front_app = self.apps_stack[-1]
+        new_front_app = app
+        self.apps_stack.append(app)
+
+        #Unregister old_front_app, and register new_front_app
+        for sock in old_front_app.view().get_sockets():
+            self.socketio.unregister(sock)
+        self.centre_view.set_wrapped_view(app.view())
+        for sock in new_front_app.view().get_sockets():
+            self.socketio.register(sock)
+        self.centre_view.notify_updates()
 

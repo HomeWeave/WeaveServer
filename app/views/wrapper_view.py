@@ -26,8 +26,9 @@ class WrapperView(BaseView):
             self.add_inner_view("wrapped_view", view)
 
     def set_wrapped_view(self, view):
+        self.remove_inner_view("wrapped_view")
         self.wrapped_view = view
-        self.notify_updates()
+        self.add_inner_view("wrapped_view", view)
 
     def html(self):
         return "{{{wrapped_view}}}" if self.wrapped_view is not None else ""

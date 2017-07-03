@@ -88,11 +88,8 @@ class BaseView(object):
 
     def __init__(self, main_socket):
         self.view_args = {}
-        self.sockets = []
         self.nested_views = {}
         self.main_socket = main_socket
-        if main_socket:
-            self.sockets.append(main_socket)
 
     def html(self):
         """
@@ -117,16 +114,22 @@ class BaseView(object):
             self.main_socket.notify_updates()
 
     def add_inner_view(self, name, view):
+        #TODO: Must check if the name is already registered.
         self.nested_views[name] = view
-        for sock in view.get_sockets():
-            self.sockets.append(sock)
+
+    def remove_inner_view(self, name):
+        if name in self.nested_views:
+            del self.nested_views[name]
 
     def get_sockets(self):
         """
         Returns a list of sockets (more of channels) to register/un-register
         when the view is active/inactive
         """
-        return self.sockets
+        yield self.main_socket
+        for _, nested_view in self.nested_views.items():
+            for sock in nested_view.get_sockets():
+                yield sock
 
     def get_namespace(self):
         """

@@ -25,12 +25,11 @@ class ServiceManager(threading.Thread):
         logger.info("Starting services...")
         for service_cls in self.services:
             self.cur_service = service_cls(self.socket_manager)
-            websocks = self.cur_service.get_sockets()
-            for sock in websocks:
+            for sock in self.cur_service.get_sockets():
                 self.socket_manager.register(sock)
 
             self.cur_service.service_start()
 
-            for sock in websocks:
+            for sock in self.cur_service.get_sockets():
                 self.socket_manager.unregister(sock)
 
