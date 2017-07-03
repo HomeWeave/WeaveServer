@@ -18,3 +18,4 @@ class ShellApp(BaseApplication):
         tiles = [build_tile_info(app) for app in self.apps]
         view = TileView(self.NAMESPACE, socketio, tiles)
         super().__init__(service, socketio, view)
+
