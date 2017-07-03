@@ -1,7 +1,7 @@
 """
 To write a new app:
-    1. Extend the class BaseApplication, import it below, and put it in the
-       APPS list below. Please use a folder for each app.
+    1. Extend the class BaseApplication,
+    2. Put the Class in the APPS list below
 """
 
 from .bluetooth import BluetoothApp
