@@ -28,3 +28,13 @@ class BaseApplication(object):
 
     def view(self):
         return self._view
+
+    def on_command(self, command):
+        # Pass all commands apps receive to the view.
+        try:
+            self._view.on_command(command)
+        except ValueError:
+            self.handle_command(command)
+
+    def handle_command(self, command):
+        pass

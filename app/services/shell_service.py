@@ -5,6 +5,9 @@ Exposes ShellService which has a purpose similar to a shell.
 from threading import Event
 import time
 
+import gevent
+
+from app.core.remotecontrol import RemoteControlServer, CommandsTranslator
 from app.views.root_view import RootView
 from app.views.wrapper_view import WrapperView
 from app.views.null_view import NullView
@@ -25,6 +28,12 @@ class ShellService(BaseService, BlockingServiceStart):
         view = self.build_view(socketio)
         super().__init__(view=view)
 
+        self.app_stack = []
+        self.quit_event = Event()
+        self.translator = CommandsTranslator(self)
+        self.remote_control = RemoteControlServer(self.translator)
+
+
     def build_view(self, socketio):
         top_view = NullView(self.NAMESPACE + "/top", socketio, msg="Top bar")
         front_app = self.apps_stack[-1]
@@ -33,5 +42,9 @@ class ShellService(BaseService, BlockingServiceStart):
         return root_view
 
     def on_service_start(self, *args, **kwargs):
+        gevent.spawn(self.remote_control.serve_forever)
         self.quit_event.wait()
+
+    def on_command(self, command):
+        return "OK" if self.apps_stack[-1].on_command(command) else "BAD"
 

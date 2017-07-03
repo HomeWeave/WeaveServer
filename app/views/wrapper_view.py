@@ -32,3 +32,6 @@ class WrapperView(BaseView):
     def html(self):
         return "{{{wrapped_view}}}" if self.wrapped_view is not None else ""
 
+    def on_command(self, command):
+        self.wrapped_view.on_command(command)
+

@@ -133,3 +133,6 @@ class BaseView(object):
         Returns the namespace of the main_socket.
         """
         return self.main_socket.namespace
+
+    def on_command(self, command):
+        pass
