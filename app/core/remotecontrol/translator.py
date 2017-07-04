@@ -7,7 +7,7 @@ every time a view changes.
 from uuid import uuid4
 
 
-STANDARD_ACTIONS = ["LEFT", "RIGHT", "CLICK"]
+STANDARD_ACTIONS = ["LEFT", "RIGHT", "CLICK", "BACK"]
 
 class CommandsTranslator(object):
     def __init__(self, service, actions=None):

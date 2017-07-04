@@ -34,10 +34,13 @@ class BaseApplication(object):
 
     def on_command(self, command):
         # Pass all commands apps receive to the view.
-        try:
-            self._view.on_command(command)
-        except ValueError:
-            self.handle_command(command)
+        chain = [self._view.on_command, self.handle_command]
+        for item in chain:
+            if item(command):
+                return True
 
     def handle_command(self, command):
-        pass
+        if command == "BACK":
+            self.service.exit_app(self)
+            return True
+

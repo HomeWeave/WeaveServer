@@ -52,13 +52,29 @@ class ShellService(BaseService, BlockingServiceStart):
         old_front_app = self.apps_stack[-1]
         new_front_app = app
         self.apps_stack.append(app)
+        self.replace_app(old_front_app, new_front_app)
 
+    def exit_app(self, app):
+        old_front_app = self.apps_stack[-1]
+        if app is not old_front_app:
+            return False
+
+        if len(self.apps_stack) <= 1:
+            return False #Can't exit ShellApp
+
+        new_front_app = self.apps_stack[-2]
+        del self.apps_stack[-1]
+        self.replace_app(old_front_app, new_front_app)
+
+    def replace_app(self, old_front_app, new_front_app):
         #Unregister old_front_app, and register new_front_app
         for sock in old_front_app.view().get_sockets():
             self.socketio.unregister(sock)
-        self.centre_view.set_wrapped_view(app.view())
+        self.centre_view.set_wrapped_view(new_front_app.view())
         for sock in new_front_app.view().get_sockets():
             self.socketio.register(sock)
         self.centre_view.notify_updates()
 
         new_front_app.start()
+
+

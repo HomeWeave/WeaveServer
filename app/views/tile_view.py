@@ -31,12 +31,12 @@ class TileView(BaseView):
         select_tile(tiles, self.selected_tile_index)
 
     def on_command(self, command):
+        if command not in ("LEFT", "RIGHT"):
+            return None
         if command == "LEFT":
             delta = -1
         elif command == "RIGHT":
             delta = 1
-        else:
-            raise ValueError
         self.selected_tile_index += len(self.tiles) + delta
         self.selected_tile_index %= len(self.tiles)
         select_tile(self.tiles, self.selected_tile_index)
