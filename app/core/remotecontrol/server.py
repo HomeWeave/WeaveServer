@@ -5,7 +5,7 @@ android device.
 import logging
 import json
 
-from gevent.server import StreamServer
+import eventlet
 
 
 logger = logging.getLogger(__name__)
@@ -16,14 +16,24 @@ def serialize_controls(data):
     return "ITEMS COMM " + actions
 
 
-class RemoteControlServer(StreamServer):
+#class RemoteControlServer(StreamServer):
+class RemoteControlServer(object):
     VERSION = "0.8"
     def __init__(self, service, host='0.0.0.0', port=15023):
-        super().__init__((host, port), self.on_connection)
+        self.server = eventlet.listen((host, port))
+        self.pool = eventlet.GreenPool()
         self.service = service
 
-    def on_connection(self, socket, addr):
-        inp = socket.makefile(mode='r')
+    def serve_forever(self):
+        while True:
+           try:
+               new_sock, address = self.server.accept()
+               logger.info("Client connected.")
+               self.pool.spawn_n(self.on_connection, new_sock.makefile('rw'))
+           except (SystemExit, KeyboardInterrupt):
+               break
+
+    def on_connection(self, inp):
         while True:
             line = inp.readline()
             if not line:
@@ -36,7 +46,8 @@ class RemoteControlServer(StreamServer):
 
             res = res.rstrip() + "\n"
             logger.info("Sending: " + res.strip() + " for " + line)
-            socket.sendall(res.encode())
+            inp.write(res)
+            inp.flush()
 
     def process(self, line):
         if line.strip() == "VERSION":

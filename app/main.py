@@ -7,7 +7,7 @@ View Manager.
 import signal
 from threading import Thread
 
-from gevent import monkey
+import eventlet
 from flask import Flask
 from flask_socketio import SocketIO
 
@@ -17,7 +17,7 @@ from .core.websocket_manager import WebSocketManager
 from .core.servicemanager import ServiceManager
 from .services import SERVICES
 
-monkey.patch_all(subprocess=False)
+eventlet.monkey_patch()
 
 class HomePiServer(object):
     """

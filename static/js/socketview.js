@@ -6,7 +6,10 @@ function createView(namespace, target, params) {
 	var args = null;
 	var innerViews = {};
 
-	var socket = io.connect('http://' + document.domain + ':' + location.port + namespace, {});
+	var socket = io.connect('http://' + document.domain + ':' + location.port + namespace, {
+		//transports: ['websocket']
+		rememberTransport: false
+	});
 
 	socket.on('connect', function(data) {
 		socket.emit('request_view', {});

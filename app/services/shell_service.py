@@ -5,7 +5,7 @@ Exposes ShellService which has a purpose similar to a shell.
 from threading import Event
 import time
 
-import gevent
+import eventlet
 
 from app.core.remotecontrol import RemoteControlServer, CommandsTranslator
 from app.views.root_view import RootView
@@ -42,7 +42,7 @@ class ShellService(BaseService, BlockingServiceStart):
 
     def on_service_start(self, *args, **kwargs):
         self.apps_stack[0].start()
-        gevent.spawn(self.remote_control.serve_forever)
+        eventlet.spawn(self.remote_control.serve_forever)
         Event().wait()
 
     def on_command(self, command):
