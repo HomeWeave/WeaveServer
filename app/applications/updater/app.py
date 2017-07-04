@@ -54,6 +54,8 @@ class UpdaterApp(BaseApplication):
 
             self.flash_message("Restarting...")
             do_reboot()
+        else:
+            self.flash_message("No updates found.")
 
     def flash_message(self, msg):
         self._view.view_args["subtitle"] = msg
