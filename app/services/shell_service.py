@@ -29,10 +29,8 @@ class ShellService(BaseService, BlockingServiceStart):
         view, self.centre_view, self.top_view = self.build_view(socketio)
         super().__init__(view=view)
 
-        self.app_stack = []
-        self.quit_event = Event()
-        self.translator = CommandsTranslator(self)
-        self.remote_control = RemoteControlServer(self.translator)
+        translator = CommandsTranslator(self)
+        self.remote_control = RemoteControlServer(translator)
 
 
     def build_view(self, socketio):
@@ -43,8 +41,9 @@ class ShellService(BaseService, BlockingServiceStart):
         return root_view, center_view, top_view
 
     def on_service_start(self, *args, **kwargs):
+        self.apps_stack[0].start()
         gevent.spawn(self.remote_control.serve_forever)
-        self.quit_event.wait()
+        Event().wait()
 
     def on_command(self, command):
         return "OK" if self.apps_stack[-1].on_command(command) else "BAD"
@@ -62,3 +61,4 @@ class ShellService(BaseService, BlockingServiceStart):
             self.socketio.register(sock)
         self.centre_view.notify_updates()
 
+        new_front_app.start()

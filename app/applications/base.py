@@ -29,6 +29,9 @@ class BaseApplication(object):
     def view(self):
         return self._view
 
+    def start(self):
+        pass
+
     def on_command(self, command):
         # Pass all commands apps receive to the view.
         try:
