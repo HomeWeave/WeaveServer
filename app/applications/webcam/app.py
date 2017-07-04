@@ -1,5 +1,7 @@
-from app.views import SimpleHeaderView
+from app.views import BaseView, BaseViewWebSocket
 from app.applications.base import BaseApplication
+from .view import WebcamView
+
 
 class WebcamApp(BaseApplication):
     ICON = "fa-camera"
@@ -9,6 +11,7 @@ class WebcamApp(BaseApplication):
     NAMESPACE = "/app/WebcamApp"
 
     def __init__(self, service, socketio):
-        view = SimpleHeaderView(self.NAMESPACE, socketio, "Webcam")
+        view = WebcamView(self.NAMESPACE, socketio, self)
         super().__init__(service, socketio, view)
+
 

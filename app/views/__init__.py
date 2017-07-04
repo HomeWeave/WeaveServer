@@ -7,4 +7,5 @@ from .simple_header_view import SimpleHeaderView
 from .null_view import NullView
 from .wrapper_view import WrapperView
 from .tile_view import TileView
+from .base_view import BaseView, BaseViewWebSocket
 
