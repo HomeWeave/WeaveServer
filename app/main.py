@@ -17,7 +17,7 @@ from .core.websocket_manager import WebSocketManager
 from .core.servicemanager import ServiceManager
 from .services import SERVICES
 
-monkey.patch_all()
+monkey.patch_all(subprocess=False)
 
 class HomePiServer(object):
     """
