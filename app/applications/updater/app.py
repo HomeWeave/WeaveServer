@@ -56,6 +56,6 @@ class UpdaterApp(BaseApplication):
             do_reboot()
 
     def flash_message(self, msg):
-        self._view.args["subtitle"] = msg
+        self._view.view_args["subtitle"] = msg
         self._view.notify_updates()
 
