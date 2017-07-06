@@ -8,5 +8,5 @@ if __name__ == '__main__':
 
     port = flask_app.config["PORT"]
 
-    sock_app.run(flask_app, host="", debug=True, use_reloader=False)
+    sock_app.run(flask_app, host="0.0.0.0", debug=True, use_reloader=False)
 
