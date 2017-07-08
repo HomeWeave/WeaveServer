@@ -5,3 +5,5 @@ eventlet
 flask-socketio
 GitPython
 pybluez
+BT-Manager
+dbus-python
