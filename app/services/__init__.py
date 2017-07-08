@@ -5,6 +5,7 @@ background thread.
 
 
 from .shell_service import ShellService
+from .bluetooth.service import BluetoothService
 
 
 SERVICES = [
