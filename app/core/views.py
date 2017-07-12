@@ -55,28 +55,12 @@ class BaseViewWebSocket(Namespace):
         with self.client_dict_lock:
             del self.clients[request.sid]
 
-    def on_request_view(self, *_):
-        """ Responds to the client with the latest HTML view."""
-        with self.client_dict_lock:
-            sock = self.clients[request.sid]
-        sock.send_message('view', self.create_full_data())
-
-    def create_full_data(self):
-        return {
-            "html": self.view.html(),
-            "args": self.view.args(),
-            "innerViews": self.view.inner_views()
-        }
-
-    def create_update_data(self):
-        return {"args": self.view.args()}
-
-    def notify_updates(self):
+    def notify_all(self, key, value):
         """ Informs all connected clients about change in the view. """
         with self.client_dict_lock:
             items = list(self.clients.items())
         for _, sock in items:
-            sock.send_message('view', self.create_update_data())
+            sock.send_message(key, value)
 
 
 class BaseView(object):
@@ -87,49 +71,15 @@ class BaseView(object):
     HTML_BASE_PATH = "templates"
 
     def __init__(self, main_socket):
-        self.view_args = {}
-        self.nested_views = {}
         self.main_socket = main_socket
-
-    def html(self):
-        """
-        Reads the file in HTML within HTML_BASE_PATH returns it.
-        """
-        with open(os.path.join(self.HTML_BASE_PATH, self.HTML)) as html:
-            return html.read()
-
-    def args(self):
-        return self.view_args
-
-    def inner_views(self):
-        res = {}
-        for name, view in self.nested_views.items():
-            res[name] = {
-                "namespace": view.get_namespace()
-            }
-        return res
-
-    def notify_updates(self):
-        if self.main_socket:
-            self.main_socket.notify_updates()
-
-    def add_inner_view(self, name, view):
-        #TODO: Must check if the name is already registered.
-        self.nested_views[name] = view
-
-    def remove_inner_view(self, name):
-        if name in self.nested_views:
-            del self.nested_views[name]
+        super().__init__()
 
     def get_sockets(self):
         """
-        Returns a list of sockets (more of channels) to register/un-register
+        Returns a generator of sockets to register/un-register
         when the view is active/inactive
         """
         yield self.main_socket
-        for _, nested_view in self.nested_views.items():
-            for sock in nested_view.get_sockets():
-                yield sock
 
     def get_namespace(self):
         """
@@ -137,5 +87,3 @@ class BaseView(object):
         """
         return self.main_socket.namespace
 
-    def on_command(self, command):
-        pass
