@@ -82,7 +82,8 @@ class ShellService(BaseService, BlockingServiceStart):
 
 
     def on_service_start(self, *args, **kwargs):
-        self.shell_app.start()
+        self.launch_app(self.shell_app)
+
         eventlet.spawn(self.translator.start)
         Event().wait()
 

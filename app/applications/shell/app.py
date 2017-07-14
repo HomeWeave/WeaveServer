@@ -46,8 +46,8 @@ class ShellWebSocket(BaseWebSocket):
         self.app = app
         super().__init__(namespace, socketio)
 
-    def on_get_apps(self):
-        self.reply('apps', self.app.tiles)
+    def on_get_apps(self, *args):
+        self.reply('apps', {"tiles": self.app.tiles})
 
     def notify_select(self, index):
         self.reply_all('selected', index)

@@ -1,7 +1,10 @@
 var Library = function(appInfo) {
     var libraries = {
         "basic": {
-            "template": Handlebars.compile,
+            "template": function(template, params) {
+                var compiled = Handlebars.compile(template);
+                return compiled(params);
+            },
             "Socket": function(params) {
                 return ViewSocket(appInfo.namespace, params);
             },
@@ -22,7 +25,7 @@ var Library = function(appInfo) {
             }, {});
             Object.keys(allFuncs).forEach(function(key) {
                 var func = allFuncs[key];
-                allFuncs[key] = caja.tame(caja.markXo4a(func));
+                allFuncs[key] = caja.tame(caja.markFunction(func));
             });
             return allFuncs;
         }
@@ -50,16 +53,19 @@ var ViewAnimator = {
 
 
 var ViewSocket = function(namespace, params) {
+    params.listeners = params.listeners || {};
+    params.initMsg = params.initMsg || 'first-dummy-message';
+
+    console.log("Connecting to: " + namespace);
     var socket = io.connect('http://' + document.domain + ':' + location.port + namespace, {
         //transports: ['websocket']
         rememberTransport: false
     });
 
     socket.on('connect', function(data) {
-        socket.emit('first-dummy-message', {});
+        socket.emit(params.initMsg, {});
     });
     
-    params.listeners = params.listeners || {};
     Object.keys(params.listeners).forEach(function(key) {
         var value = params.listeners[key];
         if (typeof value !== 'function') {
@@ -67,6 +73,7 @@ var ViewSocket = function(namespace, params) {
         }
         socket.on(key, value);
     });
+
     return {
         send: function(key, value) {
             socket.emit(key, value);
@@ -138,14 +145,14 @@ var Caja = function(appInfo, container) {
                 frame.run();
             });
         }
-    }
+    };
 }
 
 $(document).ready(function() {
     
     caja.initialize({
         es5Mode: true,
-        maxAcceptableSeverity: 'NO_KNOWN_EXPLOIT_SPEC_VIOLATION',
+        //maxAcceptableSeverity: 'NO_KNOWN_EXPLOIT_SPEC_VIOLATION',
         cajaServer: 'https://caja.appspot.com/',
         debug: true
     });
@@ -154,9 +161,6 @@ $(document).ready(function() {
 
     var socket = ViewSocket("/shell", {
         listeners: {
-            "apps": function (data) {
-                
-            },
             "active_apps": function(data) {
                 data.apps.forEach(function(app) {
                     viewManager.addApp(app);
@@ -166,7 +170,7 @@ $(document).ready(function() {
             "launch_app": function(data) {
                 alert("launching app.");
             }
-        }
+        },
+        initMsg: 'get_active_apps'
     });
-    socket.send("get_active_apps", {});
 });
