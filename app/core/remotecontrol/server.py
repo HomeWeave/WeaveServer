@@ -3,59 +3,63 @@ This module implements the basic gevent server that listens to user inputs from
 android device.
 """
 import logging
-import json
 
 import eventlet
+from eventlet.queue import LightQueue
 
 
 logger = logging.getLogger(__name__)
 
 
-def serialize_controls(data):
-    actions = ",".join("{x[name]};{x[id]}".format(x=act) for act in data)
-    return "ITEMS COMM " + actions
 
-
-#class RemoteControlServer(StreamServer):
 class RemoteControlServer(object):
-    VERSION = "0.8"
     def __init__(self, service, host='0.0.0.0', port=15023):
         self.server = eventlet.listen((host, port))
         self.pool = eventlet.GreenPool()
         self.service = service
+        self.out_queues = []
+
+    def start(self):
+        self.serve_forever()
+
+    def start_sender(self, conn, queue):
+        while True:
+            item = queue.get()
+            conn.write(item)
 
     def serve_forever(self):
         while True:
-           try:
-               new_sock, address = self.server.accept()
-               logger.info("Client connected.")
-               self.pool.spawn_n(self.on_connection, new_sock.makefile('rw'))
-           except (SystemExit, KeyboardInterrupt):
-               break
+            try:
+                new_sock, _ = self.server.accept()
+                logger.info("Client connected.")
 
-    def on_connection(self, inp):
+                queue = LightQueue()
+                self.out_queues.append(queue)
+
+                conn = new_sock.makefile("rw")
+                thread = self.pool.spawn_n(self.start_sender, conn, queue)
+                self.pool.spawn_n(self.start_receiver, conn, thread, queue)
+            except (SystemExit, KeyboardInterrupt):
+                break
+
+    def start_receiver(self, conn, thread, out_queue):
         while True:
-            line = inp.readline()
+            line = conn.readline()
             if not line:
                 logger.info("RemoteControl client disconnected.")
                 break
-            res = self.process(line)
+
+            res = self.service.process(line)
 
             if not res:
                 continue
 
             res = res.rstrip() + "\n"
             logger.info("Sending: " + res.strip() + " for " + line)
-            inp.write(res)
-            inp.flush()
+            out_queue.put(res)
+        thread.kill()
 
-    def process(self, line):
-        if line.strip() == "VERSION":
-            return "PISERVER " + self.VERSION
-        elif line.strip().startswith("REQUEST"):
-            return serialize_controls(self.service.get_controls())
-        elif line.strip().startswith("EXECUTE"):
-            return self.service.on_command(line.strip().split(" ")[1])
-        elif line.strip().startswith("OK"):
-            pass
-        logger.info("Bad line on TCP server: %s", line.strip())
+    def send_all(self, data):
+        for queue in self.out_queues:
+            queue.put(data)
+
