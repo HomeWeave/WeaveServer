@@ -10,6 +10,7 @@ from .webcam import WebcamApp
 from .gmail import GmailApp
 from .calendar import CalendarApp
 from .updater import UpdaterApp
+from .shell import ShellApp
 
 APPS = [
     BluetoothApp,

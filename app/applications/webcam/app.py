@@ -1,17 +1,15 @@
-from app.views import BaseView, BaseViewWebSocket
-from app.applications.base import BaseApplication
-from .view import WebcamView
+from app.core.base_app import BaseApp, BaseCommandsListener
+from app.core.base_app import BaseWebSocket
 
 
-class WebcamApp(BaseApplication):
+class WebcamApp(BaseApp):
     ICON = "fa-camera"
     NAME = "Webcam"
     DESCRIPTION = "Click photos from webcam."
 
-    NAMESPACE = "/app/WebcamApp"
-
     def __init__(self, service, socketio):
-        view = WebcamView(self.NAMESPACE, socketio, self)
-        super().__init__(service, socketio, view)
+        socket = BaseWebSocket("/app/webcam", socketio)
+        listener = BaseCommandsListener()
+        super().__init__(socket, listener)
 
 

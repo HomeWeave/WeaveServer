@@ -5,28 +5,29 @@ System Updates
 from functools import partial
 import logging
 
-from app.applications.base import BaseApplication
+from app.core.base_app import BaseApp, BaseCommandsListener
+from app.core.base_app import BaseWebSocket
 from app.system.updater import check_updates, run_ansible
 from app.system.updater import do_reboot
-from app.views import SimpleHeaderView
 
 
 logger = logging.getLogger(__name__)
 
-class UpdaterApp(BaseApplication):
+class UpdaterApp(BaseApp):
     NAME = "System Updates"
     DESCRIPTION = "Check for System Updates."
     ICON = "fa-arrow-circle-o-up"
 
 
-    NAMESPACE = "/app/UpdaterApp"
-
     def __init__(self, service, socketio):
-        view = SimpleHeaderView(self.NAMESPACE, socketio, "Checking for updates")
-        super().__init__(service, socketio, view)
-
+        socket = BaseWebSocket("/app/updater", socketio)
+        listener = BaseCommandsListener()
+        super().__init__(socket, listener)
 
     def start(self):
+        pass
+
+    def start1(self):
         """
         Calls check_updates() and then repo.pull() on each of the repo instance
         while pushing the information out to the view.

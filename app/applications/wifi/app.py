@@ -1,15 +1,14 @@
-from app.views import SimpleHeaderView
-from app.applications.base import BaseApplication
+from app.core.base_app import BaseApp, BaseCommandsListener
+from app.core.base_app import BaseWebSocket
 
 
-class WifiApp(BaseApplication):
+class WifiApp(BaseApp):
     NAME = "WiFi"
     ICON = "fa-wifi"
     DESCRIPTION = "Connect to Wifi network"
 
-    NAMESPACE = "/app/WifiApp"
-
     def __init__(self, service, socketio):
-        view = SimpleHeaderView(self.NAMESPACE, socketio, "Wifi")
-        super().__init__(service, socketio, view)
+        socket = BaseWebSocket("/app/wifi", socketio)
+        listener = BaseCommandsListener()
+        super().__init__(socket, listener)
 

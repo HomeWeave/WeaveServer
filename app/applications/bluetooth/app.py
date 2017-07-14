@@ -1,14 +1,13 @@
-from app.views import SimpleHeaderView
-from app.applications.base import BaseApplication
+from app.core.base_app import BaseApp, BaseCommandsListener
+from app.core.base_app import BaseWebSocket
 
-class BluetoothApp(BaseApplication):
+class BluetoothApp(BaseApp):
     ICON = "fa-bluetooth"
     NAME = "Bluetooth"
     DESCRIPTION = "Connect to Bluetooth devices."
 
-    NAMESPACE = "/app/BluetoothApp"
-
     def __init__(self, service, socketio):
-        view = SimpleHeaderView(self.NAMESPACE, socketio, "Bluetooth")
-        super().__init__(service, socketio, view)
+        socket = BaseWebSocket("/app/bluetooth", socketio)
+        listener = BaseCommandsListener()
+        super().__init__(socket, listener)
 
