@@ -49,10 +49,6 @@ class ShellWebSocket(BaseWebSocket):
     def on_get_apps(self):
         self.reply('apps', self.app.tiles)
 
-    def on_get_html(self):
-        with open(self.app.get_file("static/index.html")) as inp:
-            return inp.read()
-
     def notify_select(self, index):
         self.reply_all('selected', index)
 
@@ -70,6 +66,10 @@ class ShellApp(BaseApp):
         self.selected_index = 0
         self.tiles = [build_tile_info(x) for x in self.apps]
         select_tile(self.tiles, self.selected_index)
+
+    def html(self):
+        with open(self.get_file("static/index.html")) as inp:
+            return inp.read()
 
     def handle_click(self):
         tile = self.tiles[self.selected_index]

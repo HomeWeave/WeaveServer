@@ -1,15 +1,40 @@
-<div class="col-lg-12 col-md-12 col-sm-3">
-{{#tiles}}
-	<div class="col-lg-3 col-md-3 col-sm-3 {{#selected}}selected-background{{/selected}}" style="padding: 10px">
-		<div style="font-size: 30px; padding:20px 10px 20px 10px" class="pull-left">
-			<i class="fa {{icon}}" />
-		</div>
-		<div class="pull-left">
-			<h2 style="margin-bottom: 2px">{{name}}</h2>
-			{{description}}
-		</div>
-		
+<html>
+<body>
+	<div id="page-wrapper">
+		temp
 	</div>
-{{/tiles}}
-</div>
+	<div style="display:none" id="tile-template">
+	<div class="col-lg-12 col-md-12 col-sm-3">
+	{{#tiles}}
+		<div class="col-lg-3 col-md-3 col-sm-3 {{#selected}}selected-background{{/selected}}" style="padding: 10px">
+			<div style="font-size: 30px; padding:20px 10px 20px 10px" class="pull-left">
+				<i class="fa {{icon}}" />
+			</div>
+			<div class="pull-left">
+				<h2 style="margin-bottom: 2px">{{name}}</h2>
+				{{description}}
+			</div>
+		</div>
+	{{/tiles}}
+	</div>
+	</div>
 
+	<script type="text/javascript" src="http://ajax.googleapis.com/ajax/libs/jquery/1.9.0/jquery.min.js"></script>
+	<script type="text/javascript">
+	document.addEventListener("DOMContentLoaded", function() {
+		log("script ran!");
+		var templateHTML = document.getElementById('tile-template').innerHTML;
+		var socket = Socket({
+			listeners: {
+				"apps": function (data) {
+					var compiled = template(templateHTML);
+	                var html = compiled(data.tiles);
+	                document.getElementById("page-content").innerHTML = html;
+				}
+			}
+		});
+		socket.send("get_apps", {});
+	});
+	</script>
+</body>
+</html>

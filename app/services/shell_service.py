@@ -14,9 +14,11 @@ from app.applications import ShellApp
 from .base import BaseService, BlockingServiceStart
 
 
-def build_ap_info(app):
+def build_app_info(app):
     return {
+        "id": app.name(),
         "name": app.name(),
+        "html": app.html(),
         "namespace": app.get_namespace()
     }
 
@@ -54,8 +56,12 @@ class ShellServiceWebSocket(BaseWebSocket):
     def notify_switch_app(self, app):
         self.reply_all('switch', app.name())
 
-    def on_get_apps(self):
-        self.reply_all('apps', self.service.get_active_apps())
+    def on_get_active_apps(self, *args):
+        res = {
+            "apps": self.service.get_active_apps(),
+            "activeAppId": self.service.apps_stack[-1].name()
+        }
+        self.reply_all('active_apps', res)
 
 class ShellService(BaseService, BlockingServiceStart):
     """ A basic shell. """
@@ -91,6 +97,9 @@ class ShellService(BaseService, BlockingServiceStart):
         yield from self.listener.list_commands()
         if self.apps_stack:
             yield from self.apps_stack[-1].list_commands()
+
+    def get_active_apps(self):
+        return [build_app_info(app) for app in self.apps_stack]
 
     def launch_app(self, app):
         # Todo: Perhaps "pause" old front app?
