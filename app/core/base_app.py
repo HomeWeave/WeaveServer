@@ -96,7 +96,10 @@ class BaseApp(object):
         self.command_listener = command_listener
 
     def name(self):
-        return self.NAME or self.__class__.__name__
+        return self.NAME or self.id()
+
+    def id(self):
+        return self.__class__.__module__ + "." + self.__class__.__name__
 
     def icon(self):
         return self.ICON

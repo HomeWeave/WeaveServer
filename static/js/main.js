@@ -101,25 +101,25 @@ var ViewManager = function(selector) {
         clickBar: 1,
     }).init();
     
-    var appsMap = {};
+    function findAppElem(appId) {
+        return $(selector + ' li[data-appid~="' + appId + '"]')[0];
+    }
+
     var appTemplate = Handlebars.compile($("#application-wrap-template").html());
-            
+
     return {
         activateApp: function(appId) {
-            var appInfo = appsMap[appId];
-            if (appInfo === undefined) {
-                return false;
-            }
-
-            var elem = $(selector + " li[data-appid=" + appInfo.id + "]")[0];
+            var elem = findAppElem(appId);
             if (elem === undefined) {
                 return false;
             }
-
             sly.activate(elem);
         },
         addApp: function(appInfo, caja) {
-            appsMap[appInfo.id] = appInfo;
+            var elem = findAppElem(appInfo.id);
+            if (elem !== undefined) {
+                sly.remove(elem);
+            }
 
             var html = appTemplate(appInfo);
             var nodes = $.parseHTML($.trim(html));
@@ -130,10 +130,15 @@ var ViewManager = function(selector) {
 
             var cajaObj = Caja(appInfo, container);
             cajaObj.load();
-            console.log("application loaded.", appInfo);
+            console.log("Application loaded:", appInfo.name);
         },
         removeApp: function(appId) {
-            delete appsMap[appId];
+            var elem = findAppElem(appInfo.id);
+            if (elem === undefined) {
+                return false;
+            }
+            sly.remove(elem);
+            return true;
         }
     }
 };
@@ -145,7 +150,7 @@ var Caja = function(appInfo, container) {
 
     return {
         load: function() {
-            caja.load(container, uriPolicy, function(frame) {
+            caja.load(container, caja.policy.net.ALL, function(frame) {
                 frame.code("/", 'text/html', appInfo.html);
                 frame.api(Library(caja, appInfo));
                 frame.run();
@@ -168,14 +173,17 @@ $(document).ready(function() {
     var socket = ViewSocket("/shell", {
         listeners: {
             "active_apps": function(data) {
-                console.log("Active apps", data);
                 data.apps.forEach(function(app) {
                     viewManager.addApp(app);
                 });
                 viewManager.activateApp(data.activeAppId);
             },
             "launch_app": function(data) {
-                alert("launching app.");
+                viewManager.addApp(data);
+                viewManager.activateApp(data.appId);
+            },
+            "activate_app": function(data) {
+                viewManager.activateApp(data.appId);
             }
         },
         initMsg: 'get_active_apps'

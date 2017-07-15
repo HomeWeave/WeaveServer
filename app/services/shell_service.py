@@ -16,7 +16,7 @@ from .base import BaseService, BlockingServiceStart
 
 def build_app_info(app):
     return {
-        "id": app.name(),
+        "id": app.id(),
         "name": app.name(),
         "html": app.html(),
         "namespace": app.get_namespace()
@@ -51,15 +51,15 @@ class ShellServiceWebSocket(BaseWebSocket):
         self.service = service
 
     def notify_launch_app(self, app):
-        self.reply_all('launch', app.name())
+        self.reply_all('launch', app.id())
 
     def notify_switch_app(self, app):
-        self.reply_all('switch', app.name())
+        self.reply_all('switch', app.id())
 
     def on_get_active_apps(self, *args):
         res = {
             "apps": self.service.get_active_apps(),
-            "activeAppId": self.service.apps_stack[-1].name()
+            "activeAppId": self.service.apps_stack[-1].id()
         }
         self.reply_all('active_apps', res)
 
