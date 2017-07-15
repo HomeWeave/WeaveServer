@@ -110,14 +110,21 @@ var ViewManager = function(selector) {
             if (appInfo === undefined) {
                 return false;
             }
+
+            var elem = $(selector + " li[data-appid=" + appInfo.id + "]")[0];
+            if (elem === undefined) {
+                return false;
+            }
+
+            sly.activate(elem);
         },
         addApp: function(appInfo, caja) {
             appsMap[appInfo.id] = appInfo;
 
             var html = appTemplate(appInfo);
-            var nodes = $.parseHTML($.trim(html));000
-            $(selector + ' ul').append(nodes);
+            var nodes = $.parseHTML($.trim(html));
 
+            sly.add(nodes[0])
 
             var container = nodes[0].querySelector(".application-wrap");
 
