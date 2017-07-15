@@ -1,37 +1,53 @@
 <html>
+<head>
+	<style>
+	.app-tile-border {
+		border-color: white;
+		background-color: rgba(0, 0, 0, 0);
+		z-index: 200;
+	}
+	</style>
+</head>
+
 <body>
 	<div id="page-wrapper">
 		temp
 	</div>
 	<div style="display:none" id="tile-template">
-	<div class="col-lg-12 col-md-12 col-sm-3">
-	{{#tiles}}
-		<div class="col-lg-3 col-md-3 col-sm-3 {{#selected}}selected-background{{/selected}}" style="padding: 10px">
-			<div style="font-size: 30px; padding:20px 10px 20px 10px" class="pull-left">
-				<i class="fa {{icon}}" />
-			</div>
-			<div class="pull-left">
-				<h2 style="margin-bottom: 2px">{{name}}</h2>
-				{{description}}
-			</div>
+		<div id="selected-box" class="app-tile-border">
 		</div>
-	{{/tiles}}
-	</div>
+		<div class="col-lg-12 col-md-12 col-sm-3">
+		{{#tiles}}
+			<div class="col-lg-3 col-md-3 col-sm-3 app-tile {{#selected}}selected-background{{/selected}}" style="padding: 10px">
+				<div style="font-size: 30px; padding:20px 10px 20px 10px" class="pull-left">
+					<i class="fa {{icon}}" />
+				</div>
+				<div class="pull-left">
+					<h2 style="margin-bottom: 2px">{{name}}</h2>
+					{{description}}
+				</div>
+			</div>
+		{{/tiles}}
+		</div>
 	</div>
 
 	<script type="text/javascript">
-	document.addEventListener("DOMContentLoaded", function() {
+	window.onload = function() {
 		var templateHTML = document.getElementById('tile-template').innerHTML;
 		var socket = Socket({
 			listeners: {
 				"apps": function (data) {
-					var html = template(templateHTML, data);
+					var compiled = template(templateHTML);
+					var html = compiled(data);
 					document.getElementById("page-wrapper").innerHTML = html;
+				},
+				"move": function (data) {
+					return;
 				}
 			},
 			initMsg: 'get_apps'
 		});
-	});
+	};
 	</script>
 </body>
 </html>
