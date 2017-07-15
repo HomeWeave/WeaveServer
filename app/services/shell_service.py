@@ -75,7 +75,7 @@ class ShellService(BaseService, BlockingServiceStart):
 
         self.apps = [cls(self, socketio) for cls in APPS]
         self.shell_app = ShellApp(self, self.apps, socketio)
-        self.apps_stack = [self.shell_app]
+        self.apps_stack = []
 
         self.listener = ShellBackgroundCommandsListener(self)
         self.translator = CommandsTranslator(self)
