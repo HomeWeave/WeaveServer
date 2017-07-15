@@ -1,35 +1,36 @@
-var Library = function(appInfo) {
+var Library = function(caja, appInfo) {
     var libraries = {
         "basic": {
-            "template": function(template, params) {
+            "template": function(template) {
                 var compiled = Handlebars.compile(template);
-                return compiled(params);
+                caja.markFunction(compiled);
+                return compiled;
             },
             "Socket": function(params) {
-                return ViewSocket(appInfo.namespace, params);
+                var sock = ViewSocket(appInfo.namespace, params);
+                caja.markFunction(sock.send);
+                return sock;
             },
-            "alert": alert,
+            "alert": function() {
+                alert("[" + appInfo.name + "]" + arguments[0])
+            },
             "log": function() {
                  console.log.apply(console, arguments);
             }
         }
     };
     var allowed = ["basic"];
-    return {
-        get: function(caja) {
-            var allFuncs = allowed.map(function(x) {
-                return libraries[x];
-            }).reduce(function(state, item) {
-                Object.assign(state, item);
-                return state;
-            }, {});
-            Object.keys(allFuncs).forEach(function(key) {
-                var func = allFuncs[key];
-                allFuncs[key] = caja.tame(caja.markFunction(func));
-            });
-            return allFuncs;
-        }
-    }
+    var allFuncs = allowed.map(function(x) {
+        return libraries[x];
+    }).reduce(function(state, item) {
+        Object.assign(state, item);
+        return state;
+    }, {});
+    Object.keys(allFuncs).forEach(function(key) {
+        var func = allFuncs[key];
+        allFuncs[key] = caja.tame(caja.markFunction(func));
+    });
+    return allFuncs;
 }
 
 
@@ -82,7 +83,7 @@ var ViewSocket = function(namespace, params) {
 }
 
 var ViewManager = function(selector) {
-    sly = new Sly(selector, {
+    var sly = new Sly(selector, {
         horizontal: 1,
         itemNav: 'forceCentered',
         smart: 1,
@@ -98,17 +99,14 @@ var ViewManager = function(selector) {
         dragHandle: 1,
         dynamicHandle: 1,
         clickBar: 1,
-    });
+    }).init();
     
     var appsMap = {};
     var appTemplate = Handlebars.compile($("#application-wrap-template").html());
             
     return {
-        init: function() {
-            return sly.init();
-        },
-        activateApp: function(appName) {
-            var appInfo = appsMap[appName];
+        activateApp: function(appId) {
+            var appInfo = appsMap[appId];
             if (appInfo === undefined) {
                 return false;
             }
@@ -124,7 +122,8 @@ var ViewManager = function(selector) {
             var container = nodes[0].querySelector(".application-wrap");
 
             var cajaObj = Caja(appInfo, container);
-            cajaObj.load();            
+            cajaObj.load();
+            console.log("application loaded.", appInfo);
         },
         removeApp: function(appId) {
             delete appsMap[appId];
@@ -141,7 +140,7 @@ var Caja = function(appInfo, container) {
         load: function() {
             caja.load(container, uriPolicy, function(frame) {
                 frame.code("/", 'text/html', appInfo.html);
-                frame.api(Library(appInfo).get(caja));
+                frame.api(Library(caja, appInfo));
                 frame.run();
             });
         }
@@ -157,11 +156,12 @@ $(document).ready(function() {
         debug: true
     });
 
-    var viewManager = ViewManager("#oneperframe");
+    viewManager = ViewManager("#oneperframe");
 
     var socket = ViewSocket("/shell", {
         listeners: {
             "active_apps": function(data) {
+                console.log("Active apps", data);
                 data.apps.forEach(function(app) {
                     viewManager.addApp(app);
                 });
