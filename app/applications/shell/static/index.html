@@ -2,7 +2,10 @@
 <head>
 	<style>
 	.app-tile-border {
+		position: absolute;
 		border-color: white;
+		border-style: 5px solid;
+		border-radius: 5px;
 		background-color: rgba(0, 0, 0, 0);
 		z-index: 200;
 	}
@@ -11,19 +14,22 @@
 
 <body>
 	<div id="page-wrapper">
-		temp
+		<div style="text-align: center">
+		<i class="fa fa-circle-o-notch fa-spin fa-3x"></i>
+		</div>
 	</div>
 	<div style="display:none" id="tile-template">
 		<div id="selected-box" class="app-tile-border">
+			
 		</div>
 		<div class="col-lg-12 col-md-12 col-sm-3">
 		{{#tiles}}
-			<div class="col-lg-3 col-md-3 col-sm-3 app-tile {{#selected}}selected-background{{/selected}}" style="padding: 10px">
+			<div class="col-lg-3 col-md-3 col-sm-3 app-tile" data-appid="{{id}}" style="padding: 10px">
 				<div style="font-size: 30px; padding:20px 10px 20px 10px" class="pull-left">
 					<i class="fa {{icon}}" />
 				</div>
 				<div class="pull-left">
-					<h2 style="margin-bottom: 2px">{{name}}</h2>
+					<h2 style="margin-top: 5px; margin-bottom: 2px">{{name}}</h2>
 					{{description}}
 				</div>
 			</div>
@@ -31,23 +37,61 @@
 		</div>
 	</div>
 
+	<script src="https://code.jquery.com/jquery-1.9.1.min.js"></script>
 	<script type="text/javascript">
-	window.onload = function() {
-		var templateHTML = document.getElementById('tile-template').innerHTML;
+	var movement = (function() {
+		var highlight = function(elem) {
+			var box = $("#selected-box");
+			var margin = -5;
+			var rect = elem[0].getBoundingClientRect();
+			box.animate({
+				left: rect.left,
+				top: rect.top,
+				width: rect.right - rect.left,
+				height: rect.bottom - rect.top,
+			}, 200);
+		}
+
+		function findAppElem(appId) {
+			var selector = '.app-tile[data-appid~="' + appId + '"]';
+			return $(selector);
+		}
+
+		return {
+			init: function() {
+				
+			},
+			move: function(appId) {
+				var elem = findAppElem(appId);
+				if (elem.length == 0) {
+					return;
+				}
+				highlight(elem);
+			}
+		}
+	})();
+
+
+	$(document).ready(function() {
+		var templateHTML = $('#tile-template').html();
 		var socket = Socket({
 			listeners: {
 				"apps": function (data) {
 					var compiled = template(templateHTML);
 					var html = compiled(data);
-					document.getElementById("page-wrapper").innerHTML = html;
+
+					var wrapper = $("#page-wrapper");
+					wrapper.hide();
+					wrapper.html(html);
+					wrapper.fadeIn();
 				},
-				"move": function (data) {
-					return;
+				"selected": function (data) {
+					movement.move(data.appId);
 				}
 			},
 			initMsg: 'get_apps'
 		});
-	};
+	});
 	</script>
 </body>
 </html>
