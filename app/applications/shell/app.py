@@ -84,6 +84,7 @@ class ShellApp(BaseApp):
     def handle_click(self):
         tile = self.tiles[self.selected_index]
         app = self.apps_map[tile["id"]]
+        logger.info("Launching app: %s", app.name())
         self.service.launch_app(app)
 
     def handle_left(self):

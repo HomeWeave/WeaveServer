@@ -3,6 +3,8 @@ Exposes ShellService which has a purpose similar to a shell.
 """
 
 
+import logging
+
 import eventlet
 from eventlet.event import Event
 
@@ -13,6 +15,8 @@ from app.applications import APPS
 from app.applications import ShellApp
 from .base import BaseService, BlockingServiceStart
 
+
+logger = logging.getLogger(__name__)
 
 def build_app_info(app):
     return {
