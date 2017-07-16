@@ -15,7 +15,6 @@ logger = logging.getLogger(__name__)
 class RemoteControlServer(object):
     def __init__(self, service, host='0.0.0.0', port=15023):
         self.server = eventlet.listen((host, port))
-        self.pool = eventlet.GreenPool()
         self.service = service
         self.out_queues = []
 
@@ -26,6 +25,7 @@ class RemoteControlServer(object):
         while True:
             item = queue.get()
             conn.write(item)
+            conn.flush()
 
     def serve_forever(self):
         while True:
@@ -37,8 +37,8 @@ class RemoteControlServer(object):
                 self.out_queues.append(queue)
 
                 conn = new_sock.makefile("rw")
-                thread = self.pool.spawn_n(self.start_sender, conn, queue)
-                self.pool.spawn_n(self.start_receiver, conn, thread, queue)
+                thread = eventlet.spawn_n(self.start_sender, conn, queue)
+                eventlet.spawn_n(self.start_receiver, conn, thread, queue)
             except (SystemExit, KeyboardInterrupt):
                 break
 

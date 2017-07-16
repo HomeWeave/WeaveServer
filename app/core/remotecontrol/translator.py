@@ -65,4 +65,5 @@ class CommandsTranslator(object):
         return "OK" if self.service.on_command(command["cmd"]) else "BAD"
 
     def start(self):
+        self.map = build_new_map(self.service.list_commands())
         self.server.start()
