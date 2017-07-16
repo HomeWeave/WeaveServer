@@ -13,7 +13,8 @@ logger = logging.getLogger(__name__)
 
 
 class UpdaterWebSocket(BaseWebSocket):
-    def __init__(self, app, socketio):
+    def __init__(self, namespace, socketio, app):
+        super().__init__("/app/updater", socketio)
         self.app = app
         self.socketio = socketio
 
@@ -30,7 +31,7 @@ class UpdaterApp(BaseApp):
 
 
     def __init__(self, service, socketio):
-        self.socket = UpdaterWebSocket("/app/updater", socketio)
+        self.socket = UpdaterWebSocket(socketio, self)
         super().__init__(self.socket, BaseCommandsListener())
 
         self.check_updates = service.api(self, "check_updates")
