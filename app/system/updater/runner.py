@@ -110,19 +110,14 @@ def check_updates(progress=None):
     return res
 
 
+def do_update():
+    pass
+
 def run_ansible():
     logger.info("Running ansible")
     run_ansible_path = os.path.join(SCRIPTS_DIR, "run_ansible.sh")
     args = [run_ansible_path]
     with subprocess.Popen(args) as proc:
-        proc.wait()
-        return proc.returncode
-
-def do_reboot():
-    logger.info("Running reboot script..")
-    reboot_path = os.path.join(SCRIPTS_DIR, "reboot.sh")
-    args = [reboot_path]
-    with subprocess.Popen(args)  as proc:
         proc.wait()
         return proc.returncode
 

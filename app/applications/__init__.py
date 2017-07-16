@@ -10,11 +10,13 @@ from .gmail import GmailApp
 from .calendar import CalendarApp
 from .updater import UpdaterApp
 from .shell import ShellApp
+from .power import SystemPowerApp
 
 APPS = [
     WebcamApp,
     GmailApp,
     CalendarApp,
     SettingsApp,
-    UpdaterApp
+    UpdaterApp,
+    SystemPowerApp
 ]

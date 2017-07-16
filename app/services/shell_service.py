@@ -13,6 +13,7 @@ from app.core.base_app import BaseCommandsListener
 from app.core.base_app import BaseWebSocket
 from app.applications import APPS
 from app.applications import ShellApp
+from app.system import ModuleManager
 from .base import BaseService, BlockingServiceStart
 
 
@@ -36,10 +37,6 @@ class ShellBackgroundCommandsListener(BaseCommandsListener):
             "name": "Home",
             "cmd": "home",
         },
-        {
-            "name": "Restart",
-            "cmd": "restart",
-        }
     ]
 
     def __init__(self, service):
@@ -60,9 +57,6 @@ class ShellBackgroundCommandsListener(BaseCommandsListener):
 
     def handle_home(self):
         self.service.switch_app(self.service.shell_app)
-
-    def handle_restart(self):
-        pass
 
 
 class ShellServiceWebSocket(BaseWebSocket):
@@ -89,6 +83,8 @@ class ShellService(BaseService, BlockingServiceStart):
 
     def __init__(self, socketio):
         super().__init__()
+        self.module_manager = ModuleManager()
+
         self.socketio = socketio
 
         self.main_socket = ShellServiceWebSocket(self, socketio)
@@ -100,6 +96,7 @@ class ShellService(BaseService, BlockingServiceStart):
 
         self.listener = ShellBackgroundCommandsListener(self)
         self.translator = CommandsTranslator(self)
+
 
 
     def on_service_start(self, *args, **kwargs):
@@ -163,4 +160,7 @@ class ShellService(BaseService, BlockingServiceStart):
 
         self.main_socket.notify_switch_app(new_front_app)
         self.translator.refresh()
+
+    def api(self, app, name):
+        return self.module_manager.get(app, name)
 
