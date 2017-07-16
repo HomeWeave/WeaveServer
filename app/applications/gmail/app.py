@@ -7,7 +7,7 @@ class GmailApp(BaseApp):
     DESCRIPTION = "Read emails."
 
     def __init__(self, service, socketio):
-        socket = BaseWebSocket("/app/calendar", socketio)
+        socket = BaseWebSocket("/app/gmail", socketio)
         listener = BaseCommandsListener()
         super().__init__(socket, listener)
 
