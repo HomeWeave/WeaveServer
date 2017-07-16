@@ -61,6 +61,7 @@ class CommandsTranslator(object):
     def on_command(self, command_id):
         command = self.translate_command(command_id)
         if command is None:
+            logger.error("Unable to translate command: %s.", command_id)
             return "BAD"
         return "OK" if self.service.on_command(command["cmd"]) else "BAD"
 

@@ -23,8 +23,8 @@ class RemoteControlServer(object):
 
     def start_sender(self, conn, queue):
         while True:
-            item = queue.get()
-            conn.write(item)
+            item = queue.get().strip()
+            conn.write(item + "\n")
             conn.flush()
 
     def serve_forever(self):
@@ -54,7 +54,6 @@ class RemoteControlServer(object):
             if not res:
                 continue
 
-            res = res.rstrip() + "\n"
             out_queue.put(res)
         thread.kill()
 
