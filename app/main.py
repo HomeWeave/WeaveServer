@@ -17,7 +17,7 @@ from .core.websocket_manager import WebSocketManager
 from .core.servicemanager import ServiceManager
 from .services import SERVICES
 
-eventlet.monkey_patch(subprocess=False)
+eventlet.monkey_patch()
 
 class HomePiServer(object):
     """
