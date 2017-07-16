@@ -111,11 +111,17 @@ var ViewManager = function(selector) {
         activateApp: function(appId) {
             var elem = findAppElem(appId);
             if (elem === undefined) {
+                console.log("No app: " + appId + " to activate.");
                 return false;
             }
             sly.activate(elem);
         },
-        addApp: function(appInfo, caja) {
+        listApps: function() {
+            return $(selector + " li[data-appid]").map(function() {
+                return $(this).data("appid");
+            });
+        },
+        addApp: function(appInfo, onLoadFunc) {
             var elem = findAppElem(appInfo.id);
             if (elem !== undefined) {
                 sly.remove(elem);
@@ -129,7 +135,7 @@ var ViewManager = function(selector) {
             var container = nodes[0].querySelector(".application-wrap");
 
             var cajaObj = Caja(appInfo, container);
-            cajaObj.load();
+            cajaObj.load(onLoadFunc);
             console.log("Application loaded:", appInfo.name);
         },
         removeApp: function(appId) {
@@ -149,11 +155,15 @@ var Caja = function(appInfo, container) {
     };
 
     return {
-        load: function() {
+        load: function(onLoadFunc) {
             caja.load(container, caja.policy.net.ALL, function(frame) {
                 frame.code("/", 'text/html', appInfo.html);
                 frame.api(Library(caja, appInfo));
                 frame.run();
+
+                if (onLoadFunc !== undefined) {
+                    onLoadFunc();
+                }
             });
         }
     };
@@ -163,7 +173,6 @@ $(document).ready(function() {
     
     caja.initialize({
         es5Mode: true,
-        //maxAcceptableSeverity: 'NO_KNOWN_EXPLOIT_SPEC_VIOLATION',
         cajaServer: 'https://caja.appspot.com/',
         debug: true
     });
@@ -179,11 +188,13 @@ $(document).ready(function() {
                 viewManager.activateApp(data.activeAppId);
             },
             "launch_app": function(data) {
-                viewManager.addApp(data);
-                viewManager.activateApp(data.appId);
+                viewManager.addApp(data, function() {
+                    console.log(data);
+                    viewManager.activateApp(data.id);
+                });
             },
             "activate_app": function(data) {
-                viewManager.activateApp(data.appId);
+                viewManager.activateApp(data.id);
             }
         },
         initMsg: 'get_active_apps'

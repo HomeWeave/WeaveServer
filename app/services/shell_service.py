@@ -67,10 +67,10 @@ class ShellServiceWebSocket(BaseWebSocket):
         self.service = service
 
     def notify_launch_app(self, app):
-        self.reply_all('launch', app.id())
+        self.reply_all('launch_app', build_app_info(app))
 
     def notify_switch_app(self, app):
-        self.reply_all('switch', app.id())
+        self.reply_all('activate_app', build_app_info(app))
 
     def on_get_active_apps(self, *args):
         res = {
@@ -78,6 +78,7 @@ class ShellServiceWebSocket(BaseWebSocket):
             "activeAppId": self.service.apps_stack[-1].id()
         }
         self.reply_all('active_apps', res)
+
 
 class ShellService(BaseService, BlockingServiceStart):
     """ A basic shell. """
@@ -119,7 +120,7 @@ class ShellService(BaseService, BlockingServiceStart):
         return [build_app_info(app) for app in self.apps_stack]
 
     def launch_app(self, app):
-        # Todo: Perhaps "pause" old front app?
+        # Todo: Perhaps "app.pause()" old front app?
         # Todo: Check if its already in the apps_stack.
 
         new_front_app = app
@@ -131,6 +132,13 @@ class ShellService(BaseService, BlockingServiceStart):
         new_front_app.start()
 
         self.main_socket.notify_launch_app(new_front_app)
+        self.translator.refresh()
+
+    def switch_app(self, app):
+        self.apps_stack.remove(app)
+        self.apps_stack.append(app)
+        self.main_socket.notify_switch_app(app)
+        self.translator.refresh()
 
     def exit_app(self):
         old_front_app = self.apps_stack[-1]
@@ -150,3 +158,5 @@ class ShellService(BaseService, BlockingServiceStart):
             self.socketio.unregister(sock)
 
         self.main_socket.notify_switch_app(new_front_app)
+        self.translator.refresh()
+
