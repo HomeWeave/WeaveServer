@@ -18,6 +18,9 @@ class UpdaterWebSocket(BaseWebSocket):
         self.app = app
         self.socketio = socketio
 
+    def on_check(self, *args):
+        self.app.start_check()
+
     def notify_status(self, status):
         self.reply_all('status', {"status": status})
 
@@ -37,6 +40,13 @@ class UpdaterApp(BaseApp):
         self.check_updates = service.api(self, "check_updates")
 
     def start(self):
+        pass
+
+    def html(self):
+        with open(self.get_file("static/index.html")) as inp:
+            return inp.read()
+
+    def start_check(self):
         """
         Calls check_updates() and then repo.pull() on each of the repo instance
         while pushing the information out to the view.
