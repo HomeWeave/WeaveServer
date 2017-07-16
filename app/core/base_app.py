@@ -129,7 +129,7 @@ class BaseApp(object):
         Applications must override this function such that it returns the HTML string
         of the app.
         """
-        return ""
+        return self.id()
 
     def start(self):
         pass
@@ -137,4 +137,10 @@ class BaseApp(object):
     def get_file(self, path):
         app_file = sys.modules[self.__class__.__module__].__file__
         return os.path.join(os.path.dirname(app_file), path)
+
+    def on_command(self, command):
+        pass
+
+    def list_commands(self):
+        return []
 
