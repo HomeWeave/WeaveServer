@@ -24,17 +24,17 @@
     },
     "loggers": {
         "": {
-            "handlers": ["file"],
+            "handlers": ["default"],
             "level": "INFO",
             "propagate": true
         },
         "stdout": {
-            "handlers": ["file"],
+            "handlers": ["default"],
             "level": "INFO",
             "propagate": true
         },
         "werkzeug": {
-            "handlers": ["file"],
+            "handlers": ["default"],
             "level": "INFO",
             "propagate": true
         }
