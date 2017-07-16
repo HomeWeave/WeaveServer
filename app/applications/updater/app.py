@@ -85,3 +85,4 @@ class UpdaterApp(BaseApp):
 
     def flash_title(self, msg):
         self.socket.notify_title(msg)
+
