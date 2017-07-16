@@ -5,46 +5,66 @@ every time a view changes.
 """
 
 from uuid import uuid4
+import logging
+
+from .server import RemoteControlServer
 
 
-STANDARD_ACTIONS = ["LEFT", "RIGHT", "CLICK", "BACK"]
+logger = logging.getLogger(__name__)
+
+
+def build_new_map(actions):
+    return {str(uuid4()): action for action in actions}
+
+
+def serialize_controls(data):
+    actions = ",".join("{x[name]};{x[id]}".format(x=act) for act in data)
+    return "ITEMS COMM " + actions
+
+
+def get_controls_data(obj):
+    res = []
+    for cid, command in obj.items():
+        obj = {"name": command["name"], "id": cid}
+        res.append(obj)
+    return res
+
 
 class CommandsTranslator(object):
-    def __init__(self, service, actions=None):
+
+    VERSION = "0.8"
+
+    def __init__(self, service):
         self.service = service
-        self._actions = actions or STANDARD_ACTIONS
-        self.refresh()
+        self.server = RemoteControlServer(self)
+        self.map = {}
 
     def translate_command(self, command_id):
         return self.map.get(command_id)
 
     def refresh(self):
-        self.map = CommandsTranslator.build_new_map(self._actions)
+        actions = self.service.list_commands()
+        self.map = build_new_map(actions)
+        self.server.send_all(serialize_controls(get_controls_data(self.map)))
 
-    @property
-    def actions(self):
-        return self._actions
-
-    @actions.setter
-    def actions(self, val):
-        self._actions = val
-        self.refresh()
-
-    @staticmethod
-    def build_new_map(actions):
-        return {str(uuid4()): action for action in actions}
+    def process(self, line):
+        if line == "VERSION":
+            return "PISERVER " + self.VERSION
+        elif line.startswith("REQUEST"):
+            return serialize_controls(get_controls_data(self.map))
+        elif line.startswith("EXECUTE"):
+            return self.on_command(line.strip().split(" ")[1])
+        elif line.startswith("OK"):
+            return None
+        logger.info("Bad line on TCP server: %s", line.strip())
 
     def on_command(self, command_id):
         command = self.translate_command(command_id)
         if command is None:
+            logger.error("Unable to translate command: %s.", command_id)
             return "BAD"
-        return "OK" if self.service.on_command(command) else "BAD"
+        return "OK" if self.service.on_command(command["cmd"]) else "BAD"
 
-    def get_controls(self):
-        res = []
-        for cid, name in self.map.items():
-            obj = {"name": name, "id": cid}
-            res.append(obj)
-
-        return res
-
+    def start(self):
+        self.map = build_new_map(self.service.list_commands())
+        self.server.start()

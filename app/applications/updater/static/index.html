@@ -1,0 +1,27 @@
+<html>
+<body>
+	<div id="page-content">
+		<div style="position: fixed; height: 600px; bottom: 150px; left: 150px">
+			<h1 id="title">Checking for updates</h1>
+			<h3 id="status"></h3>
+		</div>
+	</div>
+	<script src="https://code.jquery.com/jquery-1.9.1.min.js"></script>
+	<script type="text/javascript">
+	$(document).ready(function() {
+		var templateHTML = $('#tile-template').html();
+		var socket = Socket({
+			listeners: {
+				"status": function (data) {
+					$("#status").html(data.status);
+				},
+				"title": function (data) {
+					$("#title").html(data.title);
+				}
+			},
+			initMsg: 'get_apps'
+		});
+	});
+	</script>
+</body>
+</html>

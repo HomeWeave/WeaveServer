@@ -5,26 +5,33 @@ System Updates
 from functools import partial
 import logging
 
-from app.applications.base import BaseApplication
-from app.system.updater import check_updates, run_ansible
-from app.system.updater import do_reboot
-from app.views import SimpleHeaderView
+from app.core.base_app import BaseApp, BaseCommandsListener
+from app.core.base_app import BaseWebSocket
 
 
 logger = logging.getLogger(__name__)
 
-class UpdaterApp(BaseApplication):
+
+class UpdaterWebSocket(BaseWebSocket):
+    def __init__(self, app, socketio):
+        self.app = app
+        self.socketio = socketio
+
+    def notify_status(self, status):
+        self.reply_all('status', {"status": status})
+
+    def notify_title(self, title):
+        self.reply_all('title', {"title": title})
+
+class UpdaterApp(BaseApp):
     NAME = "System Updates"
     DESCRIPTION = "Check for System Updates."
     ICON = "fa-arrow-circle-o-up"
 
 
-    NAMESPACE = "/app/UpdaterApp"
-
     def __init__(self, service, socketio):
-        view = SimpleHeaderView(self.NAMESPACE, socketio, "Checking for updates")
-        super().__init__(service, socketio, view)
-
+        self.socket = BaseWebSocket("/app/updater", socketio)
+        super().__init__(socket, listener)
 
     def start(self):
         """
@@ -45,6 +52,7 @@ class UpdaterApp(BaseApplication):
             subtitle_params = count + 1, len(values), repo.repo_name
             subtitle = "({}/{}) Updating {}".format(*subtitle_params)
 
+            self.flash_title("Updating")
             self.flash_message(subtitle)
             repo.pull(partial(check_pull_progress, subtitle))
 
@@ -52,12 +60,14 @@ class UpdaterApp(BaseApplication):
             self.flash_message("Updating system configuration...")
             run_ansible()
 
-            self.flash_message("Restarting...")
-            do_reboot()
+            self.flash_title("Done!")
+            self.flash_message("Updates will be applied when you restart the system")
         else:
-            self.flash_message("No updates found.")
+            self.flash_message("")
+            self.flash_title("No Updates Found")
 
     def flash_message(self, msg):
-        self._view.view_args["subtitle"] = msg
-        self._view.notify_updates()
+        self.socket.notify_status(msg)
 
+    def flash_title(self, msg):
+        self.socket.notify_title(msg)
