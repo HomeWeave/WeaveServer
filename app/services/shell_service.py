@@ -88,7 +88,6 @@ class ShellService(BaseService, BlockingServiceStart):
         self.socketio = socketio
 
         self.main_socket = ShellServiceWebSocket(self, socketio)
-        socketio.register(self.main_socket)
 
         self.apps = [cls(self, socketio) for cls in APPS]
         self.shell_app = ShellApp(self, self.apps, socketio)
@@ -97,6 +96,7 @@ class ShellService(BaseService, BlockingServiceStart):
         self.listener = ShellBackgroundCommandsListener(self)
         self.translator = CommandsTranslator(self)
 
+        socketio.register(self.main_socket)
 
 
     def on_service_start(self, *args, **kwargs):

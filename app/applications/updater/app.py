@@ -31,7 +31,7 @@ class UpdaterApp(BaseApp):
 
     def __init__(self, service, socketio):
         self.socket = BaseWebSocket("/app/updater", socketio)
-        super().__init__(socket, listener)
+        super().__init__(self.socket, BaseCommandsListener())
 
     def start(self):
         """
