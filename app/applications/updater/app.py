@@ -33,6 +33,8 @@ class UpdaterApp(BaseApp):
         self.socket = BaseWebSocket("/app/updater", socketio)
         super().__init__(self.socket, BaseCommandsListener())
 
+        self.check_updates = service.api(self, "check_updates")
+
     def start(self):
         """
         Calls check_updates() and then repo.pull() on each of the repo instance
@@ -46,7 +48,7 @@ class UpdaterApp(BaseApp):
         def check_pull_progress(base, val):
             self.flash_message(base + " ... {:.0%}".format(val))
 
-        values = check_updates(check_update_progress)
+        values = self.check_updates(check_update_progress)
         logger.info("Updates checked. Repos to update: " + str(values))
         for count, repo in enumerate(values):
             subtitle_params = count + 1, len(values), repo.repo_name
