@@ -13,7 +13,7 @@ logger = logging.getLogger(__name__)
 
 
 class UpdaterWebSocket(BaseWebSocket):
-    def __init__(self, namespace, socketio, app):
+    def __init__(self, socketio, app):
         super().__init__("/app/updater", socketio)
         self.app = app
         self.socketio = socketio
