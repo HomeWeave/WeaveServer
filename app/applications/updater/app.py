@@ -38,6 +38,7 @@ class UpdaterApp(BaseApp):
         super().__init__(self.socket, BaseCommandsListener())
 
         self.check_updates = service.api(self, "check_updates")
+        self.reconfigure = service.api(self, "reconfigure")
 
     def start(self):
         pass
@@ -71,7 +72,7 @@ class UpdaterApp(BaseApp):
 
         if values:
             self.flash_message("Updating system configuration...")
-            run_ansible()
+            self.reconfigure()
 
             self.flash_title("Done!")
             self.flash_message("Updates will be applied when you restart the system")
