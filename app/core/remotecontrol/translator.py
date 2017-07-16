@@ -48,13 +48,13 @@ class CommandsTranslator(object):
         self.server.send_all(serialize_controls(get_controls_data(self.map)))
 
     def process(self, line):
-        if line.strip() == "VERSION":
+        if line == "VERSION":
             return "PISERVER " + self.VERSION
-        elif line.strip().startswith("REQUEST"):
+        elif line.startswith("REQUEST"):
             return serialize_controls(get_controls_data(self.map))
-        elif line.strip().startswith("EXECUTE"):
+        elif line.startswith("EXECUTE"):
             return self.on_command(line.strip().split(" ")[1])
-        elif line.strip().startswith("OK"):
+        elif line.startswith("OK"):
             return None
         logger.info("Bad line on TCP server: %s", line.strip())
 

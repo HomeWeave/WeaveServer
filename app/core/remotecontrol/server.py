@@ -44,7 +44,7 @@ class RemoteControlServer(object):
 
     def start_receiver(self, conn, thread, out_queue):
         while True:
-            line = conn.readline()
+            line = conn.readline().strip()
             if not line:
                 logger.info("RemoteControl client disconnected.")
                 break
@@ -55,7 +55,6 @@ class RemoteControlServer(object):
                 continue
 
             res = res.rstrip() + "\n"
-            logger.info("Sending: " + res.strip() + " for " + line)
             out_queue.put(res)
         thread.kill()
 
