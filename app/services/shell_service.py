@@ -24,25 +24,41 @@ def build_app_info(app):
 
 class ShellBackgroundCommandsListener(BaseCommandsListener):
     COMMANDS = [
-        {"name": "Exit"},
-        {"name": "Home"},
-        {"name": "Restart"}
+        {
+            "name": "Exit",
+            "cmd": "exit",
+        },
+        {
+            "name": "Home",
+            "cmd": "home",
+        },
+        {
+            "name": "Restart",
+            "cmd": "restart",
+        }
     ]
 
     def __init__(self, service):
         self.service = service
         super().__init__()
 
-    def on_command(self, command):
-        if command == "Exit":
-            self.service.exit_app()
-            return "OK"
-        elif command == "Home":
-            self.service.switch(0)
-            return "Ok"
-
     def list_commands(self):
         return self.COMMANDS
+
+    def on_command(self, command):
+        func = getattr(self, "handle_" + command, None)
+        if func is None:
+            return None
+        func()
+
+    def handle_exit(self):
+        self.service.exit_app()
+
+    def handle_home(self):
+        self.service.switch_app(self.service.shell_app)
+
+    def handle_restart(self):
+        pass
 
 
 class ShellServiceWebSocket(BaseWebSocket):

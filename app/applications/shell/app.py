@@ -23,9 +23,18 @@ def select_tile(tiles, index):
 
 class ShellCommandListener(BaseCommandsListener):
     COMMANDS = [
-        {"name": "Left"},
-        {"name": "Right"},
-        {"name": "Click"}
+        {
+            "name": "Left",
+            "cmd": "left"
+        },
+        {
+            "name": "Right",
+            "cmd": "right"
+        },
+        {
+            "name": "Click",
+            "cmd": "click"
+        }
     ]
 
     def __init__(self, app):

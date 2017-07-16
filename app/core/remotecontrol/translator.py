@@ -24,8 +24,8 @@ def serialize_controls(data):
 
 def get_controls_data(obj):
     res = []
-    for cid, name in obj.items():
-        obj = {"name": name, "id": cid}
+    for cid, command in obj.items():
+        obj = {"name": command["name"], "id": cid}
         res.append(obj)
     return res
 
@@ -37,7 +37,7 @@ class CommandsTranslator(object):
     def __init__(self, service):
         self.service = service
         self.server = RemoteControlServer(self)
-        self.map = build_new_map(service.list_commands())
+        self.map = {}
 
     def translate_command(self, command_id):
         return self.map.get(command_id)
@@ -62,7 +62,7 @@ class CommandsTranslator(object):
         command = self.translate_command(command_id)
         if command is None:
             return "BAD"
-        return "OK" if self.service.on_command(command) else "BAD"
+        return "OK" if self.service.on_command(command["cmd"]) else "BAD"
 
     def start(self):
         self.server.start()
