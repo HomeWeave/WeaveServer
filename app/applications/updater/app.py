@@ -30,7 +30,7 @@ class UpdaterApp(BaseApp):
 
 
     def __init__(self, service, socketio):
-        self.socket = BaseWebSocket("/app/updater", socketio)
+        self.socket = UpdaterWebSocket("/app/updater", socketio)
         super().__init__(self.socket, BaseCommandsListener())
 
         self.check_updates = service.api(self, "check_updates")
