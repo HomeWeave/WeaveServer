@@ -134,6 +134,9 @@ class BaseApp(object):
     def start(self):
         pass
 
+    def stop(self):
+        pass
+
     def get_file(self, path):
         app_file = sys.modules[self.__class__.__module__].__file__
         return os.path.join(os.path.dirname(app_file), path)
