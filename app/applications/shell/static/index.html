@@ -36,7 +36,8 @@
 		
 		<div class="col-lg-12">
 			<div class="col-lg-4 pull-right">
-				<div class="pull-right" id="qrcode"></div>
+				<div class="pull-right" id="qrcode">
+				</div>
 				<h3></h3>
 			</div>
 		</div>
@@ -63,7 +64,6 @@
 	</div>
 
 	<script src="https://code.jquery.com/jquery-1.9.1.min.js"></script>
-	<script src="https://cdnjs.cloudflare.com/ajax/libs/jquery.qrcode/1.0/jquery.qrcode.min.js"></script>
 	<script type="text/javascript">
 	var movement = (function() {
 		var highlight = function(elem) {
@@ -111,11 +111,8 @@
 					wrapper.html(html);
 					wrapper.fadeIn();
 
-					$('#qrcode').qrcode({
-						text: data.piremote,
-						height: 150,
-						width: 150
-					});
+					$('#qrcode').html('<img src="https://chart.googleapis.com/chart?' +
+						'cht=qr&chs=150x150&chl=' + encodeURIComponent(data.piremote) + '" />')
 					$("#qrcode ~ h3").html("Scan QR code to download the remote control app on your Android phone");
 				},
 				"selected": function (data) {
