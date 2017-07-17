@@ -1,6 +1,14 @@
 <html>
 <head>
 	<style>
+	#page-wrapper {
+		flex-direction: column;
+	}
+
+	.qr-row {
+		margin: 25px;
+	}
+
 	.app-tile-border {
 		position: absolute;
 		border-color: white;
@@ -9,15 +17,32 @@
 		background-color: rgba(0, 0, 0, 0);
 		z-index: 200;
 	}
+
+	#qrcode {
+		margin-right: 15px;
+		width: 150px;
+		height: 150px;
+	}
 	</style>
 </head>
 
 <body>
 	<div id="page-wrapper">
-		<div style="text-align: center">
-		<i class="fa fa-circle-o-notch fa-spin fa-3x"></i>
+		<div class="col-lg-12" id="tiles">
+			<div style="text-align: center">
+			<i class="fa fa-circle-o-notch fa-spin fa-3x"></i>
+			</div>
+		</div>
+		
+		<div class="col-lg-12">
+			<div class="col-lg-4 pull-right">
+				<div class="pull-right" id="qrcode"></div>
+				<h3></h3>
+			</div>
 		</div>
 	</div>
+
+
 	<div style="display:none" id="tile-template">
 		<div id="selected-box" class="app-tile-border">
 			
@@ -38,6 +63,7 @@
 	</div>
 
 	<script src="https://code.jquery.com/jquery-1.9.1.min.js"></script>
+	<script src="https://cdnjs.cloudflare.com/ajax/libs/jquery.qrcode/1.0/jquery.qrcode.min.js"></script>
 	<script type="text/javascript">
 	var movement = (function() {
 		var highlight = function(elem) {
@@ -80,10 +106,17 @@
 					var compiled = template(templateHTML);
 					var html = compiled(data);
 
-					var wrapper = $("#page-wrapper");
+					var wrapper = $("#tiles");
 					wrapper.hide();
 					wrapper.html(html);
 					wrapper.fadeIn();
+
+					$('#qrcode').qrcode({
+						text: data.piremote,
+						height: 150,
+						width: 150
+					});
+					$("#qrcode ~ h3").html("Scan QR code to download the remote control app on your Android phone");
 				},
 				"selected": function (data) {
 					movement.move(data.appId);

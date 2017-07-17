@@ -2,9 +2,10 @@ from collections import defaultdict
 
 from .updater import EXPORTS as UPDATER_EXPORTS
 from .power import EXPORTS as POWER_EXPORTS
+from .network import EXPORTS as NETWORK_EXPORTS
 
 
-ALL_MODULES = UPDATER_EXPORTS + POWER_EXPORTS
+ALL_MODULES = UPDATER_EXPORTS + POWER_EXPORTS + NETWORK_EXPORTS
 
 class ModuleManager(object):
     def __init__(self):

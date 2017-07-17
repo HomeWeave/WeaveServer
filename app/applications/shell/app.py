@@ -57,7 +57,10 @@ class ShellWebSocket(BaseWebSocket):
         super().__init__(namespace, socketio)
 
     def on_get_apps(self, *args):
-        self.reply('apps', {"tiles": self.app.tiles})
+        self.reply('apps', {
+            "tiles": self.app.tiles,
+            "piremote": self.app.piremote_url()
+        })
 
     def notify_select(self, appId):
         self.reply_all('selected', {"appId": appId})
@@ -104,4 +107,8 @@ class ShellApp(BaseApp):
 
     def list_commands(self):
         return self.cmd_listener.list_commands()
+
+    def piremote_url(self):
+        ip = self.service.api(self, "external_ip")()
+        return "http://{}:5000/static/apk/piremote.apk".format(ip)
 
