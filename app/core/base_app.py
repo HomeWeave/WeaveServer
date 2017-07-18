@@ -147,3 +147,10 @@ class BaseApp(object):
     def list_commands(self):
         return []
 
+    def disconnect(self):
+        """
+        Called when the app exits. Used to release resources such as websocket.
+        """
+        #JS will close the socket upon getting this event.
+        self.main_socket.reply_all('socket_disconnect', {})
+
