@@ -148,6 +148,7 @@ class ShellService(BaseService, BlockingServiceStart):
         if old_front_app is self.shell_app:
             return False
 
+        old_front_app.disconnect()
         old_front_app.stop()
 
         new_front_app = self.apps_stack[-2]

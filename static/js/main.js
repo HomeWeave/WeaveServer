@@ -60,15 +60,24 @@ var ViewSocket = function(namespace, params) {
     console.log("Connecting to: " + namespace);
     var socket = io.connect('http://' + document.domain + ':' + location.port + namespace, {
         //transports: ['websocket']
-        rememberTransport: false
+        rememberTransport: false,
+        forceNew: true
     });
 
     socket.on('connect', function(data) {
         socket.emit(params.initMsg, {});
     });
     
-    Object.keys(params.listeners).forEach(function(key) {
-        var value = params.listeners[key];
+    var defaultListeners = {
+        "socket_disconnect": function(data) {
+            socket.disconnect();
+        }
+    }
+
+    var listeners = Object.assign({}, params.listeners, defaultListeners);
+
+    Object.keys(listeners).forEach(function(key) {
+        var value = listeners[key];
         if (typeof value !== 'function') {
             return;
         }
@@ -78,6 +87,9 @@ var ViewSocket = function(namespace, params) {
     return {
         send: function(key, value) {
             socket.emit(key, value);
+        },
+        close: function() {
+            socket.disconnect();
         }
     }
 }
