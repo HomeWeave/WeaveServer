@@ -1,6 +1,6 @@
 """
-The main module for HomePiServer. Initializes SocketIO, ServiceManager, NavigationChannel,
-View Manager.
+The main module for HomePiServer. Initializes SocketIO, ServiceManager,
+NavigationChannel, View Manager.
 """
 
 
@@ -17,7 +17,6 @@ from .core.websocket_manager import WebSocketManager
 from .core.servicemanager import ServiceManager
 from .services import SERVICES
 
-eventlet.monkey_patch()
 
 class HomePiServer(object):
     """
