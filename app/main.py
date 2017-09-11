@@ -37,7 +37,7 @@ class HomePiServer(object):
         self.socket_manager = WebSocketManager(self.app)
         self.service_manager = ServiceManager(SERVICES, self.socket_manager)
 
-        configure_logging(self.flask_app)
+        configure_logging(self.flask_app.logger)
 
         self.start_services()
 
@@ -59,6 +59,7 @@ class HomePiServer(object):
     def shutdown(self):
         pass
 
+
 def setup_signals(app):
     """ Listen for SIGTERM and SIGINIT and calls app.shutdown()"""
     def make_new_handler(prev_handler_func):
@@ -72,6 +73,7 @@ def setup_signals(app):
         prev_handler = signal.getsignal(sig)
         signal.signal(sig, make_new_handler(prev_handler))
 
+
 def create_app(config=None):
     """ Returns a new instance of HomePiServer."""
     if config is None:
@@ -80,4 +82,3 @@ def create_app(config=None):
     app = HomePiServer(config)
     setup_signals(app)
     return app.flask_app, app.app
-
