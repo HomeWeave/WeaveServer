@@ -1,10 +1,12 @@
 import json
 import logging
-import re
 from socketserver import ThreadingTCPServer, StreamRequestHandler
 
 from retask import Queue, Task
 from jsonschema import validate, ValidationError
+
+from app.core.service_base import BaseService, BackgroundProcessServiceStart
+
 
 logger = logging.getLogger(__name__)
 
@@ -61,8 +63,9 @@ class MessageQueue(Queue):
 
 
 class QueueProcessor(object):
-    def __init__(self, redis_config, queues, server):
-        self.redis_config = redis_config
+    def __init__(self, redis_config, queue_config, server):
+        self.redis_config = {"password": redis_config["REDIS_PASSWD"]}
+        queues = queue_config["queues"]
         self.queue_map = {x["queue_name"]: self.create_queue(x) for x in queues}
         self.server = server
 
@@ -140,12 +143,12 @@ class MessageHandler(StreamRequestHandler):
             raise StopIteration
 
         try:
-            if self.server.on_task(msg.target, msg.task):
-                yield "OK"
-            else:
-                yield "FAILED"
+            self.server.on_task(msg.target, msg.task)
+            yield "OK"
         except QueueNotFound:
             yield "QUEUE-NOT-FOUND"
+        except ValidationError:
+            yield "INVALID-SCHEMA"
         except Exception:
             logging.exception("Internal error.")
             yield "INTERNAL-ERROR"
@@ -176,10 +179,10 @@ class MessageHandler(StreamRequestHandler):
 class MessageServer(ThreadingTCPServer):
     allow_reuse_address = True
 
-    def __init__(self, port, redis_config, queues):
+    def __init__(self, port, redis_config, queue_config):
         super().__init__(("", port), MessageHandler)
         self.listener_map = {}
-        self.queue_processor = QueueProcessor(redis_config, queues, self)
+        self.queue_processor = QueueProcessor(redis_config, queue_config, self)
 
     def on_task(self, queue_name, task):
         self.queue_processor.enqueue(queue_name, task)
@@ -196,4 +199,25 @@ class MessageServer(ThreadingTCPServer):
 
     def run(self):
         self.queue_processor.start()
+        print("Running forever..")
         self.serve_forever()
+
+
+class MessageService(BackgroundProcessServiceStart, BaseService):
+    PORT = 11023
+
+    def __init__(self, config):
+        self.redis_config = config["redis_config"]
+        self.queues = config["queues"]
+        super().__init__()
+
+    def get_component_name(self):
+        return "messaging"
+
+    def on_service_start(self, *args, **kwargs):
+        self.message_server = MessageServer(self.PORT, self.redis_config,
+                                            self.queues)
+        self.message_server.run()
+
+    def on_service_stop(self):
+        self.message_server.shutdown()
