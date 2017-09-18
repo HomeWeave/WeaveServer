@@ -85,4 +85,4 @@ class BackgroundProcessServiceStart(object):
         self.service_pid = self.service_proc.pid
         logger.info("Launched background process: %s", name)
         for line in iter(self.service_proc.stdout.readline, b''):
-            logger.info("[%s]: %s", name, line)
+            logger.info("[%s]: %s", name, line.strip().decode())
