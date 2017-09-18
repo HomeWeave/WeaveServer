@@ -4,9 +4,11 @@ Contains components that manage services, their sequences and interdependence.
 
 import importlib
 import logging
+import time
 from collections import namedtuple
 
 from app.core.toposort import toposort
+from app.core.config_loader import get_config
 
 logger = logging.getLogger(__name__)
 Module = namedtuple('Module', ["name", "deps", "meta"])
@@ -32,21 +34,30 @@ def topo_sort_modules(modules):
     return res
 
 
-class ServiceManager(threading.Thread):
+class ServiceManager(object):
     """
-    Sequentially starts services using service.service_start(). When a new
-    service is activated, view_manager is updated with its view.
+    Scans for all service modules within the given module.
     """
-    def __init__(self, services, socket_manager):
-        self.services = services
-        self.cur_service = None
-        self.socket_manager = socket_manager
-        super().__init__()
+    def __init__(self, module):
+        unsorted_services = list_modules(module)
+        self.service_modules = topo_sort_modules(unsorted_services)
+        self.services = []
 
     def run(self):
         """ Sequentially starts all the services."""
-        logger.info("Starting services...")
-        for service_cls in self.services:
-            self.cur_service = service_cls(self.socket_manager)
-            self.cur_service.service_start()
+        for module in self.service_modules:
+            config = get_config(module.meta.get("config", []))
+            service = module.meta["class"](config)
 
+            service.service_start()
+            self.services.append(service)
+            print("Started:", service)
+
+        while True:
+            print("waiting..")
+            time.sleep(60)
+
+    def stop(self):
+        for service in self.services[::-1]:
+            print("Stopping", service)
+            service.service_stop()
