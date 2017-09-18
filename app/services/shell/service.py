@@ -14,10 +14,11 @@ from app.core.base_app import BaseWebSocket
 from app.applications import APPS
 from app.applications import ShellApp
 from app.system import ModuleManager
-from .base import BaseService, BlockingServiceStart
+from .base import BaseService
 
 
 logger = logging.getLogger(__name__)
+
 
 def build_app_info(app):
     return {
@@ -26,6 +27,7 @@ def build_app_info(app):
         "html": app.html(),
         "namespace": app.get_namespace()
     }
+
 
 class ShellBackgroundCommandsListener(BaseCommandsListener):
     COMMANDS = [
@@ -78,7 +80,7 @@ class ShellServiceWebSocket(BaseWebSocket):
         self.reply_all('active_apps', res)
 
 
-class ShellService(BaseService, BlockingServiceStart):
+class ShellService(BaseService):
     """ A basic shell. """
 
     def __init__(self, socketio):
@@ -98,7 +100,6 @@ class ShellService(BaseService, BlockingServiceStart):
 
         socketio.register(self.main_socket)
 
-
     def on_service_start(self, *args, **kwargs):
         self.launch_app(self.shell_app)
 
@@ -113,9 +114,11 @@ class ShellService(BaseService, BlockingServiceStart):
         return self.apps_stack[-1].on_command(command)
 
     def list_commands(self):
-        yield from self.listener.list_commands()
+        for item in self.listener.list_commands():
+            yield item
         if self.apps_stack:
-            yield from self.apps_stack[-1].list_commands()
+            for item in self.apps_stack[-1].list_commands():
+                yield item
 
     def get_active_apps(self):
         return [build_app_info(app) for app in self.apps_stack]
@@ -144,7 +147,7 @@ class ShellService(BaseService, BlockingServiceStart):
     def exit_app(self):
         old_front_app = self.apps_stack[-1]
 
-        #Can't exit ShellApp
+        # Can't exit ShellApp
         if old_front_app is self.shell_app:
             return False
 
@@ -155,7 +158,7 @@ class ShellService(BaseService, BlockingServiceStart):
 
         del self.apps_stack[-1]
 
-        #Unregister old_front_app, and register new_front_app
+        # Unregister old_front_app, and register new_front_app
         for sock in old_front_app.get_sockets():
             self.socketio.unregister(sock)
 
@@ -164,4 +167,3 @@ class ShellService(BaseService, BlockingServiceStart):
 
     def api(self, app, name):
         return self.module_manager.get(app, name)
-
