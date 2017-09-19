@@ -42,7 +42,7 @@ class QueueProcessor(object):
 
     def enqueue(self, queue_name, task):
         try:
-            queue = self.queue_map.get(queue_name)
+            queue = self.queue_map[queue_name]
         except KeyError:
             raise QueueNotFound
         queue.enqueue(task)
