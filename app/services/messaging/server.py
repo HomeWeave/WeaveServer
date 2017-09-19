@@ -108,10 +108,12 @@ class MessageHandler(StreamRequestHandler):
 class MessageServer(ThreadingTCPServer):
     allow_reuse_address = True
 
-    def __init__(self, port, redis_config, queue_config):
+    def __init__(self, service, port, redis_config, queue_config):
         super().__init__(("", port), MessageHandler)
         self.listener_map = {}
         self.queue_processor = QueueProcessor(redis_config, queue_config, self)
+        self.service = service
+        self.sent_start_notification = False
 
     def on_task(self, queue_name, task):
         self.queue_processor.enqueue(queue_name, task)
@@ -131,6 +133,11 @@ class MessageServer(ThreadingTCPServer):
         logger.info("Starting message server..")
         self.serve_forever()
 
+    def service_actions(self):
+        if not self.sent_start_notification:
+            self.service.notify_start()
+            self.sent_start_notification = True
+
 
 class MessageService(BackgroundProcessServiceStart, BaseService):
     PORT = 11023
@@ -144,7 +151,7 @@ class MessageService(BackgroundProcessServiceStart, BaseService):
         return "messaging"
 
     def on_service_start(self, *args, **kwargs):
-        self.message_server = MessageServer(self.PORT, self.redis_config,
+        self.message_server = MessageServer(self, self.PORT, self.redis_config,
                                             self.queues)
         self.message_server.run()
 

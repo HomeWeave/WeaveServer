@@ -22,7 +22,9 @@ class TVRemoteService(BackgroundProcessServiceStart, BaseService):
         return "tv_remote"
 
     def on_service_start(self, *args, **kwargs):
-        self.receiver.run()
+        def on_start():
+            self.notify_start()
+        self.receiver.run(on_start)
 
     def on_service_stop(self):
         self.receiver.stop()

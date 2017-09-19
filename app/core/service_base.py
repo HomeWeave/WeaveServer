@@ -42,6 +42,12 @@ class BaseService(object):
     def on_service_stop(self):
         pass
 
+    def wait_for_start(self, timeout):
+        pass
+
+    def notify_start(self):
+        pass
+
 
 class BackgroundThreadServiceStart(object):
     """ Mixin with BaseServer to start in the background thread. """
@@ -53,17 +59,25 @@ class BackgroundThreadServiceStart(object):
         self.before_service_start(self, *self.args, **self.kwargs)
         self.service_thread = threading.Thread(target=thread_target)
         self.service_thread.start()
+        self.started_event = threading.Event()
 
     def service_stop(self, timeout=15):
         self.on_service_stop()
 
         # TODO: stop self.service_thread
 
+    def wait_for_start(self, timeout):
+        return self.started_event.wait(timeout)
+
+    def notify_start(self):
+        self.started_event.set()
+
 
 class BackgroundProcessServiceStart(object):
     SERVICE_BASE_PKG = "app.services"
 
     def service_start(self):
+        self.started_event = threading.Event()
         self.child_thread = threading.Thread(target=self.child_process)
         self.child_thread.start()
 
@@ -77,7 +91,8 @@ class BackgroundProcessServiceStart(object):
             psutil.Process(self.service_pid).kill()
 
     def child_process(self):
-        name = self.SERVICE_BASE_PKG + "." + self.get_component_name()
+        comp_name = self.get_component_name()
+        name = self.SERVICE_BASE_PKG + "." + comp_name
         command = [sys.executable, "app.py", "launch-service", name]
         self.service_proc = subprocess.Popen(command, env=os.environ.copy(),
                                              stdout=subprocess.PIPE,
@@ -85,4 +100,13 @@ class BackgroundProcessServiceStart(object):
         self.service_pid = self.service_proc.pid
         logger.info("Launched background process: %s", name)
         for line in iter(self.service_proc.stdout.readline, b''):
-            logger.info("[%s]: %s", name, line.strip().decode())
+            content = line.strip().decode()
+            logger.info("[%s]: %s", name, content)
+            if "SERVICE-STARTED-" + comp_name in content:
+                self.started_event.set()
+
+    def notify_start(self):
+        logger.info("SERVICE-STARTED-" + self.get_component_name())
+
+    def wait_for_start(self, timeout):
+        return self.started_event.wait(timeout)

@@ -108,11 +108,17 @@ class Receiver(object):
         self.queue = queue
         self.host = host
         self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        self.active = False
 
-    def run(self):
+    def run(self, on_start=None):
+        logger.info("Connecting to: %s", (self.host, self.PORT))
         self.sock.connect((self.host, self.PORT))
         rfile = self.sock.makefile('rb', self.READ_BUF_SIZE)
         wfile = self.sock.makefile('wb', self.WRITE_BUG_SIZE)
+        if on_start is not None:
+            on_start()
+        self.active = True
+
 
         while self.active:
             msg = read_message(rfile)
