@@ -19,8 +19,15 @@ Module = namedtuple('Module', ["name", "deps", "meta"])
 def list_modules(module):
     res = []
     for name in os.listdir(module.__path__[0]):
-        module = importlib.import_module("app.services." + name)
-        module_meta = module.__meta__
+        try:
+            module = importlib.import_module("app.services." + name)
+            module_meta = module.__meta__
+        except ImportError:
+            logger.warning("Not a module: services/%s", name)
+            continue
+        except AttributeError:
+            logger.warning("No __meta__ in services/%s.", name)
+            continue
         deps = module_meta["deps"]
         res.append(Module(name=name, deps=deps, meta=module_meta))
     return res
