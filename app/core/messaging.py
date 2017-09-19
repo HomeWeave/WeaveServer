@@ -125,6 +125,9 @@ class Receiver(object):
             self.on_message(msg.task)
 
             # TODO: ACK the server.
+        rfile.close()
+        wfile.close()
+        self.sock.close()
 
     def stop(self):
         self.active = False
