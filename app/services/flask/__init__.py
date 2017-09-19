@@ -1,6 +1,6 @@
 from .service import FlaskServer
 
-__meta__ = {
+__disabled_meta__ = {
     "name": "Flask Web Server",
     "class": FlaskServer,
     "deps": ["logging", "messaging"],
