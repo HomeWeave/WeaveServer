@@ -4,9 +4,11 @@ Contains components that manage services, their sequences and interdependence.
 
 import importlib
 import logging
+import os
 import time
 from collections import namedtuple
 
+import app.services
 from app.core.toposort import toposort
 from app.core.config_loader import get_config
 
@@ -16,8 +18,7 @@ Module = namedtuple('Module', ["name", "deps", "meta"])
 
 def list_modules(module):
     res = []
-    # for name in os.listdir(module.__path__):
-    for name in ["messaging"]:
+    for name in os.listdir(module.__path__[0]):
         module = importlib.import_module("app.services." + name)
         module_meta = module.__meta__
         deps = module_meta["deps"]
@@ -38,8 +39,8 @@ class ServiceManager(object):
     """
     Scans for all service modules within the given module.
     """
-    def __init__(self, module):
-        unsorted_services = list_modules(module)
+    def __init__(self, registry):
+        unsorted_services = list_modules(app.services)
         self.service_modules = topo_sort_modules(unsorted_services)
         self.services = []
 
