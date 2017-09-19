@@ -1,53 +1,15 @@
-import json
 import logging
 from socketserver import ThreadingTCPServer, StreamRequestHandler
 
-from retask import Queue, Task
+from retask import Queue
 from jsonschema import validate, ValidationError
 
+from app.core.messaging import read_message, QueueNotFound
+from app.core.messaging import InvalidMessageStructure
 from app.core.service_base import BaseService, BackgroundProcessServiceStart
 
 
 logger = logging.getLogger(__name__)
-
-
-class MessagingException(Exception):
-    pass
-
-
-class InvalidMessageStructure(MessagingException):
-    pass
-
-
-class WaitTimeoutError(MessagingException):
-    pass
-
-
-class QueueNotFound(MessagingException):
-    pass
-
-
-class Message(object):
-    def __init__(self, op, queue, msg=None):
-        self.op = op
-        self.queue = queue
-        self.json = msg
-
-    @property
-    def target(self):
-        return self.queue
-
-    @property
-    def operation(self):
-        return self.op
-
-    @property
-    def task(self):
-        return self.json
-
-    @task.setter
-    def set_task(self, val):
-        self.json = val
 
 
 class MessageQueue(Queue):
@@ -102,32 +64,17 @@ class MessageHandler(StreamRequestHandler):
     def handle(self):
         logger.info("Client connected.")
         while True:
-            # Reading group of lines
-            lines = []
-            line_read = False
-            while True:
-                line = self.rfile.readline().strip()
-                if line:
-                    lines.append(line.decode("UTF-8"))
-                    line_read = True
-                else:
-                    break
-
-                if not line_read:
-                    break
-            for resp in self.handle_lines(lines):
+            try:
+                msg = read_message(self.rfile)
+            except InvalidMessageStructure:
+                self.wfile.write("INVALID-MESSAGE-STRUCTURE")
+                continue
+            for resp in self.handle_message(msg):
                 self.wfile.write((resp + "\n").encode())
 
         logger.info("Client disconnected.")
 
-    def handle_lines(self, lines):
-        try:
-            msg = self.parse_message(lines)
-        except InvalidMessageStructure:
-            logging.warning("invalid message: %s", lines)
-            yield "INVALID-MESSAGE-STRUCTURE"
-            raise StopIteration
-
+    def handle_message(self, msg):
         if msg.operation == "dequeue":
             for item in self.handle_dequeue(msg):
                 yield item
@@ -157,24 +104,6 @@ class MessageHandler(StreamRequestHandler):
         while True:
             yield self.server.get_task(msg.target())
 
-    @staticmethod
-    def parse_message(lines):
-        required_fields = {"OP", "Q"}
-        fields = {}
-        for line in lines:
-            line_parts = line.split(" ", 1)
-            fields[line_parts[0]] = line_parts[1]
-
-        if required_fields - set(fields.keys()):
-            raise InvalidMessageStructure
-
-        if "MSG" in fields:
-            obj = json.loads(fields["MSG"])
-            task = Task(obj)
-        else:
-            task = None
-        return Message(fields["OP"], fields["Q"], task)
-
 
 class MessageServer(ThreadingTCPServer):
     allow_reuse_address = True
@@ -199,7 +128,7 @@ class MessageServer(ThreadingTCPServer):
 
     def run(self):
         self.queue_processor.start()
-        print("Running forever..")
+        logger.info("Starting message server..")
         self.serve_forever()
 
 
