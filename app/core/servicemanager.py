@@ -5,7 +5,7 @@ Contains components that manage services, their sequences and interdependence.
 import importlib
 import logging
 import os
-import time
+import threading
 from collections import namedtuple
 
 import app.services
@@ -50,6 +50,7 @@ class ServiceManager(object):
         unsorted_services = list_modules(app.services)
         self.service_modules = topo_sort_modules(unsorted_services)
         self.services = []
+        self.active = threading.Event()
 
     def run(self):
         """ Sequentially starts all the services."""
@@ -58,14 +59,17 @@ class ServiceManager(object):
             service = module.meta["class"](config)
 
             service.service_start()
+            if not service.wait_for_start(config.get("start_timeout", 10)):
+                service.service_stop()
+                logger.info("Failed to start service: %s", module.name)
+                continue
             self.services.append(service)
-            print("Started:", service)
+            logger.info("Started service: %s", module.name)
 
-        while True:
-            print("waiting..")
-            time.sleep(60)
+        self.active.wait()
 
     def stop(self):
+        self.active.set()
         for service in self.services[::-1]:
             print("Stopping", service)
             service.service_stop()
