@@ -39,6 +39,18 @@ def read_message(conn):
     return parse_message(lines)
 
 
+def write_message(conn, msg):
+    msg_lines = [
+        "OP " + msg.op,
+        "Q " + msg.target,
+    ]
+    if msg.task is not None:
+        msg_lines.append("MSG " + msg.task)
+    msg_lines.append("\n")  # Last blank line.
+    conn.write("\n".join(msg_lines).encode())
+    logger.info("\n".join(msg_lines).encode())
+    conn.flush()
+
 class MessagingException(Exception):
     pass
 
@@ -119,6 +131,8 @@ class Receiver(object):
             on_start()
         self.active = True
 
+        dequeue_msg = Message("dequeue", self.queue)
+        write_message(wfile, dequeue_msg)
 
         while self.active:
             msg = read_message(rfile)
