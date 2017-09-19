@@ -18,7 +18,6 @@ class MessageQueue(Queue):
         self.queue_info = queue_info
 
     def enqueue(self, task):
-        logger.info("validation of: %s", task.data)
         validate(task.data, self.queue_info["request_schema"])
         super().enqueue(task)
         return True
