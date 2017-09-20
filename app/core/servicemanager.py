@@ -54,18 +54,27 @@ class ServiceManager(object):
 
     def run(self):
         """ Sequentially starts all the services."""
+        error_modules = set()
         for module in self.service_modules:
             config = get_config(module.meta.get("config", []))
             service = module.meta["class"](config)
 
+            if any(x in error_modules for x in module.deps):
+                logger.warning("Not starting %s", module.name)
+                error_modules.add(module.name)
+                continue
+
             service.service_start()
             if not service.wait_for_start(config.get("start_timeout", 10)):
                 service.service_stop()
+                error_modules.add(module.name)
                 logger.info("Failed to start service: %s", module.name)
                 continue
             self.services.append(service)
             logger.info("Started service: %s", module.name)
-
+        logger.info("Started %d out of %d services.",
+                    len(self.service_modules) - len(error_modules),
+                    len(self.service_modules))
         self.active.wait()
 
     def stop(self):
