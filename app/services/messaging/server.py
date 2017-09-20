@@ -37,7 +37,10 @@ class QueueProcessor(object):
 
     def start(self):
         for queue in self.queue_map.values():
-            queue.connect()
+            if not queue.connect():
+                logger.error("Unable to connect to: %s", queue)
+                return False
+        return True
 
     def enqueue(self, queue_name, task):
         try:
@@ -126,7 +129,8 @@ class MessageServer(ThreadingTCPServer):
         pass
 
     def run(self):
-        self.queue_processor.start()
+        if not self.queue_processor.start():
+            return
         self.serve_forever()
 
     def service_actions(self):
