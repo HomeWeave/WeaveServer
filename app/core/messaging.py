@@ -143,7 +143,11 @@ class Receiver(object):
             if msg is None:
                 break
 
-            self.on_message(msg.task)
+            if msg.task is not None:
+                self.on_message(msg.task.data)
+            else:
+                logger.warning("Dropping message without data.")
+                continue
 
             # TODO: ACK the server.
         rfile.close()
