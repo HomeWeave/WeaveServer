@@ -101,9 +101,10 @@ class BackgroundProcessServiceStart(object):
         logger.info("Launched background process: %s", name)
         for line in iter(self.service_proc.stdout.readline, b''):
             content = line.strip().decode()
-            logger.info("[%s]: %s", name, content)
             if "SERVICE-STARTED-" + comp_name in content:
                 self.started_event.set()
+            else:
+                logger.info("[%s]: %s", name, content)
 
     def notify_start(self):
         logger.info("SERVICE-STARTED-" + self.get_component_name())

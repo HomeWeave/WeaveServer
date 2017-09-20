@@ -86,7 +86,6 @@ def get_simple_loader(name):
 
 
 def get_config(config):
-    print(config)
     res = {}
     for config_item in config:
         key = config_item["name"]

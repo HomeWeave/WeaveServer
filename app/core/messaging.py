@@ -43,7 +43,6 @@ def read_message(conn):
     line_read = False
     while True:
         line = conn.readline()
-        logger.info("Read line: %s", line)
         stripped_line = line.strip()
         if not line:
             return None
@@ -130,7 +129,6 @@ class Receiver(object):
         self.active = False
 
     def run(self, on_start=None):
-        logger.info("Connecting to: %s", (self.host, self.PORT))
         self.sock.connect((self.host, self.PORT))
         rfile = self.sock.makefile('rb', self.READ_BUF_SIZE)
         wfile = self.sock.makefile('wb', self.WRITE_BUG_SIZE)

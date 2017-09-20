@@ -38,7 +38,6 @@ class QueueProcessor(object):
     def start(self):
         for queue in self.queue_map.values():
             queue.connect()
-            logger.info("Connected: %s", queue)
 
     def enqueue(self, queue_name, task):
         try:
@@ -53,7 +52,7 @@ class QueueProcessor(object):
             queue = self.queue_map.get(queue_name)
         except KeyError:
             raise QueueNotFound
-        logger.info("Waiting for queue item...")
+        logger.info("Server waiting on queue: %s.", queue_name)
         return queue.wait()
 
     def wait(self):
@@ -63,7 +62,6 @@ class QueueProcessor(object):
 
 class MessageHandler(StreamRequestHandler):
     def handle(self):
-        logger.info("Client connected.")
         while True:
             try:
                 msg = read_message(self.rfile)
@@ -73,11 +71,8 @@ class MessageHandler(StreamRequestHandler):
             for resp in self.handle_message(msg):
                 self.wfile.write((resp + "\n").encode())
 
-        logger.info("Client disconnected.")
-
     def handle_message(self, msg):
         if msg.operation == "dequeue":
-            logger.info("Client connected for dequeue.")
             for item in self.handle_dequeue(msg):
                 yield serialize_message(Message("inform", msg.target, item))
         elif msg.operation == "enqueue":
@@ -132,7 +127,6 @@ class MessageServer(ThreadingTCPServer):
 
     def run(self):
         self.queue_processor.start()
-        logger.info("Starting message server..")
         self.serve_forever()
 
     def service_actions(self):

@@ -19,7 +19,6 @@ def handle_launch(name):
 
     signal.signal(signal.SIGTERM, lambda x, y: app.on_service_stop())
     signal.signal(signal.SIGINT, lambda x, y: app.on_service_stop())
-    print("gi")
     app.on_service_start()
 
 
