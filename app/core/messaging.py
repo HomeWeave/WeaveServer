@@ -32,7 +32,7 @@ def serialize_message(msg):
         "Q " + msg.target,
     ]
     if msg.task is not None:
-        msg_lines.append("MSG " + msg.task)
+        msg_lines.append("MSG " + json.dumps(msg.task.data))
     msg_lines.append("")  # Last newline before blank line.
     return "\n".join(msg_lines)
 
