@@ -1,8 +1,11 @@
 import json
+import logging
 import socket
 
 from retask import Task
 
+
+logger = logging.getLogger(__name__)
 
 def parse_message(lines):
     required_fields = {"OP", "Q"}
@@ -12,6 +15,7 @@ def parse_message(lines):
         fields[line_parts[0]] = line_parts[1]
 
     if required_fields - set(fields.keys()):
+        logger.info("Invalid: %s: ", lines)
         raise InvalidMessageStructure
 
     if "MSG" in fields:
@@ -22,33 +26,36 @@ def parse_message(lines):
     return Message(fields["OP"], fields["Q"], task)
 
 
-def read_message(conn):
-    # Reading group of lines
-    lines = []
-    line_read = False
-    while True:
-        line = conn.readline().strip()
-        if line:
-            lines.append(line.decode("UTF-8"))
-            line_read = True
-        else:
-            break
-
-        if not line_read:
-            break
-    return parse_message(lines)
-
-
-def write_message(conn, msg):
+def serialize_message(msg):
     msg_lines = [
         "OP " + msg.op,
         "Q " + msg.target,
     ]
     if msg.task is not None:
         msg_lines.append("MSG " + msg.task)
-    msg_lines.append("\n")  # Last blank line.
-    conn.write("\n".join(msg_lines).encode())
-    logger.info("\n".join(msg_lines).encode())
+    msg_lines.append("")  # Last newline before blank line.
+    return "\n".join(msg_lines)
+
+
+def read_message(conn):
+    # Reading group of lines
+    lines = []
+    line_read = False
+    while True:
+        line = conn.readline()
+        logger.info("Read line: %s", line)
+        stripped_line = line.strip()
+        if not line:
+            return None
+        if not stripped_line:
+            break
+        lines.append(stripped_line.decode("UTF-8"))
+        line_read = True
+    return parse_message(lines)
+
+
+def write_message(conn, msg):
+    conn.write((serialize_message(msg) + "\n").encode())
     conn.flush()
 
 class MessagingException(Exception):
@@ -133,9 +140,11 @@ class Receiver(object):
 
         dequeue_msg = Message("dequeue", self.queue)
         write_message(wfile, dequeue_msg)
-
         while self.active:
             msg = read_message(rfile)
+            if msg is None:
+                break
+
             self.on_message(msg.task)
 
             # TODO: ACK the server.

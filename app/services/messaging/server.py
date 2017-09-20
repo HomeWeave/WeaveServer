@@ -4,7 +4,8 @@ from socketserver import ThreadingTCPServer, StreamRequestHandler
 from retask import Queue
 from jsonschema import validate, ValidationError
 
-from app.core.messaging import read_message, QueueNotFound
+from app.core.messaging import read_message, serialize_message, QueueNotFound
+from app.core.messaging import Message
 from app.core.messaging import InvalidMessageStructure
 from app.core.service_base import BaseService, BackgroundProcessServiceStart
 
@@ -52,6 +53,7 @@ class QueueProcessor(object):
             queue = self.queue_map.get(queue_name)
         except KeyError:
             raise QueueNotFound
+        logger.info("Waiting for queue item...")
         return queue.wait()
 
     def wait(self):
@@ -75,8 +77,9 @@ class MessageHandler(StreamRequestHandler):
 
     def handle_message(self, msg):
         if msg.operation == "dequeue":
+            logger.info("Client connected for dequeue.")
             for item in self.handle_dequeue(msg):
-                yield item
+                yield serialize_message(Message("inform", msg.target, item))
         elif msg.operation == "enqueue":
             for item in self.handle_enqueue(msg):
                 yield item
@@ -101,7 +104,7 @@ class MessageHandler(StreamRequestHandler):
 
     def handle_dequeue(self, msg):
         while True:
-            yield self.server.get_task(msg.target())
+            yield self.server.get_task(msg.target)
 
 
 class MessageServer(ThreadingTCPServer):
