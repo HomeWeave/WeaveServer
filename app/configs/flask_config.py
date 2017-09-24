@@ -5,6 +5,8 @@ available as app.config[..]
 # pylint: disable=too-few-public-methods
 
 import os
+import sys
+
 
 class BaseConfig(object):
     """ Configurations shared by all environments"""

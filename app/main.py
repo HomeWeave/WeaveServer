@@ -3,60 +3,26 @@ The main module for HomePiServer. Initializes SocketIO, ServiceManager,
 NavigationChannel, View Manager.
 """
 
-
 import signal
-from threading import Thread
 
-import eventlet
-from flask import Flask
-from flask_socketio import SocketIO
-
-from .controllers import CONTROLLERS
-from .core.logger import configure_logging
-from .core.websocket_manager import WebSocketManager
+from .core.registry import Registry
 from .core.servicemanager import ServiceManager
-from .services import SERVICES
 
 
-class HomePiServer(object):
+class Hulk(object):
     """
     Encapsulates the entire server.
     """
-    def __init__(self, config):
-        params = {
-            "template_folder": "../templates",
-            "static_folder": "../static"
-        }
-        self.flask_app = Flask(__name__, **params)
-        self.flask_app.config.from_object(config)
-        self.register_blueprints(self.flask_app, CONTROLLERS)
+    def __init__(self):
+        self.registry = Registry()
+        self.service_manager = ServiceManager(self.registry)
 
-        self.app = SocketIO(self.flask_app)
-
-        self.socket_manager = WebSocketManager(self.app)
-        self.service_manager = ServiceManager(SERVICES, self.socket_manager)
-
-        configure_logging(self.flask_app.logger)
-
-        self.start_services()
-
-    def start_services(self):
+    def start(self):
         """Starts self.service_manager.start() on a new thread."""
-        self.service_thread = Thread(target=self.service_manager.start).start()
-
-    @staticmethod
-    def register_blueprints(app, params):
-        """
-        Registers all the blueprints in controllers list.
-        Args:
-            app: Flask app to register the blueprint with.
-            controllers: List like: [(prefix, blueprint), ...]
-        """
-        for prefix, controller in params:
-            app.register_blueprint(controller, url_prefix=prefix)
+        self.service_manager.run()
 
     def shutdown(self):
-        pass
+        self.service_manager.stop()
 
 
 def setup_signals(app):
@@ -73,11 +39,8 @@ def setup_signals(app):
         signal.signal(sig, make_new_handler(prev_handler))
 
 
-def create_app(config=None):
+def create_app():
     """ Returns a new instance of HomePiServer."""
-    if config is None:
-        import app.config
-        config = app.config
-    app = HomePiServer(config)
+    app = Hulk()
     setup_signals(app)
-    return app.flask_app, app.app
+    return app
