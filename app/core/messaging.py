@@ -7,6 +7,7 @@ from retask import Task
 
 logger = logging.getLogger(__name__)
 
+
 def parse_message(lines):
     required_fields = {"OP", "Q"}
     fields = {}
@@ -21,9 +22,12 @@ def parse_message(lines):
     if "MSG" in fields:
         obj = json.loads(fields["MSG"])
         task = Task(obj)
+        del fields["MSG"]
     else:
         task = None
-    return Message(fields["OP"], fields["Q"], task)
+    msg = Message(fields.pop("OP"), fields.pop("Q"), task)
+    msg.headers = fields
+    return msg
 
 
 def serialize_message(msg):
@@ -31,6 +35,10 @@ def serialize_message(msg):
         "OP " + msg.op,
         "Q " + msg.target,
     ]
+
+    for key, value in msg.headers.items():
+        msg_lines.append(key + " " + str(value).lower())
+
     if msg.task is not None:
         msg_lines.append("MSG " + json.dumps(msg.task.data))
     msg_lines.append("")  # Last newline before blank line.
@@ -40,7 +48,6 @@ def serialize_message(msg):
 def read_message(conn):
     # Reading group of lines
     lines = []
-    line_read = False
     while True:
         line = conn.readline()
         stripped_line = line.strip()
@@ -49,13 +56,13 @@ def read_message(conn):
         if not stripped_line:
             break
         lines.append(stripped_line.decode("UTF-8"))
-        line_read = True
     return parse_message(lines)
 
 
 def write_message(conn, msg):
     conn.write((serialize_message(msg) + "\n").encode())
     conn.flush()
+
 
 class MessagingException(Exception):
     pass
@@ -77,6 +84,7 @@ class Message(object):
     def __init__(self, op, queue, msg=None):
         self.op = op
         self.queue = queue
+        self.headers = {}
         self.json = msg
 
     @property
