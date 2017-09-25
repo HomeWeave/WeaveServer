@@ -74,7 +74,7 @@ def serialize_message(msg):
     ]
 
     for key, value in msg.headers.items():
-        msg_lines.append(key + " " + str(value).lower())
+        msg_lines.append(key + " " + str(value))
 
     if msg.task is not None:
         msg_lines.append("MSG " + json.dumps(msg.task.data))
