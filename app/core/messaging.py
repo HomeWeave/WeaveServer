@@ -141,7 +141,11 @@ class Sender(object):
         self.wfile = self.sock.makefile('wb', self.WRITE_BUF_SIZE)
 
     def send(self, obj):
-        msg = Message("enqueue", self.queue, obj)
+        if isinstance(obj, Message):
+            msg = obj
+        else:
+            msg = Message("enqueue", self.queue, obj)
+
         write_message(self.wfile, msg)
         self.wfile.flush()
         self.handle_response(self.rfile.readline().strip().decode())
