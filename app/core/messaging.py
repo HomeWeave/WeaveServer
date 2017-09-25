@@ -177,12 +177,10 @@ class Receiver(object):
         self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.active = False
 
-    def start(self, on_start=None):
+    def start(self):
         self.sock.connect((self.host, self.PORT))
         self.rfile = self.sock.makefile('rb', self.READ_BUF_SIZE)
         self.wfile = self.sock.makefile('wb', self.WRITE_BUG_SIZE)
-        if on_start is not None:
-            on_start()
 
     def run(self):
         self.active = True
