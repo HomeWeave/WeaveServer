@@ -106,11 +106,23 @@ def write_message(conn, msg):
     conn.flush()
 
 
-class MessagingException(Exception):
-    pass
+def raise_message_exception(err):
+    known_exceptions = {
+        InvalidMessageStructure, BadOperation, RequiredFieldsMissing,
+        QueueNotFound, SchemaValidationFailed
+    }
+    responses = {c().err_msg(): c for c in known_exceptions}
+    responses["OK"] = None
+
+    ex = responses.get(err, Exception)
+    if ex:
+        raise ex(err)
 
 
-
+def ensure_ok_message(msg):
+    if msg.op != "result" or "RES" not in msg.headers:
+        raise MessagingException("Invalid acknowledgement message.")
+    raise_message_exception(msg.headers["RES"])
 
 
 class Message(object):
@@ -155,23 +167,9 @@ class Sender(object):
             msg.headers["Q"] = self.queue
 
         write_message(self.wfile, msg)
-        self.wfile.flush()
-        self.handle_response(self.rfile.readline().strip().decode())
+        msg = read_message(self.rfile)
+        ensure_ok_message(msg)
 
-    def handle_response(self, resp):
-        responses = {
-            "INVALID-MESSAGE-STRUCTURE": InvalidMessageStructure,
-            "BAD-OPERATION": BadOperation,
-            "REQUIRED-FIELDS-MISSING": RequiredFieldsMissing,
-            "QUEUE-NOT-FOUND": QueueNotFound,
-            "SCHEMA-VALIDATION-FAILED": SchemaValidationFailed,
-            "REQUIRED-FIELDS-MISSING": RequiredFieldsMissing,
-            "INTERNAL-ERROR": Exception,
-            "OK": None
-        }
-        ex = responses.get(resp, Exception)
-        if ex:
-            raise ex
 
 
 class Receiver(object):
