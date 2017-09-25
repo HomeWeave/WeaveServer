@@ -8,8 +8,9 @@ from retask import Queue
 from jsonschema import validate, ValidationError
 
 from app.core.messaging import read_message, serialize_message, Message
-from app.core.messaging import SchemaValidationFailed
-from app.core.messaging import InvalidMessageStructure, RequiredFieldsMissing
+from app.core.messaging import SchemaValidationFailed, BadOperation
+from app.core.messaging import RequiredFieldsMissing
+from app.core.messaging import MessagingException, QueueNotFound
 from app.core.service_base import BaseService, BackgroundProcessServiceStart
 
 
@@ -97,19 +98,12 @@ class MessageHandler(StreamRequestHandler):
         while True:
             try:
                 msg = read_message(self.rfile)
-            except InvalidMessageStructure:
-                self.reply("INVALID-MESSAGE-STRUCTURE")
-                continue
-            except RequiredFieldsMissing:
-                self.reply("REQUIRED-FIELDS-MISSING")
-                continue
-            except SchemaValidationFailed:
-                self.reply("SCHEMA-VALIDATION-FAILED")
+                self.reply(self.server.handle_message(msg))
+            except MessagingException as e:
+                self.reply(serialize_message(e.to_msg()))
                 continue
             except IOError:
                 break
-
-            self.reply(self.server.handle_message(msg))
 
     def reply(self, msg):
         self.wfile.write((msg + "\n").encode())
@@ -141,30 +135,41 @@ class MessageServer(ThreadingTCPServer):
     def handle_message(self, msg):
         if msg.operation == "dequeue":
             item = self.handle_dequeue(msg)
-            return serialize_message(Message("inform", msg.target, item))
+            return serialize_message(Message("inform", item))
         elif msg.operation == "enqueue":
-            return self.handle_enqueue(msg)
+            self.handle_enqueue(msg)
+            msg = Message("result")
+            msg.headers["RES"] = "OK"
+            return serialize_message(msg)
         else:
-            return "BAD-OPERATION"
+            raise BadOperation
 
     def handle_enqueue(self, msg):
         if msg.task is None:
-            return "REQUIRED-FIELDS-MISSING"
+            raise RequiredFieldsMissing
+        try:
+            queue_name = msg.headers["Q"]
+        except KeyError:
+            raise RequiredFieldsMissing
 
         try:
-            queue = self.queue_map[msg.target]
+            queue = self.queue_map[queue_name]
             queue.enqueue(msg.task)
-            return "OK"
         except KeyError:
-            return "QUEUE-NOT-FOUND"
+            raise QueueNotFound
         except ValidationError:
-            return "SCHEMA-VALIDATION-FAILED"
+            raise SchemaValidationFailed
 
     def handle_dequeue(self, msg):
         try:
-            queue = self.queue_map[msg.target]
+            queue_name = msg.headers["Q"]
         except KeyError:
-            return "QUEUE-NOT-FOUND"
+            raise RequiredFieldsMissing
+
+        try:
+            queue = self.queue_map[queue_name]
+        except KeyError:
+            raise QueueNotFound
         requestor_id = str(uuid4())
         return queue.dequeue(requestor_id)
 
