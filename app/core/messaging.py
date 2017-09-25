@@ -43,7 +43,7 @@ class SchemaValidationFailed(MessagingException):
 
 
 def parse_message(lines):
-    required_fields = {"OP", "Q"}
+    required_fields = {"OP"}
     fields = {}
     for line in lines:
         line_parts = line.split(" ", 1)
@@ -63,7 +63,7 @@ def parse_message(lines):
         del fields["MSG"]
     else:
         task = None
-    msg = Message(fields.pop("OP"), fields.pop("Q"), task)
+    msg = Message(fields.pop("OP"), task)
     msg.headers = fields
     return msg
 
@@ -71,7 +71,6 @@ def parse_message(lines):
 def serialize_message(msg):
     msg_lines = [
         "OP " + msg.op,
-        "Q " + msg.target,
     ]
 
     for key, value in msg.headers.items():
@@ -115,15 +114,10 @@ class MessagingException(Exception):
 
 
 class Message(object):
-    def __init__(self, op, queue, msg=None):
+    def __init__(self, op, msg=None):
         self.op = op
-        self.queue = queue
         self.headers = {}
         self.json = msg
-
-    @property
-    def target(self):
-        return self.queue
 
     @property
     def operation(self):
@@ -157,7 +151,8 @@ class Sender(object):
         if isinstance(obj, Message):
             msg = obj
         else:
-            msg = Message("enqueue", self.queue, obj)
+            msg = Message("enqueue", obj)
+            msg.headers["Q"] = self.queue
 
         write_message(self.wfile, msg)
         self.wfile.flush()
@@ -213,7 +208,8 @@ class Receiver(object):
             # TODO: ACK the server.
 
     def receive(self):
-        dequeue_msg = Message("dequeue", self.queue)
+        dequeue_msg = Message("dequeue")
+        dequeue_msg.headers["Q"] = self.queue
         write_message(self.wfile, dequeue_msg)
         return read_message(self.rfile)
 
