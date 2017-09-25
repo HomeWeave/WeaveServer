@@ -25,7 +25,7 @@ class BaseQueue(object):
         pass
 
     def validate_schema(self, msg):
-        validate(self.queue_info["request_schema"], msg)
+        validate(msg, self.queue_info["request_schema"])
 
 
 class RedisQueue(BaseQueue):
