@@ -1,13 +1,15 @@
 import logging
 from socketserver import ThreadingTCPServer, StreamRequestHandler
 from threading import Condition, RLock
+from queue import Queue as SyncQueue
+from uuid import uuid4
 
 from retask import Queue
 from jsonschema import validate, ValidationError
 
-from app.core.messaging import read_message, serialize_message
-from app.core.messaging import Message
-from app.core.messaging import InvalidMessageStructure
+from app.core.messaging import read_message, serialize_message, Message
+from app.core.messaging import SchemaValidationFailed
+from app.core.messaging import InvalidMessageStructure, RequiredFieldsMissing
 from app.core.service_base import BaseService, BackgroundProcessServiceStart
 
 
