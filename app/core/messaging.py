@@ -171,7 +171,7 @@ class Sender(object):
 class Receiver(object):
     PORT = 11023
     READ_BUF_SIZE = -1
-    WRITE_BUG_SIZE = 10240
+    WRITE_BUF_SIZE = 10240
 
     def __init__(self, queue, host="localhost"):
         self.queue = queue
@@ -182,7 +182,7 @@ class Receiver(object):
     def start(self):
         self.sock.connect((self.host, self.PORT))
         self.rfile = self.sock.makefile('rb', self.READ_BUF_SIZE)
-        self.wfile = self.sock.makefile('wb', self.WRITE_BUG_SIZE)
+        self.wfile = self.sock.makefile('wb', self.WRITE_BUF_SIZE)
 
     def run(self):
         self.active = True
