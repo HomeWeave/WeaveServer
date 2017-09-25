@@ -148,19 +148,16 @@ class MessageServer(ThreadingTCPServer):
 
     def handle_enqueue(self, msg):
         if msg.task is None:
-            return "INVALID-ENQUEUE-STRUCTURE"
+            return "REQUIRED-FIELDS-MISSING"
 
         try:
-            queue = self.queue_map.get(msg.target)
+            queue = self.queue_map[msg.target]
             queue.enqueue(msg.task)
             return "OK"
         except KeyError:
             return "QUEUE-NOT-FOUND"
         except ValidationError:
-            return "INVALID-SCHEMA"
-        except Exception:
-            logging.exception("Internal error.")
-            return "INTERNAL-ERROR"
+            return "SCHEMA-VALIDATION-FAILED"
 
     def handle_dequeue(self, msg):
         try:
@@ -168,8 +165,9 @@ class MessageServer(ThreadingTCPServer):
         except KeyError:
             yield "QUEUE-NOT-FOUND"
             raise StopIteration
+        requestor_id = str(uuid4())
         while True:
-            yield queue.wait()
+            yield queue.dequeue(requestor_id)
 
     def run(self):
         for queue in self.queue_map.values():
@@ -184,8 +182,8 @@ class MessageServer(ThreadingTCPServer):
             self.sent_start_notification = True
 
     def shutdown(self):
-        for _, queue_info in self.queue_map.items():
-            queue_info["thread"].join()
+        for _, queue in self.queue_map.items():
+            queue.disconnect()
         super().shutdown()
 
 
