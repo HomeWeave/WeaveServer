@@ -1,6 +1,5 @@
 import socket
 from threading import Thread, Event
-import threading, traceback, sys
 
 from retask import Task
 import pytest
@@ -63,13 +62,7 @@ class TestMessagingService(object):
     @classmethod
     def teardown_class(cls):
         cls.service.on_service_stop()
-        print("Done...")
         cls.service_thread.join()
-        print("Done")
-        for th in threading.enumerate():
-            print(th)
-            traceback.print_stack(sys._current_frames()[th.ident])
-            print()
 
     def test_connect_disconnect(self):
         assert send_raw('') == ''
@@ -110,17 +103,42 @@ class TestMessagingService(object):
 
     def test_simple_enqueue_dequeue(self):
         msgs = []
-        event = Event()
-        r = Receiver("a.b.c")
-        r.on_message = lambda msg: msgs.append(msg) or r.stop()
-        thread = Thread(target=r.run, args=(lambda: event.set(), ))
-        thread.start()
-        event.wait()
 
         s = Sender("a.b.c")
         s.start()
         s.send(Task({"foo": "bar"}))
 
+        r = Receiver("a.b.c")
+        r.start()
+        r.on_message = lambda msg: msgs.append(msg) or r.stop()
+        thread = Thread(target=r.run)
+        thread.start()
+
         thread.join()
 
         assert msgs == [{"foo": "bar"}]
+
+    def test_multiple_enqueue_dequeue(self):
+        obj = {"foo": "bar"}
+
+        s = Sender("a.b.c")
+        r = Receiver("a.b.c")
+
+        s.start()
+        for _ in range(10):
+            s.send(Task(obj))
+
+        expected_message_count = 10
+
+        def on_message(msg):
+            assert msg == obj
+            nonlocal expected_message_count
+            if expected_message_count == 1:
+                r.stop()
+            expected_message_count -= 1
+        r.start()
+        r.on_message = on_message
+        thread = Thread(target=r.run)
+        thread.start()
+
+        thread.join()

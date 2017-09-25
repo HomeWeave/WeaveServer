@@ -109,8 +109,7 @@ class MessageHandler(StreamRequestHandler):
             except IOError:
                 break
 
-            for resp in self.server.handle_message(msg):
-                self.reply(resp)
+            self.reply(self.server.handle_message(msg))
 
     def reply(self, msg):
         self.wfile.write((msg + "\n").encode())
@@ -141,12 +140,12 @@ class MessageServer(ThreadingTCPServer):
 
     def handle_message(self, msg):
         if msg.operation == "dequeue":
-            for item in self.handle_dequeue(msg):
-                yield serialize_message(Message("inform", msg.target, item))
+            item = self.handle_dequeue(msg)
+            return serialize_message(Message("inform", msg.target, item))
         elif msg.operation == "enqueue":
-            yield self.handle_enqueue(msg)
+            return self.handle_enqueue(msg)
         else:
-            yield "BAD-OPERATION"
+            return "BAD-OPERATION"
 
     def handle_enqueue(self, msg):
         if msg.task is None:
@@ -165,11 +164,9 @@ class MessageServer(ThreadingTCPServer):
         try:
             queue = self.queue_map[msg.target]
         except KeyError:
-            yield "QUEUE-NOT-FOUND"
-            raise StopIteration
+            return "QUEUE-NOT-FOUND"
         requestor_id = str(uuid4())
-        while True:
-            yield queue.dequeue(requestor_id)
+        return queue.dequeue(requestor_id)
 
     def run(self):
         for queue in self.queue_map.values():

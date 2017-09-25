@@ -177,21 +177,22 @@ class Receiver(object):
         self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.active = False
 
-    def run(self, on_start=None):
+    def start(self, on_start=None):
         self.sock.connect((self.host, self.PORT))
-        rfile = self.sock.makefile('rb', self.READ_BUF_SIZE)
-        wfile = self.sock.makefile('wb', self.WRITE_BUG_SIZE)
+        self.rfile = self.sock.makefile('rb', self.READ_BUF_SIZE)
+        self.wfile = self.sock.makefile('wb', self.WRITE_BUG_SIZE)
         if on_start is not None:
             on_start()
+
+    def run(self):
         self.active = True
 
-        dequeue_msg = Message("dequeue", self.queue)
-        write_message(wfile, dequeue_msg)
         while self.active:
-            msg = read_message(rfile)
-            if msg is None:
-                break
-
+            try:
+                msg = self.receive()
+            except IOError:
+                if self.active:
+                    raise
             if msg.task is not None:
                 self.on_message(msg.task.data)
             else:
@@ -199,12 +200,17 @@ class Receiver(object):
                 continue
 
             # TODO: ACK the server.
-        rfile.close()
-        wfile.close()
-        self.sock.close()
+
+    def receive(self):
+        dequeue_msg = Message("dequeue", self.queue)
+        write_message(self.wfile, dequeue_msg)
+        return read_message(self.rfile)
 
     def stop(self):
         self.active = False
+        self.rfile.close()
+        self.wfile.close()
+        self.sock.close()
 
     def on_message(self, msg):
         pass
