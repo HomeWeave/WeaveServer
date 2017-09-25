@@ -139,10 +139,6 @@ class Message(object):
     def task(self):
         return self.json
 
-    @task.setter
-    def set_task(self, val):
-        self.json = val
-
 
 class Sender(object):
     PORT = 11023
