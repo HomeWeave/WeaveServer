@@ -142,8 +142,7 @@ class MessageServer(ThreadingTCPServer):
             for item in self.handle_dequeue(msg):
                 yield serialize_message(Message("inform", msg.target, item))
         elif msg.operation == "enqueue":
-            for item in self.handle_enqueue(msg):
-                yield item
+            yield self.handle_enqueue(msg)
         else:
             yield "BAD-OPERATION"
 
