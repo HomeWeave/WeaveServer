@@ -65,10 +65,23 @@ class MessageHandler(StreamRequestHandler):
             try:
                 msg = read_message(self.rfile)
             except InvalidMessageStructure:
-                self.wfile.write("INVALID-MESSAGE-STRUCTURE")
+                self.reply("INVALID-MESSAGE-STRUCTURE")
                 continue
+            except RequiredFieldsMissing:
+                self.reply("REQUIRED-FIELDS-MISSING")
+                continue
+            except SchemaValidationFailed:
+                self.reply("SCHEMA-VALIDATION-FAILED")
+                continue
+            except IOError:
+                break
+
             for resp in self.server.handle_message(msg):
-                self.wfile.write((resp + "\n").encode())
+                self.reply(resp)
+
+    def reply(self, msg):
+        self.wfile.write((msg + "\n").encode())
+        self.wfile.flush()
 
 
 class MessageServer(ThreadingTCPServer):

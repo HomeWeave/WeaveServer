@@ -13,14 +13,18 @@ def parse_message(lines):
     fields = {}
     for line in lines:
         line_parts = line.split(" ", 1)
+        if len(line_parts) != 2:
+            raise InvalidMessageStructure
         fields[line_parts[0]] = line_parts[1]
 
     if required_fields - set(fields.keys()):
-        logger.info("Invalid: %s: ", lines)
-        raise InvalidMessageStructure
+        raise RequiredFieldsMissing
 
     if "MSG" in fields:
-        obj = json.loads(fields["MSG"])
+        try:
+            obj = json.loads(fields["MSG"])
+        except json.decoder.JSONDecodeError:
+            raise SchemaValidationFailed
         task = Task(obj)
         del fields["MSG"]
     else:
@@ -52,7 +56,12 @@ def read_message(conn):
         line = conn.readline()
         stripped_line = line.strip()
         if not line:
-            return None
+            # If we have read a line at least, raise InvalidMessageStructure,
+            # else IOError because mostly the socket was closed.
+            if lines:
+                raise InvalidMessageStructure
+            else:
+                raise IOError
         if not stripped_line:
             break
         lines.append(stripped_line.decode("UTF-8"))
@@ -72,11 +81,19 @@ class InvalidMessageStructure(MessagingException):
     pass
 
 
+class RequiredFieldsMissing(MessagingException):
+    pass
+
+
 class WaitTimeoutError(MessagingException):
     pass
 
 
 class QueueNotFound(MessagingException):
+    pass
+
+
+class SchemaValidationFailed(MessagingException):
     pass
 
 
