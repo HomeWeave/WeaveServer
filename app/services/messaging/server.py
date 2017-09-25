@@ -24,8 +24,18 @@ class BaseQueue(object):
     def dequeue(self, requestor_id):
         pass
 
+    def connect(self):
+        return True
+
+    def disconnect(self):
+        return True
+
     def validate_schema(self, msg):
         validate(msg, self.queue_info["request_schema"])
+
+    def __repr__(self):
+        return (self.__class__.__name__ +
+                "({})".format(self.queue_info["queue_name"]))
 
 
 class RedisQueue(BaseQueue):
@@ -40,6 +50,23 @@ class RedisQueue(BaseQueue):
 
     def dequeue(self, requestor_id):
         return self.queue.wait()
+
+    def connect(self):
+        return self.queue.connect()
+
+
+class DummyQueue(BaseQueue):
+    def __init__(self, queue_info, *args, **kwargs):
+        super().__init__(queue_info)
+        self.queue = SyncQueue()
+
+    def enqueue(self, task):
+        self.validate_schema(task.data)
+        self.queue.put(task)
+        return True
+
+    def dequeue(self, requestor_id):
+        return self.queue.get()
 
 
 class StickyQueue(object):
@@ -57,6 +84,10 @@ class StickyQueue(object):
 
     def dequeue(self, requestor_id):
         if requestor_id in self.requestors:
+            pass
+
+    def connect(self):
+        return True
 
 
 class MessageHandler(StreamRequestHandler):
@@ -95,9 +126,15 @@ class MessageServer(ThreadingTCPServer):
         self.listener_map = {}
         self.sticky_messages = {}
 
+        queue_types = {
+            "redis": RedisQueue,
+            "dummy": DummyQueue,
+            "sticky": StickyQueue
+        }
         for queue_info in queue_config["queues"]:
             queue_name = queue_info["queue_name"]
-            queue = RedisQueue(queue_info, queue_name, redis_config)
+            cls = queue_types[queue_info.get("queue_type", "redis")]
+            queue = cls(queue_info, queue_name, redis_config)
             self.queue_map[queue_name] = queue
 
     def handle_message(self, msg):
