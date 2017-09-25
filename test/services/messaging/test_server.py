@@ -6,6 +6,8 @@ import pytest
 
 from app.core.messaging import Sender, Receiver, RequiredFieldsMissing
 from app.core.messaging import QueueNotFound, SchemaValidationFailed
+from app.core.messaging import InvalidMessageStructure, BadOperation
+from app.core.messaging import read_message, ensure_ok_message
 from app.services.messaging import MessageService
 
 
@@ -41,11 +43,11 @@ def send_raw(msg):
     wfile.flush()
     sock.shutdown(socket.SHUT_WR)
 
-    resp = rfile.readline().decode("UTF-8").strip()
+    msg = read_message(rfile)
 
     sock.close()
 
-    return resp
+    ensure_ok_message(msg)
 
 
 class TestMessagingService(object):
@@ -57,7 +59,6 @@ class TestMessagingService(object):
         cls.service_thread = Thread(target=cls.service.on_service_start)
         cls.service_thread.start()
         event.wait()
-        print("Server started.")
 
     @classmethod
     def teardown_class(cls):
@@ -65,23 +66,28 @@ class TestMessagingService(object):
         cls.service_thread.join()
 
     def test_connect_disconnect(self):
-        assert send_raw('') == ''
+        with pytest.raises(IOError):
+            send_raw('')
 
     def test_bad_structure(self):
-        assert send_raw("sdkhsds-ssgdlks!!3l") == "INVALID-MESSAGE-STRUCTURE"
+        with pytest.raises(InvalidMessageStructure):
+            send_raw("sdkhsds-ss!3l")
 
     def test_required_fields_missing(self):
-        assert send_raw("OP enqueue\nMSG blah\n\n") == "REQUIRED-FIELDS-MISSING"
+        with pytest.raises(RequiredFieldsMissing):
+            send_raw("HDR enqueue\nMSG blah\n\n")
 
     def test_bad_operation(self):
-        assert send_raw('MSG {"a": "b"}\n'
-                        'OP bad-operation\n'
-                        'Q a.b.c\n\n') == "BAD-OPERATION"
+        with pytest.raises(BadOperation):
+            send_raw('MSG {"a": "b"}\nOP bad-operation\nQ a.b.c\n\n')
 
     def test_bad_json(self):
-        assert send_raw('MSG {a": "b"}\n'
-                        'OP enqueue\n'
-                        'Q a.b.c\n\n') == "SCHEMA-VALIDATION-FAILED"
+        with pytest.raises(SchemaValidationFailed):
+            send_raw('MSG {a": "b"}\nOP enqueue\nQ a.b.c\n\n')
+
+    def test_enqueue_without_queue_header(self):
+        with pytest.raises(RequiredFieldsMissing):
+            send_raw('MSG {"a": "b"}\nOP enqueue\n\n')
 
     def test_enqueue_without_task(self):
         s = Sender("a.b.c")
@@ -95,6 +101,12 @@ class TestMessagingService(object):
         with pytest.raises(QueueNotFound):
             s.send(Task({"a": "b"}))
 
+    def test_dequeue_from_unknown_queue(self):
+        r = Receiver("unknown.queue")
+        r.start()
+        with pytest.raises(QueueNotFound):
+            r.receive()
+
     def test_enqueue_with_bad_schema(self):
         s = Sender("a.b.c")
         s.start()
@@ -105,12 +117,12 @@ class TestMessagingService(object):
         msgs = []
 
         s = Sender("a.b.c")
-        s.start()
-        s.send(Task({"foo": "bar"}))
-
         r = Receiver("a.b.c")
+        s.start()
         r.start()
         r.on_message = lambda msg: msgs.append(msg) or r.stop()
+
+        s.send(Task({"foo": "bar"}))
         thread = Thread(target=r.run)
         thread.start()
 
