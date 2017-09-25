@@ -166,6 +166,9 @@ class Sender(object):
         msg = read_message(self.rfile)
         ensure_ok_message(msg)
 
+    def close(self):
+        self.sock.shutdown(socket.SHUT_RDWR)
+        self.sock.close()
 
 
 class Receiver(object):
@@ -205,12 +208,18 @@ class Receiver(object):
         dequeue_msg = Message("dequeue")
         dequeue_msg.headers["Q"] = self.queue
         write_message(self.wfile, dequeue_msg)
-        return read_message(self.rfile)
+        msg = read_message(self.rfile)
+        if msg.op == "inform":
+            return msg
+        if "RES" not in msg.headers:
+            raise MessagingException("RES header absent. Not an inform msg.")
+        raise_message_exception(msg.headers["RES"])
 
     def stop(self):
         self.active = False
         self.rfile.close()
         self.wfile.close()
+        self.sock.shutdown(socket.SHUT_RDWR)
         self.sock.close()
 
     def on_message(self, msg):
