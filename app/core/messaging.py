@@ -81,6 +81,10 @@ class InvalidMessageStructure(MessagingException):
     pass
 
 
+class BadOperation(MessagingException):
+    pass
+
+
 class RequiredFieldsMissing(MessagingException):
     pass
 
@@ -140,6 +144,22 @@ class Sender(object):
         msg = Message("enqueue", self.queue, obj)
         write_message(self.wfile, msg)
         self.wfile.flush()
+        self.handle_response(self.rfile.readline().strip().decode())
+
+    def handle_response(self, resp):
+        responses = {
+            "INVALID-MESSAGE-STRUCTURE": InvalidMessageStructure,
+            "BAD-OPERATION": BadOperation,
+            "REQUIRED-FIELDS-MISSING": RequiredFieldsMissing,
+            "QUEUE-NOT-FOUND": QueueNotFound,
+            "SCHEMA-VALIDATION-FAILED": SchemaValidationFailed,
+            "REQUIRED-FIELDS-MISSING": RequiredFieldsMissing,
+            "INTERNAL-ERROR": Exception,
+            "OK": None
+        }
+        ex = responses.get(resp, Exception)
+        if ex:
+            raise ex
 
 
 class Receiver(object):
