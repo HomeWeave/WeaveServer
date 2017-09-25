@@ -8,6 +8,40 @@ from retask import Task
 logger = logging.getLogger(__name__)
 
 
+class MessagingException(Exception):
+    def err_msg(self):
+        return self.__class__.__name__
+
+    def to_msg(self):
+        msg = Message("result")
+        msg.headers["RES"] = self.err_msg()
+        return msg
+
+
+class InvalidMessageStructure(MessagingException):
+    pass
+
+
+class BadOperation(MessagingException):
+    pass
+
+
+class RequiredFieldsMissing(MessagingException):
+    pass
+
+
+class WaitTimeoutError(MessagingException):
+    pass
+
+
+class QueueNotFound(MessagingException):
+    pass
+
+
+class SchemaValidationFailed(MessagingException):
+    pass
+
+
 def parse_message(lines):
     required_fields = {"OP", "Q"}
     fields = {}
@@ -77,28 +111,7 @@ class MessagingException(Exception):
     pass
 
 
-class InvalidMessageStructure(MessagingException):
-    pass
 
-
-class BadOperation(MessagingException):
-    pass
-
-
-class RequiredFieldsMissing(MessagingException):
-    pass
-
-
-class WaitTimeoutError(MessagingException):
-    pass
-
-
-class QueueNotFound(MessagingException):
-    pass
-
-
-class SchemaValidationFailed(MessagingException):
-    pass
 
 
 class Message(object):
