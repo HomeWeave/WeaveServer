@@ -72,7 +72,7 @@ class DummyQueue(BaseQueue):
         return self.queue.get()
 
 
-class StickyQueue(object):
+class StickyQueue(BaseQueue):
     def __init__(self, queue_info, *args, **kwargs):
         super().__init__(queue_info)
         self.sticky_message = None
@@ -82,12 +82,26 @@ class StickyQueue(object):
 
     def enqueue(self, task):
         self.validate_schema(task.data)
-        self.sticky_message = task
-        self.condition.notify_all()
+        with self.condition:
+            self.sticky_message = task
+            self.requestors = set()
+            self.condition.notify_all()
+        print("Sticky queue enqueue done.")
 
     def dequeue(self, requestor_id):
-        if requestor_id in self.requestors:
-            pass
+        def can_dequeue():
+            has_msg = self.sticky_message is not None
+            new_requestor = requestor_id not in self.requestors
+            print("Has msg:", has_msg)
+            print("new_requestor:", new_requestor)
+            return has_msg and new_requestor
+
+        print("waiting for dequeue")
+        with self.condition:
+            self.condition.wait_for(can_dequeue)
+            self.requestors.add(requestor_id)
+            print("Returning. Requestors: ", self.requestors)
+            return self.sticky_message
 
     def connect(self):
         return True
@@ -95,9 +109,11 @@ class StickyQueue(object):
 
 class MessageHandler(StreamRequestHandler):
     def handle(self):
+        sess = str(uuid4())
         while True:
             try:
                 msg = read_message(self.rfile)
+                msg.headers["SESS"] = sess
                 self.reply(self.server.handle_message(msg))
             except MessagingException as e:
                 self.reply(serialize_message(e.to_msg()))
@@ -166,11 +182,11 @@ class MessageServer(ThreadingTCPServer):
         except KeyError:
             raise RequiredFieldsMissing
 
+        requestor_id = msg.headers["SESS"]
         try:
             queue = self.queue_map[queue_name]
         except KeyError:
             raise QueueNotFound
-        requestor_id = str(uuid4())
         return queue.dequeue(requestor_id)
 
     def run(self):

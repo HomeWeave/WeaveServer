@@ -1,5 +1,5 @@
 import socket
-from threading import Thread, Event
+from threading import Thread, Event, Semaphore
 
 from retask import Task
 import pytest
@@ -18,6 +18,19 @@ CONFIG = {
             {
                 "queue_name": "a.b.c",
                 "queue_type": "dummy",
+                "request_schema": {
+                    "type": "object",
+                    "properties": {
+                        "foo": {
+                            "type": "string"
+                        }
+                    },
+                    "required": ["foo"]
+                }
+            },
+            {
+                "queue_name": "a.sticky",
+                "queue_type": "sticky",
                 "request_schema": {
                     "type": "object",
                     "properties": {
@@ -154,3 +167,40 @@ class TestMessagingService(object):
         thread.start()
 
         thread.join()
+
+    def test_stick_simple_enqueue_dequeue(self):
+        def make_receiver(count, msgs, sem, r):
+            def on_message(msg):
+                msgs.append(msg)
+                sem.release()
+                nonlocal count
+                count -= 1
+                if not count:
+                    r.stop()
+            return on_message
+
+        sem = Semaphore(0)
+        msgs1 = []
+        msgs2 = []
+        op = {"foo": "bar"}
+
+        s = Sender("a.sticky")
+        s.start()
+        r1 = Receiver("a.sticky")
+        r1.on_message = make_receiver(2, msgs1, sem, r1)
+        r1.start()
+        Thread(target=r1.run).start()
+
+        assert not sem.acquire(timeout=2)  # Assert that this times out.
+        assert len(msgs1) == 0
+
+        s.send(Task(op))
+        print(msgs1)
+        assert sem.acquire(timeout=10)  # This shouldn't timeout.
+        assert len(msgs1) == 1
+
+        assert not sem.acquire(timeout=2)  # This should timeout again.
+        assert len(msgs1) == 1
+
+        r2 = Receiver("a.sticky")
+        r2.on_message = lambda x: msgs2.append(x) or sem.release()
