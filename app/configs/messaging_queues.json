@@ -24,6 +24,24 @@
             },
             "online": true,
             "timeout": 15
+        },
+        {
+            "queue_name": "/phone/apps",
+            "request_schema": {
+                "type": "object"
+            },
+            "response_schema": {
+                "type": "object",
+                "properties": {
+                    "result": {
+                        "description": "The result of the command to send to TV",
+                        "enum": ["NETWORK-ERROR", "OK", "UNKNOWN-ERROR"]
+                    }
+                },
+                "required": ["result"]
+            },
+            "queue_type": "sticky",
+            "timeout": 15
         }
     ]
 }
