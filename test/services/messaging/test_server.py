@@ -179,7 +179,8 @@ class TestMessagingService(object):
                     r.stop()
             return on_message
 
-        sem = Semaphore(0)
+        sem1 = Semaphore(0)
+        sem2 = Semaphore(0)
         msgs1 = []
         msgs2 = []
         op = {"foo": "bar"}
@@ -187,20 +188,33 @@ class TestMessagingService(object):
         s = Sender("a.sticky")
         s.start()
         r1 = Receiver("a.sticky")
-        r1.on_message = make_receiver(2, msgs1, sem, r1)
+        r1.on_message = make_receiver(2, msgs1, sem1, r1)
         r1.start()
         Thread(target=r1.run).start()
 
-        assert not sem.acquire(timeout=2)  # Assert that this times out.
+        assert not sem1.acquire(timeout=2)  # Assert that this times out.
         assert len(msgs1) == 0
 
         s.send(Task(op))
-        print(msgs1)
-        assert sem.acquire(timeout=10)  # This shouldn't timeout.
+        assert sem1.acquire(timeout=10)  # This shouldn't timeout.
         assert len(msgs1) == 1
 
-        assert not sem.acquire(timeout=2)  # This should timeout again.
+        assert not sem1.acquire(timeout=2)  # This should timeout again.
         assert len(msgs1) == 1
 
         r2 = Receiver("a.sticky")
-        r2.on_message = lambda x: msgs2.append(x) or sem.release()
+        r2.on_message = make_receiver(2, msgs2, sem2, r2)
+        r2.start()
+        Thread(target=r2.run).start()
+
+        assert sem2.acquire(timeout=10)  # This shouldn't timeout.
+        assert len(msgs2) == 1
+
+        assert not sem2.acquire(timeout=2)  # This should timeout.
+
+        s.send(Task(op))
+        assert sem1.acquire(timeout=10)
+        assert sem2.acquire(timeout=2)
+
+        assert len(msgs1) == 2
+        assert len(msgs2) == 2
