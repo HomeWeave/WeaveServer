@@ -42,9 +42,10 @@ class BaseQueue(object):
 
 
 class RedisQueue(BaseQueue):
-    def __init__(self, queue_info, *args, **kwargs):
+    def __init__(self, queue_info, queue_name, redis_config):
         super().__init__(queue_info)
-        self.queue = Queue(*args, **kwargs)
+        self.queue = Queue(queue_name,
+                           {"password": redis_config["REDIS_PASSWD"]})
 
     def enqueue(self, task):
         self.validate_schema(task.data)
@@ -86,21 +87,18 @@ class StickyQueue(BaseQueue):
             self.sticky_message = task
             self.requestors = set()
             self.condition.notify_all()
-        print("Sticky queue enqueue done.")
 
     def dequeue(self, requestor_id):
         def can_dequeue():
+            print("checking if we can dequeue..")
             has_msg = self.sticky_message is not None
             new_requestor = requestor_id not in self.requestors
-            print("Has msg:", has_msg)
-            print("new_requestor:", new_requestor)
             return has_msg and new_requestor
 
-        print("waiting for dequeue")
         with self.condition:
+            print("waiting for condition..")
             self.condition.wait_for(can_dequeue)
             self.requestors.add(requestor_id)
-            print("Returning. Requestors: ", self.requestors)
             return self.sticky_message
 
     def connect(self):
