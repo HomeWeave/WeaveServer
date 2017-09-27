@@ -90,13 +90,11 @@ class StickyQueue(BaseQueue):
 
     def dequeue(self, requestor_id):
         def can_dequeue():
-            print("checking if we can dequeue..")
             has_msg = self.sticky_message is not None
             new_requestor = requestor_id not in self.requestors
             return has_msg and new_requestor
 
         with self.condition:
-            print("waiting for condition..")
             self.condition.wait_for(can_dequeue)
             self.requestors.add(requestor_id)
             return self.sticky_message
