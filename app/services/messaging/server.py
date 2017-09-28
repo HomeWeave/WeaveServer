@@ -1,10 +1,11 @@
 import logging
+from collections import defaultdict
 from socketserver import ThreadingTCPServer, StreamRequestHandler
 from threading import Condition, RLock
 from queue import Queue as SyncQueue
 from uuid import uuid4
 
-from retask import Queue
+from retask import Queue, Task
 from jsonschema import validate, ValidationError
 
 from app.core.messaging import read_message, serialize_message, Message
