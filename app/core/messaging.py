@@ -155,12 +155,16 @@ class Sender(object):
         self.rfile = self.sock.makefile('rb', self.READ_BUF_SIZE)
         self.wfile = self.sock.makefile('wb', self.WRITE_BUF_SIZE)
 
-    def send(self, obj):
+    def send(self, obj, headers=None):
         if isinstance(obj, Message):
             msg = obj
         else:
             msg = Message("enqueue", obj)
-            msg.headers["Q"] = self.queue
+
+        if headers is not None:
+            msg.headers = headers
+
+        msg.headers["Q"] = self.queue
 
         write_message(self.wfile, msg)
         msg = read_message(self.rfile)
