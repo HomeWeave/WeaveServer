@@ -21,7 +21,7 @@ class BaseQueue(object):
     def __init__(self, queue_info):
         self.queue_info = queue_info
 
-    def enqueue(self, task):
+    def enqueue(self, task, headers):
         pass
 
     def dequeue(self, requestor_id):
@@ -47,7 +47,7 @@ class RedisQueue(BaseQueue):
         self.queue = Queue(queue_name,
                            {"password": redis_config["REDIS_PASSWD"]})
 
-    def enqueue(self, task):
+    def enqueue(self, task, headers):
         self.validate_schema(task.data)
         self.queue.enqueue(task)
         return True
@@ -64,7 +64,7 @@ class DummyQueue(BaseQueue):
         super().__init__(queue_info)
         self.queue = SyncQueue()
 
-    def enqueue(self, task):
+    def enqueue(self, task, headers):
         self.validate_schema(task.data)
         self.queue.put(task)
         return True
@@ -81,7 +81,7 @@ class StickyQueue(BaseQueue):
         self.requestor_lock = RLock()
         self.condition = Condition(self.requestor_lock)
 
-    def enqueue(self, task):
+    def enqueue(self, task, headers):
         self.validate_schema(task.data)
         with self.condition:
             self.sticky_message = task
@@ -101,6 +101,37 @@ class StickyQueue(BaseQueue):
 
     def connect(self):
         return True
+
+
+class KeyedStickyQueue(BaseQueue):
+    def __init__(self, queue_info, *args, **kwargs):
+        super().__init__(queue_info)
+        self.sticky_map = {}
+        self.requestor_map = defaultdict(set)
+        self.condition = Condition()
+
+    def enqueue(self, task, headers):
+        try:
+            key = headers["KEY"]
+        except KeyError:
+            raise RequiredFieldsMissing
+
+        self.validate_schema(task.data)
+        with self.condition:
+            self.sticky_map[key] = task.data
+            self.condition.notify_all()
+
+    def dequeue(self, requestor_id):
+        def can_dequeue():
+            sent_keys = self.requestor_map.get(requestor_id, set())
+            new_keys = set(self.sticky_map.keys())
+            keys_to_send = new_keys - sent_keys
+            return keys_to_send
+
+        with self.condition:
+            self.condition.wait_for(can_dequeue)
+            self.requestor_map[requestor_id] |= self.sticky_map.keys()
+            return Task(self.sticky_map)
 
 
 class MessageHandler(StreamRequestHandler):
@@ -136,7 +167,8 @@ class MessageServer(ThreadingTCPServer):
         queue_types = {
             "redis": RedisQueue,
             "dummy": DummyQueue,
-            "sticky": StickyQueue
+            "sticky": StickyQueue,
+            "keyedsticky": KeyedStickyQueue,
         }
         for queue_info in queue_config["queues"]:
             queue_name = queue_info["queue_name"]
@@ -166,7 +198,7 @@ class MessageServer(ThreadingTCPServer):
 
         try:
             queue = self.queue_map[queue_name]
-            queue.enqueue(msg.task)
+            queue.enqueue(msg.task, msg.headers)
         except KeyError:
             raise QueueNotFound
         except ValidationError:
