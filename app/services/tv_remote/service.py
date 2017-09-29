@@ -2,6 +2,7 @@ import json
 import logging
 from threading import RLock, Timer
 
+from retask import Task
 from roku import Roku
 
 import app.core.netutils as netutils
@@ -10,6 +11,7 @@ from app.core.service_base import BaseService, BackgroundProcessServiceStart
 
 
 logger = logging.getLogger(__name__)
+
 
 class TV(object):
     def list_commands(self):
@@ -82,7 +84,7 @@ class RokuScanner(object):
                 "device_command_queue": "/device/tv/command",
                 "device_commands": roku_tv.list_commands(),
             }
-            task= Task(obj)
+            task = Task(obj)
             self.service_sender.enqueue(task, headers={"KEY": device_id})
 
     def discover_devices(self):
