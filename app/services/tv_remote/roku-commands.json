@@ -1,0 +1,66 @@
+[
+    {
+        "id": "back",
+        "type": "click"
+    },
+    {
+        "id": "backspace",
+        "type": "click"
+    },
+    {
+        "id": "down",
+        "type": "click"
+    },
+    {
+        "id": "enter",
+        "type": "click"
+    },
+    {
+        "id": "forward",
+        "type": "click"
+    },
+    {
+        "id": "home",
+        "type": "click"
+    },
+    {
+        "id": "info",
+        "type": "click"
+    },
+    {
+        "id": "left",
+        "type": "click"
+    },
+    {
+        "id": "literal",
+        "type": "keyboard"
+    },
+    {
+        "id": "play",
+        "type": "click"
+    },
+    {
+        "id": "replay",
+        "type": "click"
+    },
+    {
+        "id": "reverse",
+        "type": "click"
+    },
+    {
+        "id": "right",
+        "type": "click"
+    },
+    {
+        "id": "search",
+        "type": "click"
+    },
+    {
+        "id": "select",
+        "type": "click"
+    },
+    {
+        "id": "up",
+        "type": "click"
+    },
+]
