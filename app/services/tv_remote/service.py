@@ -1,6 +1,6 @@
 import json
 import logging
-from threading import RLock
+from threading import RLock, Timer
 
 from roku import Roku
 
@@ -46,7 +46,7 @@ class RokuTV(TV):
         return True
 
     def read_commands(self):
-        with open("roku-commands.json") as inp:
+        with open("app/services/tv_remote/roku-commands.json") as inp:
             return json.load(inp)
 
     def device_id(self):
@@ -54,33 +54,61 @@ class RokuTV(TV):
 
 
 class RokuScanner(object):
-    def __init__(self, queue_name):
-        self.sender = Sender(queue_name)
-        self.sender.start()
+    def __init__(self, service_queue, scan_interval=600):
+        self.service_sender = Sender(service_queue)
+        self.service_sender.start()
         self.device_lock = RLock()
         self.device_map = {}
+        self.scan_timer = Timer(scan_interval, self.scan)
 
-    def start_background_scan(self):
+    def start(self):
+        self.scan()
+        self.scan_timer.start()
+
+    def stop(self):
+        self.scan_timer.cancel()
+
+    def scan(self):
         devices = {}
-        for roku in Roku.discover():
-            mac = netutils.get_mac_address(roku.host)
+        for roku in self.discover_device():
+            mac = self.get_device_id(roku.host)
             devices[mac] = RokuTV(mac, roku)
         with self.device_lock:
             self.device_map = devices
 
-    def devices(self):
+        for device_id, roku_tv in devices.items():
+            obj = {
+                "device_id": device_id,
+                "device_command_queue": "/device/tv/command",
+                "device_commands": roku_tv.list_commands(),
+            }
+            task= Task(obj)
+            self.service_sender.enqueue(task, headers={"KEY": device_id})
+
+    def discover_devices(self):
+        return Roku.discover()
+
+    def get_device_id(self, host):
+        return netutils.get_mac_address(host)
+
+    def get_device(self, device_id):
         with self.device_lock:
-            return self.device_map.copy()
+            return self.device_map[device_id]
 
 
 class TVRemoteReceiver(Receiver):
+    def __init__(self, scanner, queue_name):
+        self.scanner = scanner
+        super().__init__(queue_name)
+
     def on_message(self, msg):
         logger.info("Got msg: %s", json.dumps(msg))
 
 
 class TVRemoteService(BackgroundProcessServiceStart, BaseService):
     def __init__(self, config):
-        self.receiver = TVRemoteReceiver("/tv/command")
+        self.scanner = RokuScanner("/devices")
+        self.receiver = TVRemoteReceiver(self.scanner, "/tv/command")
         super().__init__()
 
     def get_component_name(self):
@@ -90,6 +118,8 @@ class TVRemoteService(BackgroundProcessServiceStart, BaseService):
         self.receiver.start()
         self.notify_start()
         self.receiver.run()
+        self.scanner.start()
 
     def on_service_stop(self):
+        self.scanner.stop()
         self.receiver.stop()
