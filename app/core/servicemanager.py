@@ -49,6 +49,7 @@ class ServiceManager(object):
     def __init__(self, registry):
         unsorted_services = list_modules(app.services)
         self.service_modules = topo_sort_modules(unsorted_services)
+        self.module_map = {x.name: x for x in unsorted_services}
         self.services = []
         self.active = threading.Event()
 
@@ -72,10 +73,20 @@ class ServiceManager(object):
                 continue
             self.services.append(service)
             logger.info("Started service: %s", module.name)
+        total_services = len(self.service_modules)
+        started_services = total_services - len(error_modules)
         logger.info("Started %d out of %d services.",
-                    len(self.service_modules) - len(error_modules),
-                    len(self.service_modules))
+                    started_services, total_services)
+        return started_services, total_services
+
+    def wait(self):
         self.active.wait()
+
+    def start_services(self, services):
+        services = set(services)
+        new_service_set = [x for x in self.services if x.name in services]
+        self.services = new_service_set
+        return self.run()
 
     def stop(self):
         self.active.set()
