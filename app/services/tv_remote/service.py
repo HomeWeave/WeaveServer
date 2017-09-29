@@ -11,6 +11,47 @@ from app.core.service_base import BaseService, BackgroundProcessServiceStart
 
 logger = logging.getLogger(__name__)
 
+class TV(object):
+    def list_commands(self):
+        return []
+
+    def send_command(self, command_id):
+        pass
+
+    def powered(self):
+        return False
+
+    def device_id(self):
+        return None
+
+
+class RokuTV(TV):
+    def __init__(self, mac, roku):
+        super().__init__()
+        self.mac = mac
+        self.roku = roku
+        self.commands = self.read_commands()
+        self.command_ids = [x["id"] for x in self.commands]
+
+    def list_commands(self):
+        return self.commands
+
+    def send_command(self, command):
+        if command["id"] not in self.command_ids:
+            logger.warning("%s not in commands.", command["id"])
+            return False
+
+        func = getattr(self.roku, command["id"])
+        func(*command["params"])
+        return True
+
+    def read_commands(self):
+        with open("roku-commands.json") as inp:
+            return json.load(inp)
+
+    def device_id(self):
+        return self.mac
+
 
 class RokuScanner(object):
     def __init__(self, queue_name):
