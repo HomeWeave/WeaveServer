@@ -6,46 +6,35 @@
             "request_schema": {
                 "type": "object",
                 "properties": {
-                    "device_info_queue": {"type": "string"},
-                    "device_command_list_queue": {"type": "string"},
+                    "device_id": {"type": "string"},
                     "device_command_queue": {"type": "string"},
-                }
-            }
-        },
-        {
-            "queue_name": "/device/tv/info",
-            "request_schema": {"type": "object"},
-            "queue_type": "sticky"
-        },
-        {
-            "queue_name": "/device/tv/command_list",
-            "request_schema": {
-                "type": "object",
-                "properties": {
-                    "commands": {
+                    "device_commands": {
                         "type": "array",
                         "items": {
                             "type": "object",
                             "properties": {
                                 "name": {"type": "string"},
                                 "id": {"type": "string"},
-                                "icon": {"type": "string"},
+                                "icon": {"type": "string"}
                             }
                         }
                     }
                 },
-                "required": ["commands"]
-            },
-            "queue_type": "sticky"
+                "required": [
+                    "device_id",
+                    "device_commands",
+                    "device_commands_queue"
+                ]
+            }
         },
         {
             "queue_name": "/device/tv/command",
             "request_schema": {
-                "type": "object"
+                "type": "object",
                 "properties": {
                     "id": {"type": "string"}
                 }
-            },
+            }
         }
     ]
 }
