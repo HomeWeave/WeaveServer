@@ -1,11 +1,35 @@
 import json
 import logging
+from threading import RLock
 
-from app.core.messaging import Receiver
+from roku import Roku
+
+import app.core.netutils as netutils
+from app.core.messaging import Receiver, Sender
 from app.core.service_base import BaseService, BackgroundProcessServiceStart
 
 
 logger = logging.getLogger(__name__)
+
+
+class RokuScanner(object):
+    def __init__(self, queue_name):
+        self.sender = Sender(queue_name)
+        self.sender.start()
+        self.device_lock = RLock()
+        self.device_map = {}
+
+    def start_background_scan(self):
+        devices = {}
+        for roku in Roku.discover():
+            mac = netutils.get_mac_address(roku.host)
+            devices[mac] = RokuTV(mac, roku)
+        with self.device_lock:
+            self.device_map = devices
+
+    def devices(self):
+        with self.device_lock:
+            return self.device_map.copy()
 
 
 class TVRemoteReceiver(Receiver):
