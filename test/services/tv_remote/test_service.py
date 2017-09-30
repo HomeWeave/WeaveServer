@@ -21,18 +21,22 @@ class TestRokuScanner(object):
 
     def test_basic_discovery(self):
         roku1 = Roku("abc")
-        scanner = RokuScanner("/devices", scan_interval=10)
+        scanner = RokuScanner("/devices", scan_interval=1)
         scanner.discover_devices = lambda: [roku1]
-        scanner.get_device_id = lambda: "deviceid"
+        scanner.get_device_id = lambda x: "deviceid"
         scanner.start()
 
         receiver = Receiver("/devices")
-        msg = receiver.receive()
+        receiver.start()
+        msg = receiver.receive().task.data
         expected = {
             "deviceid": {
                 "device_id": "deviceid",
-                "device_command_queue": "devices/tv/command",
+                "device_commands_queue": "/device/tv/command",
                 "device_commands": RokuTV(None, None).read_commands()
             }
         }
         assert msg == expected
+
+        receiver.stop()
+        scanner.stop()
