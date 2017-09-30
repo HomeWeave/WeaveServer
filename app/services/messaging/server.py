@@ -47,6 +47,7 @@ class RedisQueue(BaseQueue):
         super().__init__(queue_info)
         self.queue = Queue(queue_name,
                            {"password": redis_config["REDIS_PASSWD"]})
+        self.use_fake = redis_config.get("USE_FAKE_REDIS", None)
 
     def enqueue(self, task, headers):
         self.validate_schema(task.data)
@@ -57,7 +58,13 @@ class RedisQueue(BaseQueue):
         return self.queue.wait()
 
     def connect(self):
-        return self.queue.connect()
+        if not self.use_fake:
+            self.queue.connect()
+        else:
+            # Hack for testing.
+            import fakeredis
+            self.queue.rdb = fakeredis.FakeStrictRedis()
+            self.queue.connected = True
 
 
 class DummyQueue(BaseQueue):
