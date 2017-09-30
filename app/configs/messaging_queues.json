@@ -15,7 +15,7 @@
                             "properties": {
                                 "name": {"type": "string"},
                                 "id": {"type": "string"},
-                                "icon": {"type": "string"}
+                                "type": {"type": "string"}
                             }
                         }
                     }
