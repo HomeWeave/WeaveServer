@@ -46,7 +46,7 @@ class RedisQueue(BaseQueue):
     def __init__(self, queue_info, queue_name, redis_config):
         super().__init__(queue_info)
         self.queue = Queue(queue_name,
-                           {"password": redis_config["REDIS_PASSWD"]})
+                           {"password": redis_config.get("REDIS_PASSWD")})
         self.use_fake = redis_config.get("USE_FAKE_REDIS", None)
 
     def enqueue(self, task, headers):
