@@ -58,12 +58,12 @@ class RokuTV(TV):
 class RokuScanner(object):
     def __init__(self, service_queue, scan_interval=600):
         self.service_sender = Sender(service_queue)
-        self.service_sender.start()
         self.device_lock = RLock()
         self.device_map = {}
         self.scan_timer = Timer(scan_interval, self.scan)
 
     def start(self):
+        self.service_sender.start()
         self.scan()
         self.scan_timer.start()
 
