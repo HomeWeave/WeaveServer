@@ -73,6 +73,7 @@ class RokuScanner(object):
     def scan(self):
         devices = {}
         for roku in self.discover_devices():
+            logger.info("Found a Roku TV at %s", roku.host)
             mac = self.get_device_id(roku.host)
             devices[mac] = RokuTV(mac, roku)
         with self.device_lock:
@@ -110,7 +111,7 @@ class TVRemoteReceiver(Receiver):
 class TVRemoteService(BackgroundProcessServiceStart, BaseService):
     def __init__(self, config):
         self.scanner = RokuScanner("/devices")
-        self.receiver = TVRemoteReceiver(self.scanner, "/tv/command")
+        self.receiver = TVRemoteReceiver(self.scanner, "/device/tv/command")
         super().__init__()
 
     def get_component_name(self):
@@ -119,8 +120,8 @@ class TVRemoteService(BackgroundProcessServiceStart, BaseService):
     def on_service_start(self, *args, **kwargs):
         self.receiver.start()
         self.notify_start()
-        self.receiver.run()
         self.scanner.start()
+        self.receiver.run()
 
     def on_service_stop(self):
         self.scanner.stop()
