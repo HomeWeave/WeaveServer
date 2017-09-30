@@ -59,12 +59,13 @@ class RedisQueue(BaseQueue):
 
     def connect(self):
         if not self.use_fake:
-            self.queue.connect()
+            return self.queue.connect()
         else:
             # Hack for testing.
             import fakeredis
             self.queue.rdb = fakeredis.FakeStrictRedis()
             self.queue.connected = True
+            return True
 
 
 class DummyQueue(BaseQueue):
