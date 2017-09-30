@@ -32,8 +32,14 @@
             "request_schema": {
                 "type": "object",
                 "properties": {
-                    "id": {"type": "string"}
-                }
+                    "command_id": {"type": "string"},
+                    "device_id": {"type": "string"},
+                    "args": {
+                        "type": "array",
+                        "items": {"type": "string"}
+                    }
+                },
+                "required": ["command_id", "device_id"]
             }
         }
     ]

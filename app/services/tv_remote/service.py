@@ -56,7 +56,7 @@ class RokuTV(TV):
 
 
 class RokuScanner(object):
-    def __init__(self, service_queue, scan_interval=600):
+    def __init__(self, service_queue, scan_interval=30):
         self.service_sender = Sender(service_queue)
         self.device_lock = RLock()
         self.device_map = {}
@@ -89,7 +89,11 @@ class RokuScanner(object):
             self.service_sender.send(task, headers={"KEY": device_id})
 
     def discover_devices(self):
-        return Roku.discover()
+        for _ in range(3):
+            obj = Roku.discover()
+            if obj:
+                return obj
+        return []
 
     def get_device_id(self, host):
         return netutils.get_mac_address(host)
@@ -105,7 +109,21 @@ class TVRemoteReceiver(Receiver):
         super().__init__(queue_name)
 
     def on_message(self, msg):
-        logger.info("Got msg: %s", json.dumps(msg))
+        try:
+            device = self.scanner.get_device(msg["device_id"])
+        except KeyError:
+            logger.warning("Not found device id: %s.", msg["device_id"])
+            return
+
+        command = {
+            "id": msg["command_id"],
+            "params": msg.get("args", [])
+        }
+
+        if device.send_command(command):
+            logger.info("Command %s sent to %s", command, device)
+        else:
+            logger.info("Could not send command %s to %s", command, device)
 
 
 class TVRemoteService(BackgroundProcessServiceStart, BaseService):
