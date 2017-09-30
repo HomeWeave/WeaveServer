@@ -17,6 +17,7 @@ def get_mac_address(host):
 
     proc = Popen(["arp", "-a", host], stdout=PIPE)
     for line in proc.stdout:
+        line = line.decode("UTF-8")
         if host in line:
             matches = re.findall(mac_pattern, line)
             if matches:
