@@ -132,7 +132,10 @@ class KeyedStickyQueue(BaseQueue):
 
     def dequeue(self, requestor_id):
         def can_dequeue():
-            sent_keys = self.requestor_map.get(requestor_id, set())
+            # If a new requestor, always send something, including empty {}
+            if requestor_id not in self.requestor_map:
+                return True
+            sent_keys = self.requestor_map[requestor_id]
             new_keys = set(self.sticky_map.keys())
             keys_to_send = new_keys - sent_keys
             return keys_to_send

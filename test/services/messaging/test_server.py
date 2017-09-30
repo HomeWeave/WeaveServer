@@ -173,7 +173,7 @@ class TestMessagingService(object):
 
         thread.join()
 
-    def test_stick_simple_enqueue_dequeue(self):
+    def test_sticky_simple_enqueue_dequeue(self):
         def make_receiver(count, msgs, sem, r):
             def on_message(msg):
                 msgs.append(msg)
@@ -244,11 +244,12 @@ class TestMessagingService(object):
         r1 = Receiver("x.keyedsticky")
         r2 = Receiver("x.keyedsticky")
 
-        r1.on_message = make_receiver(2, obj1, sem1, r1)
+        r1.on_message = make_receiver(3, obj1, sem1, r1)
         r1.start()
         Thread(target=r1.run).start()
 
-        assert not sem1.acquire(timeout=2)  # No msg sent. Must timeout.
+        assert sem1.acquire(timeout=10)  # Won't timeout for the first message.
+        assert obj1 == {}
 
         s1.start()
         s1.send(Task({"foo": "bar"}), headers={"KEY": "1"})
