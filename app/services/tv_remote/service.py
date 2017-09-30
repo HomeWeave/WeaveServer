@@ -72,7 +72,7 @@ class RokuScanner(object):
 
     def scan(self):
         devices = {}
-        for roku in self.discover_device():
+        for roku in self.discover_devices():
             mac = self.get_device_id(roku.host)
             devices[mac] = RokuTV(mac, roku)
         with self.device_lock:
@@ -81,11 +81,11 @@ class RokuScanner(object):
         for device_id, roku_tv in devices.items():
             obj = {
                 "device_id": device_id,
-                "device_command_queue": "/device/tv/command",
+                "device_commands_queue": "/device/tv/command",
                 "device_commands": roku_tv.list_commands(),
             }
             task = Task(obj)
-            self.service_sender.enqueue(task, headers={"KEY": device_id})
+            self.service_sender.send(task, headers={"KEY": device_id})
 
     def discover_devices(self):
         return Roku.discover()
