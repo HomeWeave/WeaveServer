@@ -84,8 +84,8 @@ class ServiceManager(object):
 
     def start_services(self, services):
         services = set(services)
-        new_service_set = [x for x in self.services if x.name in services]
-        self.services = new_service_set
+        new_services = [x for x in self.service_modules if x.name in services]
+        self.service_modules = new_services
         return self.run()
 
     def stop(self):
