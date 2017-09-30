@@ -242,6 +242,7 @@ class MessageServer(ThreadingTCPServer):
         for _, queue in self.queue_map.items():
             queue.disconnect()
         super().shutdown()
+        super().server_close()
 
 
 class MessageService(BackgroundProcessServiceStart, BaseService):
