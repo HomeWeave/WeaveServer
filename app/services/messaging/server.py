@@ -1,10 +1,11 @@
 import logging
+from collections import defaultdict
 from socketserver import ThreadingTCPServer, StreamRequestHandler
 from threading import Condition, RLock
 from queue import Queue as SyncQueue
 from uuid import uuid4
 
-from retask import Queue
+from retask import Queue, Task
 from jsonschema import validate, ValidationError
 
 from app.core.messaging import read_message, serialize_message, Message
@@ -21,7 +22,7 @@ class BaseQueue(object):
     def __init__(self, queue_info):
         self.queue_info = queue_info
 
-    def enqueue(self, task):
+    def enqueue(self, task, headers):
         pass
 
     def dequeue(self, requestor_id):
@@ -45,9 +46,10 @@ class RedisQueue(BaseQueue):
     def __init__(self, queue_info, queue_name, redis_config):
         super().__init__(queue_info)
         self.queue = Queue(queue_name,
-                           {"password": redis_config["REDIS_PASSWD"]})
+                           {"password": redis_config.get("REDIS_PASSWD")})
+        self.use_fake = redis_config.get("USE_FAKE_REDIS", None)
 
-    def enqueue(self, task):
+    def enqueue(self, task, headers):
         self.validate_schema(task.data)
         self.queue.enqueue(task)
         return True
@@ -56,7 +58,14 @@ class RedisQueue(BaseQueue):
         return self.queue.wait()
 
     def connect(self):
-        return self.queue.connect()
+        if not self.use_fake:
+            return self.queue.connect()
+        else:
+            # Hack for testing.
+            import fakeredis
+            self.queue.rdb = fakeredis.FakeStrictRedis()
+            self.queue.connected = True
+            return True
 
 
 class DummyQueue(BaseQueue):
@@ -64,7 +73,7 @@ class DummyQueue(BaseQueue):
         super().__init__(queue_info)
         self.queue = SyncQueue()
 
-    def enqueue(self, task):
+    def enqueue(self, task, headers):
         self.validate_schema(task.data)
         self.queue.put(task)
         return True
@@ -81,7 +90,7 @@ class StickyQueue(BaseQueue):
         self.requestor_lock = RLock()
         self.condition = Condition(self.requestor_lock)
 
-    def enqueue(self, task):
+    def enqueue(self, task, headers):
         self.validate_schema(task.data)
         with self.condition:
             self.sticky_message = task
@@ -101,6 +110,40 @@ class StickyQueue(BaseQueue):
 
     def connect(self):
         return True
+
+
+class KeyedStickyQueue(BaseQueue):
+    def __init__(self, queue_info, *args, **kwargs):
+        super().__init__(queue_info)
+        self.sticky_map = {}
+        self.requestor_map = defaultdict(set)
+        self.condition = Condition()
+
+    def enqueue(self, task, headers):
+        try:
+            key = headers["KEY"]
+        except KeyError:
+            raise RequiredFieldsMissing
+
+        self.validate_schema(task.data)
+        with self.condition:
+            self.sticky_map[key] = task.data
+            self.condition.notify_all()
+
+    def dequeue(self, requestor_id):
+        def can_dequeue():
+            # If a new requestor, always send something, including empty {}
+            if requestor_id not in self.requestor_map:
+                return True
+            sent_keys = self.requestor_map[requestor_id]
+            new_keys = set(self.sticky_map.keys())
+            keys_to_send = new_keys - sent_keys
+            return keys_to_send
+
+        with self.condition:
+            self.condition.wait_for(can_dequeue)
+            self.requestor_map[requestor_id] |= self.sticky_map.keys()
+            return Task(self.sticky_map)
 
 
 class MessageHandler(StreamRequestHandler):
@@ -136,7 +179,8 @@ class MessageServer(ThreadingTCPServer):
         queue_types = {
             "redis": RedisQueue,
             "dummy": DummyQueue,
-            "sticky": StickyQueue
+            "sticky": StickyQueue,
+            "keyedsticky": KeyedStickyQueue,
         }
         for queue_info in queue_config["queues"]:
             queue_name = queue_info["queue_name"]
@@ -166,7 +210,7 @@ class MessageServer(ThreadingTCPServer):
 
         try:
             queue = self.queue_map[queue_name]
-            queue.enqueue(msg.task)
+            queue.enqueue(msg.task, msg.headers)
         except KeyError:
             raise QueueNotFound
         except ValidationError:
@@ -201,6 +245,7 @@ class MessageServer(ThreadingTCPServer):
         for _, queue in self.queue_map.items():
             queue.disconnect()
         super().shutdown()
+        super().server_close()
 
 
 class MessageService(BackgroundProcessServiceStart, BaseService):
