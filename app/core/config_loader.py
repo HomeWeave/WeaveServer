@@ -73,6 +73,12 @@ class ChainedConfig(object):
                 pass
         raise KeyError(name)
 
+    def get(self, key, default=None):
+        try:
+            return self.__getitem__(key)
+        except KeyError:
+            return default
+
 
 def get_simple_loader(name):
     mappings = {

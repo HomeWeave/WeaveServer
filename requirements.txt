@@ -7,3 +7,4 @@ GitPython
 psutil
 retask
 jsonschema
+roku

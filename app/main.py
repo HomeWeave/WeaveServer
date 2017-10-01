@@ -20,6 +20,7 @@ class Hulk(object):
     def start(self):
         """Starts self.service_manager.start() on a new thread."""
         self.service_manager.run()
+        self.service_manager.wait()
 
     def shutdown(self):
         self.service_manager.stop()

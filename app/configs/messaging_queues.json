@@ -1,29 +1,46 @@
 {
     "queues": [
         {
-            "queue_name": "/tv/command",
+            "queue_name": "/devices",
+            "queue_type": "keyedsticky",
             "request_schema": {
                 "type": "object",
                 "properties": {
-                    "command": {
-                        "description": "The command to send to TV",
-                        "enum": ["POWER", "LEFT", "RIGHT", "UP", "DOWN"]
+                    "device_id": {"type": "string"},
+                    "device_command_queue": {"type": "string"},
+                    "device_commands": {
+                        "type": "array",
+                        "items": {
+                            "type": "object",
+                            "properties": {
+                                "name": {"type": "string"},
+                                "id": {"type": "string"},
+                                "type": {"type": "string"}
+                            }
+                        }
                     }
                 },
-                "required": ["command"]
-            },
-            "response_schema": {
+                "required": [
+                    "device_id",
+                    "device_commands",
+                    "device_commands_queue"
+                ]
+            }
+        },
+        {
+            "queue_name": "/device/tv/command",
+            "request_schema": {
                 "type": "object",
                 "properties": {
-                    "result": {
-                        "description": "The result of the command to send to TV",
-                        "enum": ["NETWORK-ERROR", "OK", "UNKNOWN-ERROR"]
+                    "command_id": {"type": "string"},
+                    "device_id": {"type": "string"},
+                    "args": {
+                        "type": "array",
+                        "items": {"type": "string"}
                     }
                 },
-                "required": ["result"]
-            },
-            "online": true,
-            "timeout": 15
+                "required": ["command_id", "device_id"]
+            }
         }
     ]
 }
