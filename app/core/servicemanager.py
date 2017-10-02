@@ -91,5 +91,4 @@ class ServiceManager(object):
     def stop(self):
         self.active.set()
         for service in self.services[::-1]:
-            print("Stopping", service)
             service.service_stop()
