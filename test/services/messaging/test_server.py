@@ -1,4 +1,5 @@
 import socket
+from copy import deepcopy
 from threading import Thread, Event, Semaphore
 
 from retask import Task
@@ -12,12 +13,13 @@ from app.services.messaging import MessageService
 
 
 CONFIG = {
-    "redis_config": {},
+    "redis_config": {
+        "USE_FAKE_REDIS": True
+    },
     "queues": {
         "queues": [
             {
                 "queue_name": "a.b.c",
-                "queue_type": "dummy",
                 "request_schema": {
                     "type": "object",
                     "properties": {
@@ -125,6 +127,10 @@ class TestMessagingService(object):
         with pytest.raises(QueueNotFound):
             r.receive()
 
+    def test_dequeue_without_required_header(self):
+        with pytest.raises(RequiredFieldsMissing):
+            send_raw('OP dequeue\n\n')
+
     def test_enqueue_with_bad_schema(self):
         s = Sender("a.b.c")
         s.start()
@@ -224,6 +230,12 @@ class TestMessagingService(object):
         assert len(msgs1) == 2
         assert len(msgs2) == 2
 
+    def test_keyed_enqueue_without_key_header(self):
+        s = Sender("x.keyedsticky")
+        s.start()
+        with pytest.raises(RequiredFieldsMissing):
+            s.send(Task({"foo": "bar"}))
+
     def test_keyed_sticky(self):
         def make_receiver(count, obj, sem, r):
             def on_message(msg):
@@ -269,3 +281,18 @@ class TestMessagingService(object):
         assert sem2.acquire(timeout=10)
         assert obj1 == {"1": {"foo": "bar"}, "2": {"baz": "grr"}}
         assert obj2 == {"1": {"foo": "bar"}, "2": {"baz": "grr"}}
+
+
+class TestMessagingServiceWithRealRedis(object):
+    """ Obviously, we do not have Redis running. Testing for graceful fails."""
+
+    def test_connect_fail(self):
+        event = Event()
+        config = deepcopy(CONFIG)
+        config["redis_config"]["USE_FAKE_REDIS"] = False
+
+        service = MessageService(config)
+        service.notify_start = lambda: event.set()
+        service_thread = Thread(target=service.on_service_start)
+        service_thread.start()
+        assert not event.wait(timeout=10)
