@@ -228,3 +228,14 @@ class Receiver(object):
 
     def on_message(self, msg):
         pass
+
+
+def discover_message_server():
+    IP, PORT = "224.108.73.1", 23034
+    client = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    client.sendto("QUERY".encode('UTF-8'),(IP, PORT))
+
+    client.settimeout(10)
+    data, addr = client.recvfrom(1024)
+    print(data, addr)
+    return None
