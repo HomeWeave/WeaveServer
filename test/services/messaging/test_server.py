@@ -296,3 +296,5 @@ class TestMessagingServiceWithRealRedis(object):
         service_thread = Thread(target=service.on_service_start)
         service_thread.start()
         assert not event.wait(timeout=10)
+
+        service.on_service_stop()
