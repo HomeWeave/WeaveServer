@@ -12,12 +12,13 @@ from app.services.messaging import MessageService
 
 
 CONFIG = {
-    "redis_config": {},
+    "redis_config": {
+        "USE_FAKE_REDIS": True
+    },
     "queues": {
         "queues": [
             {
                 "queue_name": "a.b.c",
-                "queue_type": "dummy",
                 "request_schema": {
                     "type": "object",
                     "properties": {
