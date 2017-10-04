@@ -3,6 +3,8 @@ import re
 import socket
 from subprocess import Popen, PIPE
 
+import netifaces
+
 
 logger = logging.getLogger(__name__)
 
@@ -23,3 +25,10 @@ def get_mac_address(host):
             if matches:
                 return matches[0][0]
     return None
+
+
+def iter_ipv4_addresses():
+    for iface in netifaces.interfaces():
+        for ip_obj in netifaces.ifaddresses(iface).get(netifaces.AF_INET, []):
+            if "netmask" in ip_obj and "addr" in ip_obj:
+                yield ip_obj
