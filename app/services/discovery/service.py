@@ -34,7 +34,7 @@ class DiscoveryServer(object):
         self.exited = Event()
 
     def run(self, success_callback=None):
-        # self.sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        self.sock.setsockopt(socket.IPPROTO_IP, socket.SO_REUSEADDR, 1)
         self.sock.bind((self.MULTICAST_GROUP, self.SERVER_PORT))
         group = socket.inet_aton(self.MULTICAST_GROUP)
         mreq = struct.pack('4sL', group, socket.INADDR_ANY)
