@@ -1,7 +1,7 @@
 import logging
 import os
 import subprocess
-from threading import Timer
+from threading import Timer, Thread
 
 from git import Repo
 from git.util import RemoteProgress
@@ -100,9 +100,23 @@ class UpdateScanner(object):
         self.notification_sender.send(Task({"message": "Update available."}))
 
 
+class Updater(Receiver):
+    def __init__(self, queue_name):
+        super().__init__(queue_name)
+        self.receiver_thread = Thread(target=self.run)
+
+    def start(self):
+        self.start()
+        self.receiver_thread.start()
+
+    def on_message(self, msg):
+        pass
+
+
 class UpdaterService(BackgroundProcessServiceStart, BaseService):
     def __init__(self, config):
         self.update_scanner = UpdateScanner("/shell/notifications")
+        self.updater = Updater("/app/services/updater")
         super().__init__()
 
     def get_component_name(self):
