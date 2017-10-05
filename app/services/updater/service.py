@@ -71,9 +71,8 @@ class Repository(object):
 class UpdateScanner(object):
     UPDATE_CHECK_FREQ = 3600
 
-    def __init__(self, notification_queue, update_status_queue):
+    def __init__(self, notification_queue):
         self.notification_sender = Sender(notification_queue)
-        self.update_status_sender = Sender(update_status_queue)
         self.timer = Timer(self.UPDATE_CHECK_FREQ, self.check_updates)
 
     def start(self):
@@ -93,19 +92,9 @@ class UpdateScanner(object):
         for count, path in enumerate(all_repos):
             repo = Repository(os.path.join(CODE_DIR, path))
 
-            self.checking_updates_progress(repo, count / float(len(all_repos)))
-
             if repo.needs_pull():
                 res.append(repo)
-        self.checking_updates_progress(1.0)
         return res
-
-    def checking_updates_progress(self, repo, progress):
-        self.update_status_sender.send(Task({
-            "status": "FETCH",
-            "progress": progress,
-            "repo": repo.repo_name
-        }))
 
     def notify_updates(self):
         self.notification_sender.send(Task({"message": "Update available."}))
@@ -113,8 +102,7 @@ class UpdateScanner(object):
 
 class UpdaterService(BackgroundProcessServiceStart, BaseService):
     def __init__(self, config):
-        self.update_scanner = UpdateScanner("/shell/notifications",
-                                            "/app/services/updater/status")
+        self.update_scanner = UpdateScanner("/shell/notifications")
         super().__init__()
 
     def get_component_name(self):
