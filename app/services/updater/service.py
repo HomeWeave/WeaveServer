@@ -74,6 +74,7 @@ class UpdateScanner(object):
     def __init__(self, notification_queue):
         self.notification_sender = Sender(notification_queue)
         self.timer = Timer(self.UPDATE_CHECK_FREQ, self.check_updates)
+        self.repos_to_update = []
 
     def start(self):
         self.timer.start()
@@ -94,15 +95,21 @@ class UpdateScanner(object):
 
             if repo.needs_pull():
                 res.append(repo)
+        self.repos_to_update = res
         return res
 
     def notify_updates(self):
         self.notification_sender.send(Task({"message": "Update available."}))
 
+    @property
+    def updates(self):
+        return self.repos_to_update
+
 
 class Updater(Receiver):
-    def __init__(self, queue_name):
+    def __init__(self, scanner, queue_name):
         super().__init__(queue_name)
+        self.scanner = scanner
         self.receiver_thread = Thread(target=self.run)
 
     def start(self):
@@ -110,7 +117,27 @@ class Updater(Receiver):
         self.receiver_thread.start()
 
     def on_message(self, msg):
+        repos = self.scanner.updates
+        if not repos:
+            self.update_status("No Updates found.")
+            return
+
+        for repo in repos:
+            repo.pull(self.send_pull_progress)
+
+        self.run_ansible()
+
+    def run_ansible(self):
         pass
+
+    def send_pull_progress(self, progress):
+        task = Task({
+            "status": "Updating..",
+            "stage": 1,
+            "total_stages": 2,
+            "progress": progress
+        })
+        self.status_sender.send(task)
 
 
 class UpdaterService(BackgroundProcessServiceStart, BaseService):
