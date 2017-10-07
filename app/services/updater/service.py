@@ -125,10 +125,15 @@ class Updater(Receiver):
         for repo in repos:
             repo.pull(self.send_pull_progress)
 
-        self.run_ansible()
+        self.perform_update()
 
-    def run_ansible(self):
-        pass
+    def perform_update(self):
+        logger.info("Running ansible")
+        run_ansible_path = os.path.join(SCRIPTS_DIR, "run_ansible.sh")
+        args = [run_ansible_path]
+        with subprocess.Popen(args) as proc:
+            proc.wait()
+            return proc.returncode
 
     def send_pull_progress(self, progress):
         task = Task({
@@ -150,15 +155,10 @@ class UpdaterService(BackgroundProcessServiceStart, BaseService):
         return "updater"
 
     def on_service_start(self, *args, **kwargs):
+        self.update_scanner.start()
+        self.updater.start()
         self.notify_start()
 
-    def perform_update(self):
-        logger.info("Running ansible")
-        run_ansible_path = os.path.join(SCRIPTS_DIR, "run_ansible.sh")
-        args = [run_ansible_path]
-        with subprocess.Popen(args) as proc:
-            proc.wait()
-            return proc.returncode
-
     def on_service_stop(self):
+        self.updater.stop()
         self.update_scanner.stop()
