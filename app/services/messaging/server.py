@@ -2,7 +2,6 @@ import logging
 from collections import defaultdict
 from socketserver import ThreadingTCPServer, StreamRequestHandler
 from threading import Condition, RLock
-from queue import Queue as SyncQueue
 from uuid import uuid4
 
 from retask import Queue, Task
@@ -66,20 +65,6 @@ class RedisQueue(BaseQueue):
             self.queue.rdb = fakeredis.FakeStrictRedis()
             self.queue.connected = True
             return True
-
-
-class DummyQueue(BaseQueue):
-    def __init__(self, queue_info, *args, **kwargs):
-        super().__init__(queue_info)
-        self.queue = SyncQueue()
-
-    def enqueue(self, task, headers):
-        self.validate_schema(task.data)
-        self.queue.put(task)
-        return True
-
-    def dequeue(self, requestor_id):
-        return self.queue.get()
 
 
 class StickyQueue(BaseQueue):
@@ -178,7 +163,6 @@ class MessageServer(ThreadingTCPServer):
 
         queue_types = {
             "redis": RedisQueue,
-            "dummy": DummyQueue,
             "sticky": StickyQueue,
             "keyedsticky": KeyedStickyQueue,
         }
