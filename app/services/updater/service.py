@@ -1,7 +1,8 @@
 import logging
 import os
 import subprocess
-from threading import Timer, Thread
+import time
+from threading import Timer, Thread, Event
 
 from git import Repo
 from git.util import RemoteProgress
@@ -73,25 +74,33 @@ class UpdateScanner(object):
 
     def __init__(self, notification_queue):
         self.notification_sender = Sender(notification_queue)
-        self.timer = Timer(self.UPDATE_CHECK_FREQ, self.check_updates)
+        self.cancel_event = Event()
+        self.thread = Thread(target=self.run)
         self.repos_to_update = []
 
     def start(self):
-        self.timer.start()
+        self.cancel_event.clear()
+        self.thread.start()
 
     def stop(self):
-        pass
+        self.cancel_event.set()
+        self.thread.join()
+
+    def run(self):
+        while not self.cancel_event.is_set():
+            self.check_updates()
+            self.cancel_event.wait(self.UPDATE_CHECK_FREQ)
 
     def check_updates(self):
         res = []
-        all_repos = os.listdir(CODE_DIR)
+        all_repos = self.get_repos()
 
         if not all_repos:
             return []
 
         logger.info("Checking for updates: %s", str(all_repos))
         for count, path in enumerate(all_repos):
-            repo = Repository(os.path.join(CODE_DIR, path))
+            repo = Repository(path)
 
             if repo.needs_pull():
                 res.append(repo)
@@ -100,6 +109,9 @@ class UpdateScanner(object):
 
     def notify_updates(self):
         self.notification_sender.send(Task({"message": "Update available."}))
+
+    def get_repos(self, path):
+        return [os.path.join(path, x) for x in os.listdir(path)]
 
     @property
     def updates(self):
@@ -113,7 +125,7 @@ class Updater(Receiver):
         self.receiver_thread = Thread(target=self.run)
 
     def start(self):
-        self.start()
+        super().start()
         self.receiver_thread.start()
 
     def on_message(self, msg):
@@ -136,19 +148,14 @@ class Updater(Receiver):
             return proc.returncode
 
     def send_pull_progress(self, progress):
-        task = Task({
-            "status": "Updating..",
-            "stage": 1,
-            "total_stages": 2,
-            "progress": progress
-        })
-        self.status_sender.send(task)
+        msg = "Update in progress: {}".format(progress * 0.5)
+        self.status_sender.send(Task({"message": msg}))
 
 
 class UpdaterService(BackgroundProcessServiceStart, BaseService):
     def __init__(self, config):
-        self.update_scanner = UpdateScanner("/shell/notifications")
-        self.updater = Updater("/app/services/updater")
+        self.update_scanner = UpdateScanner("/services/shell/notifications")
+        self.updater = Updater(self.update_scanner, "/services/updater/command")
         super().__init__()
 
     def get_component_name(self):
