@@ -1,6 +1,6 @@
 import json
 import logging
-from threading import RLock, Timer
+from threading import RLock, Thread, Event
 
 from retask import Task
 from roku import Roku
@@ -70,19 +70,28 @@ class RokuTV(TV):
 
 
 class RokuScanner(object):
-    def __init__(self, service_queue, scan_interval=30):
+    SCAN_INTERVAL = 60
+
+    def __init__(self, service_queue):
         self.service_sender = Sender(service_queue)
         self.device_lock = RLock()
         self.device_map = {}
-        self.scan_timer = Timer(scan_interval, self.scan)
+        self.shutdown = Event()
+        self.scanner_thread = Thread(target=self.run)
 
     def start(self):
         self.service_sender.start()
         self.scan()
-        self.scan_timer.start()
+        self.scanner_thread.start()
 
     def stop(self):
-        self.scan_timer.cancel()
+        self.shutdown.set()
+        self.scanner_thread.join()
+
+    def run(self):
+        while not self.shutdown.is_set():
+            self.scan()
+            self.shutdown.wait(timeout=self.SCAN_INTERVAL)
 
     def scan(self):
         devices = {}
