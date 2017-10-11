@@ -4,6 +4,7 @@ from threading import RLock, Timer
 
 from retask import Task
 from roku import Roku
+from wakeonlan import wol
 
 import app.core.netutils as netutils
 from app.core.messaging import Receiver, Sender
@@ -43,7 +44,13 @@ class RokuTV(TV):
             logger.warning("%s not in commands.", command["id"])
             return False
 
-        func = getattr(self.roku, command["id"])
+        try:
+            func = getattr(self, "handle_" + command["id"])
+        except AttributeError:
+            try:
+                func = getattr(self.roku, command["id"])
+            except AttributeError:
+                return False
         func(*command["params"])
         return True
 
@@ -53,6 +60,13 @@ class RokuTV(TV):
 
     def device_id(self):
         return self.mac
+
+    def handle_power(self):
+        if netutils.ping_host(self.roku.host):
+            self.roku._post("/keypress/Power")
+        else:
+            # TV is probably unreachable because its off. Send a WOL packet.
+            wol.send_magic_packet(self.mac)
 
 
 class RokuScanner(object):
