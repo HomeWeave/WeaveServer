@@ -19,7 +19,7 @@ class TestRokuScanner(object):
 
     def test_basic_discovery(self):
         roku1 = Roku("abc")
-        scanner = RokuScanner("/devices", scan_interval=1)
+        scanner = RokuScanner("/devices")
         scanner.discover_devices = lambda: [roku1]
         scanner.get_device_id = lambda x: "deviceid"
         scanner.start()
