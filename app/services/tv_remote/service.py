@@ -1,9 +1,10 @@
 import json
 import logging
-from threading import RLock, Timer
+from threading import RLock, Thread, Event
 
 from retask import Task
 from roku import Roku
+from wakeonlan import wol
 
 import app.core.netutils as netutils
 from app.core.messaging import Receiver, Sender
@@ -43,7 +44,13 @@ class RokuTV(TV):
             logger.warning("%s not in commands.", command["id"])
             return False
 
-        func = getattr(self.roku, command["id"])
+        try:
+            func = getattr(self, "handle_" + command["id"])
+        except AttributeError:
+            try:
+                func = getattr(self.roku, command["id"])
+            except AttributeError:
+                return False
         func(*command["params"])
         return True
 
@@ -54,21 +61,37 @@ class RokuTV(TV):
     def device_id(self):
         return self.mac
 
+    def handle_power(self):
+        if netutils.ping_host(self.roku.host):
+            self.roku._post("/keypress/Power")
+        else:
+            # TV is probably unreachable because its off. Send a WOL packet.
+            wol.send_magic_packet(self.mac)
+
 
 class RokuScanner(object):
-    def __init__(self, service_queue, scan_interval=30):
+    SCAN_INTERVAL = 60
+
+    def __init__(self, service_queue):
         self.service_sender = Sender(service_queue)
         self.device_lock = RLock()
         self.device_map = {}
-        self.scan_timer = Timer(scan_interval, self.scan)
+        self.shutdown = Event()
+        self.scanner_thread = Thread(target=self.run)
 
     def start(self):
         self.service_sender.start()
         self.scan()
-        self.scan_timer.start()
+        self.scanner_thread.start()
 
     def stop(self):
-        self.scan_timer.cancel()
+        self.shutdown.set()
+        self.scanner_thread.join()
+
+    def run(self):
+        while not self.shutdown.is_set():
+            self.scan()
+            self.shutdown.wait(timeout=self.SCAN_INTERVAL)
 
     def scan(self):
         devices = {}

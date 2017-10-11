@@ -9,3 +9,4 @@ retask
 jsonschema
 roku
 netifaces
+wakeonlan
