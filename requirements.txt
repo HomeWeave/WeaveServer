@@ -5,7 +5,8 @@ eventlet
 flask-socketio
 GitPython
 psutil
-retask
+redis
 jsonschema
 roku
 netifaces
+wakeonlan

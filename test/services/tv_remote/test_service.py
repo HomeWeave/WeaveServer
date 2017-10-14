@@ -19,14 +19,14 @@ class TestRokuScanner(object):
 
     def test_basic_discovery(self):
         roku1 = Roku("abc")
-        scanner = RokuScanner("/devices", scan_interval=1)
+        scanner = RokuScanner("/devices")
         scanner.discover_devices = lambda: [roku1]
         scanner.get_device_id = lambda x: "deviceid"
         scanner.start()
 
         receiver = Receiver("/devices")
         receiver.start()
-        msg = receiver.receive().task.data
+        msg = receiver.receive().task
         expected = {
             "deviceid": {
                 "device_id": "deviceid",
@@ -49,7 +49,7 @@ class TestRokuScanner(object):
 
         receiver = Receiver("/devices")
         receiver.start()
-        msg = receiver.receive().task.data
+        msg = receiver.receive().task
         expected = {
             "abc": {
                 "device_id": "abc",
@@ -62,7 +62,7 @@ class TestRokuScanner(object):
         scanner.discover_devices = lambda: [roku1, roku2]
         scanner.scan()
 
-        msg = receiver.receive().task.data
+        msg = receiver.receive().task
         expected["def"] = expected["abc"].copy()
         expected["def"]["device_id"] = "def"
 
