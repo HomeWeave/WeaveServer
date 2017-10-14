@@ -1,6 +1,7 @@
 import json
 import logging
 from collections import defaultdict
+from queue import Queue
 from socketserver import ThreadingTCPServer, StreamRequestHandler
 from threading import Condition, RLock
 from uuid import uuid4
@@ -16,6 +17,19 @@ from app.core.service_base import BaseService, BackgroundProcessServiceStart
 
 
 logger = logging.getLogger(__name__)
+
+
+class FakeRedis(object):
+    """ Fake Redis. Use for testing only. Uses queue.Queue."""
+    def __init__(self):
+        self.queue_map = defaultdict(Queue)
+
+    def lpush(self, queue, obj):
+        self.queue_map[queue].put(obj)
+
+    def brpop(self, queue, timeout=0):
+        timeout = timeout if timeout else None
+        return queue, self.queue_map[queue].get(timeout=timeout)
 
 
 class BaseQueue(object):
@@ -68,14 +82,12 @@ class RedisQueue(BaseQueue):
         if data:
             task = json.loads(data[1])
             return task
+        logger.warning("Redis dequeue returned nothing: %s", data)
         return None
 
     def connect(self):
-        print("Using fake: ", self.use_fake)
         if self.use_fake:
-            # Hack for testing.
-            import fakeredis
-            self.redis = fakeredis.FakeStrictRedis()
+            self.redis = FakeRedis()
             return True
 
         try:
