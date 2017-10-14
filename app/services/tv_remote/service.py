@@ -2,7 +2,6 @@ import json
 import logging
 from threading import RLock, Thread, Event
 
-from retask import Task
 from roku import Roku
 from wakeonlan import wol
 
@@ -103,12 +102,11 @@ class RokuScanner(object):
             self.device_map = devices
 
         for device_id, roku_tv in devices.items():
-            obj = {
+            task = {
                 "device_id": device_id,
                 "device_commands_queue": "/device/tv/command",
                 "device_commands": roku_tv.list_commands(),
             }
-            task = Task(obj)
             self.service_sender.send(task, headers={"KEY": device_id})
 
     def discover_devices(self):
