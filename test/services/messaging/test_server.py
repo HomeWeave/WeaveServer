@@ -2,7 +2,6 @@ import socket
 from copy import deepcopy
 from threading import Thread, Event, Semaphore
 
-from retask import Task
 import pytest
 
 from app.core.messaging import Sender, Receiver, RequiredFieldsMissing
@@ -119,7 +118,7 @@ class TestMessagingService(object):
         s = Sender("unknown.queue")
         s.start()
         with pytest.raises(QueueNotFound):
-            s.send(Task({"a": "b"}))
+            s.send({"a": "b"})
 
     def test_dequeue_from_unknown_queue(self):
         r = Receiver("unknown.queue")
@@ -135,7 +134,7 @@ class TestMessagingService(object):
         s = Sender("a.b.c")
         s.start()
         with pytest.raises(SchemaValidationFailed):
-            s.send(Task({"foo": [1, 2]}))
+            s.send({"foo": [1, 2]})
 
     def test_simple_enqueue_dequeue(self):
         msgs = []
@@ -146,7 +145,7 @@ class TestMessagingService(object):
         r.start()
         r.on_message = lambda msg: msgs.append(msg) or r.stop()
 
-        s.send(Task({"foo": "bar"}))
+        s.send({"foo": "bar"})
         thread = Thread(target=r.run)
         thread.start()
 
@@ -162,7 +161,7 @@ class TestMessagingService(object):
 
         s.start()
         for _ in range(10):
-            s.send(Task(obj))
+            s.send(obj)
 
         expected_message_count = 10
 
@@ -206,7 +205,7 @@ class TestMessagingService(object):
         assert not sem1.acquire(timeout=2)  # Assert that this times out.
         assert len(msgs1) == 0
 
-        s.send(Task(op))
+        s.send(op)
         assert sem1.acquire(timeout=10)  # This shouldn't timeout.
         assert len(msgs1) == 1
 
@@ -223,7 +222,7 @@ class TestMessagingService(object):
 
         assert not sem2.acquire(timeout=2)  # This should timeout.
 
-        s.send(Task(op))
+        s.send(op)
         assert sem1.acquire(timeout=10)
         assert sem2.acquire(timeout=2)
 
@@ -234,7 +233,7 @@ class TestMessagingService(object):
         s = Sender("x.keyedsticky")
         s.start()
         with pytest.raises(RequiredFieldsMissing):
-            s.send(Task({"foo": "bar"}))
+            s.send({"foo": "bar"})
 
     def test_keyed_sticky(self):
         def make_receiver(count, obj, sem, r):
@@ -264,7 +263,7 @@ class TestMessagingService(object):
         assert obj1 == {}
 
         s1.start()
-        s1.send(Task({"foo": "bar"}), headers={"KEY": "1"})
+        s1.send({"foo": "bar"}, headers={"KEY": "1"})
         assert sem1.acquire(timeout=10)  # Must not timeout.
         assert obj1 == {"1": {"foo": "bar"}}
 
@@ -276,7 +275,7 @@ class TestMessagingService(object):
         assert obj2 == {"1": {"foo": "bar"}}
 
         s2.start()
-        s2.send(Task({"baz": "grr"}), headers={"KEY": "2"})
+        s2.send({"baz": "grr"}, headers={"KEY": "2"})
         assert sem1.acquire(timeout=10)
         assert sem2.acquire(timeout=10)
         assert obj1 == {"1": {"foo": "bar"}, "2": {"baz": "grr"}}
