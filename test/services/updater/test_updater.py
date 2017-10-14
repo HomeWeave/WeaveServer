@@ -28,8 +28,8 @@ def make_receiver(count, obj, sem, r):
 class TestUpdateScanner(object):
     def setup_method(self):
         self.git_repo = git.Repo
-        git.Repo = Mock()
-        UpdateScanner.get_repos = lambda _: ["dir"]
+        UpdateScanner.list_repos = lambda x, y: ["dir"]
+        UpdateScanner.get_repo = lambda x, y: Mock()
         self.update_check_freq_backup = UpdateScanner.UPDATE_CHECK_FREQ
         UpdateScanner.UPDATE_CHECK_FREQ = 5
 
