@@ -70,9 +70,8 @@
                 "type": "object",
                 "properties": {
                     "action": {
-                        "type":{
-                            "enum": ["TRIGGER"]
-                        }
+                        "type": "string",
+                        "enum": ["TRIGGER"]
                     }
                 },
                 "required": ["action"]
