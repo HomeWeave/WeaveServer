@@ -2,11 +2,11 @@ import logging
 import os
 import subprocess
 from threading import Thread, Event
+from uuid import uuid4
 
 from git import Repo
 from git.util import RemoteProgress
 from git.exc import GitError
-from retask import Task
 
 from app.core.messaging import Receiver, Sender
 from app.core.service_base import BaseService, BackgroundProcessServiceStart
@@ -72,14 +72,17 @@ class Repository(object):
 class UpdateScanner(object):
     UPDATE_CHECK_FREQ = 3600
 
-    def __init__(self, notification_queue):
+    def __init__(self, notification_queue, status_queue):
         self.notification_sender = Sender(notification_queue)
+        self.status_sender = Sender(status_queue)
+        self.notification_id = str(uuid4())
         self.cancel_event = Event()
         self.thread = Thread(target=self.run)
-        self.repos_to_update = []
+        self.repos_to_update = {}
 
     def start(self):
         self.notification_sender.start()
+        self.status_sender.start()
         self.cancel_event.clear()
         self.thread.start()
 
@@ -96,10 +99,7 @@ class UpdateScanner(object):
         res = []
         all_repos = self.list_repos(CODE_DIR)
 
-        if not all_repos:
-            return []
-
-        logger.info("Checking for updates: %s", str(all_repos))
+        self.update_status("Checking for updates.")
         for count, path in enumerate(all_repos):
             try:
                 repo = self.get_repo(path)
@@ -110,13 +110,27 @@ class UpdateScanner(object):
                 logger.warning("Unable to fetch %s", path, e)
 
         if res:
-            self.repos_to_update = res
-            self.notify_updates()
+            if self.has_new_updates(res):
+                self.repos_to_update = {x.repo_name: x for x in res}
+                self.notify_updates()
+        else:
+            self.update_status("No updates available.")
         return res
 
+    def update_status(self, msg):
+        logger.info("UpdateScanner Status: %s", msg)
+        self.status_sender.send({"message": msg})
+
+    def has_new_updates(self, res):
+        keys = {x.repo_name for x in res}
+        existing = set(self.repos_to_update.keys())
+        return keys - existing
+
     def notify_updates(self):
-        logger.info("Updates found.")
-        self.notification_sender.send(Task({"message": "Update available."}))
+        self.update_status("Updates available.")
+        obj = {"message": "Update available."}
+        headers = {"KEY": self.notification_id}
+        self.notification_sender.send(obj, headers=headers)
 
     def list_repos(self, path):
         return [os.path.join(path, x) for x in os.listdir(path)]
@@ -124,25 +138,30 @@ class UpdateScanner(object):
     def get_repo(self, path):
         return Repository(path)
 
-    @property
-    def updates(self):
-        return self.repos_to_update
+    def get_repos_to_update(self):
+        return list(self.repos_to_update.values())
 
 
 class Updater(Receiver):
-    def __init__(self, scanner, queue_name):
-        super().__init__(queue_name)
+    def __init__(self, scanner, command_queue, status_queue):
+        super().__init__(command_queue)
         self.scanner = scanner
         self.receiver_thread = Thread(target=self.run)
+        self.status_sender = Sender(status_queue)
 
     def start(self):
         super().start()
+        self.status_sender.start()
         self.receiver_thread.start()
 
+    def stop(self):
+        super().stop()
+        self.receiver_thread.join()
+
     def on_message(self, msg):
-        repos = self.scanner.updates
+        repos = self.scanner.get_repos_to_update()
         if not repos:
-            self.update_status("No Updates found.")
+            self.update_status("No updates available.")
             return
 
         for repo in repos:
@@ -160,13 +179,23 @@ class Updater(Receiver):
 
     def send_pull_progress(self, progress):
         msg = "Update in progress: {}".format(progress * 0.5)
-        self.status_sender.send(Task({"message": msg}))
+        self.status_sender.send({"message": msg})
+
+    def update_status(self, msg):
+        logger.info("Updater status: %s", msg)
+        self.status_sender.send({"message": msg})
 
 
 class UpdaterService(BackgroundProcessServiceStart, BaseService):
+    NOTIFICATION_QUEUE = "/services/shell/notifications"
+    UPDATER_STATUS_QUEUE = "/services/updater/status"
+    UPDATER_COMMAND_QUEUE = "/services/updater/command"
+
     def __init__(self, config):
-        self.update_scanner = UpdateScanner("/services/shell/notifications")
-        self.updater = Updater(self.update_scanner, "/services/updater/command")
+        self.update_scanner = UpdateScanner(self.NOTIFICATION_QUEUE,
+                                            self.UPDATER_STATUS_QUEUE)
+        self.updater = Updater(self.update_scanner, self.UPDATER_COMMAND_QUEUE,
+                               self.UPDATER_STATUS_QUEUE)
         self.shutdown = Event()
         super().__init__()
 
@@ -180,6 +209,8 @@ class UpdaterService(BackgroundProcessServiceStart, BaseService):
         self.shutdown.wait()
 
     def on_service_stop(self):
+        logger.info("Stopping Updater..")
         self.updater.stop()
+        logger.info("Stopping update scanner..")
         self.update_scanner.stop()
         self.shutdown.set()
