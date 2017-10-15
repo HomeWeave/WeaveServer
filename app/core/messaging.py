@@ -200,10 +200,8 @@ class Receiver(object):
             try:
                 msg = self.receive()
             except IOError:
-                if self.active:
-                    continue
-                else:
-                    break
+                logger.exception("Stopping receiver.")
+                break
             if msg.task is not None:
                 self.on_message(msg.task)
             else:
