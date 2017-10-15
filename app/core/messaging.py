@@ -200,8 +200,8 @@ class Receiver(object):
             try:
                 msg = self.receive()
             except IOError:
-                if self.active:
-                    raise
+                logger.exception("Stopping receiver.")
+                break
             if msg.task is not None:
                 self.on_message(msg.task)
             else:
@@ -223,9 +223,9 @@ class Receiver(object):
 
     def stop(self):
         self.active = False
+        self.sock.shutdown(socket.SHUT_RDWR)
         self.rfile.close()
         self.wfile.close()
-        self.sock.shutdown(socket.SHUT_RDWR)
         self.sock.close()
 
     def on_message(self, msg):
