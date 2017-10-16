@@ -50,7 +50,7 @@ class SysVarPropConfig(BaseConfig):
         path = "/home/rpi/.variables"
         try:
             with open(path) as inp:
-                lines = [x.strip().split('=') for x in inp]
+                lines = [x.strip().split(':') for x in inp]
             super().__init__({x[0].strip(): x[1].strip() for x in lines})
         except IOError:
             super().__init__({})
