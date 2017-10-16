@@ -41,6 +41,41 @@
                 },
                 "required": ["command_id", "device_id"]
             }
+        },
+        {
+            "queue_name": "/services/shell/notifications",
+            "queue_type": "keyedsticky",
+            "request_schema": {
+                "type": "object",
+                "properties": {
+                    "message": {"type": "string"}
+                },
+                "required": ["message"]
+            }
+        },
+        {
+            "queue_name": "/services/updater/status",
+            "queue_type": "sticky",
+            "request_schema": {
+                "type": "object",
+                "properties": {
+                    "message": {"type": "string"}
+                },
+                "required": ["message"]
+            }
+        },
+        {
+            "queue_name": "/services/updater/command",
+            "request_schema": {
+                "type": "object",
+                "properties": {
+                    "action": {
+                        "type": "string",
+                        "enum": ["TRIGGER"]
+                    }
+                },
+                "required": ["action"]
+            }
         }
     ]
 }

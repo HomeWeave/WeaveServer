@@ -2,8 +2,6 @@ import json
 import logging
 import socket
 
-from retask import Task
-
 
 logger = logging.getLogger(__name__)
 
@@ -16,6 +14,10 @@ class MessagingException(Exception):
         msg = Message("result")
         msg.headers["RES"] = self.err_msg()
         return msg
+
+
+class InternalMessagingError(MessagingException):
+    pass
 
 
 class InvalidMessageStructure(MessagingException):
@@ -59,7 +61,7 @@ def parse_message(lines):
             obj = json.loads(fields["MSG"])
         except json.decoder.JSONDecodeError:
             raise SchemaValidationFailed
-        task = Task(obj)
+        task = obj
         del fields["MSG"]
     else:
         task = None
@@ -77,7 +79,7 @@ def serialize_message(msg):
         msg_lines.append(key + " " + str(value))
 
     if msg.task is not None:
-        msg_lines.append("MSG " + json.dumps(msg.task.data))
+        msg_lines.append("MSG " + json.dumps(msg.task))
     msg_lines.append("")  # Last newline before blank line.
     return "\n".join(msg_lines)
 
@@ -198,10 +200,10 @@ class Receiver(object):
             try:
                 msg = self.receive()
             except IOError:
-                if self.active:
-                    raise
+                logger.exception("Stopping receiver.")
+                break
             if msg.task is not None:
-                self.on_message(msg.task.data)
+                self.on_message(msg.task)
             else:
                 logger.warning("Dropping message without data.")
                 continue
@@ -221,9 +223,9 @@ class Receiver(object):
 
     def stop(self):
         self.active = False
+        self.sock.shutdown(socket.SHUT_RDWR)
         self.rfile.close()
         self.wfile.close()
-        self.sock.shutdown(socket.SHUT_RDWR)
         self.sock.close()
 
     def on_message(self, msg):

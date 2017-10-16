@@ -1,20 +1,35 @@
+import json
 import logging
 from collections import defaultdict
+from queue import Queue
 from socketserver import ThreadingTCPServer, StreamRequestHandler
 from threading import Condition, RLock
 from uuid import uuid4
 
-from retask import Queue, Task
 from jsonschema import validate, ValidationError
+from redis import Redis, ConnectionError as RedisConnectionError
 
 from app.core.messaging import read_message, serialize_message, Message
 from app.core.messaging import SchemaValidationFailed, BadOperation
-from app.core.messaging import RequiredFieldsMissing
+from app.core.messaging import RequiredFieldsMissing, InternalMessagingError
 from app.core.messaging import MessagingException, QueueNotFound
 from app.core.service_base import BaseService, BackgroundProcessServiceStart
 
 
 logger = logging.getLogger(__name__)
+
+
+class FakeRedis(object):
+    """ Fake Redis. Use for testing only. Uses queue.Queue."""
+    def __init__(self):
+        self.queue_map = defaultdict(Queue)
+
+    def lpush(self, queue, obj):
+        self.queue_map[queue].put(obj)
+
+    def brpop(self, queue, timeout=0):
+        timeout = timeout if timeout else None
+        return queue, self.queue_map[queue].get(timeout=timeout)
 
 
 class BaseQueue(object):
@@ -42,29 +57,51 @@ class BaseQueue(object):
 
 
 class RedisQueue(BaseQueue):
+    REDIS_PORT = 6379
+
     def __init__(self, queue_info, queue_name, redis_config):
         super().__init__(queue_info)
-        self.queue = Queue(queue_name,
-                           {"password": redis_config.get("REDIS_PASSWD")})
+        self.queue_name = queue_name
+        self.redis_queue = "queue-" + queue_name
+        self.redis_config = {
+            "host": redis_config.get("REDIS_HOST") or "localhost",
+            "port": int(redis_config.get("REDIS_PORT") or self.REDIS_PORT),
+            "db": int(redis_config.get("REDIS_DB") or 0),
+            "password": redis_config.get("REDIS_PASSWD")
+        }
         self.use_fake = redis_config.get("USE_FAKE_REDIS", None)
+        self.redis = None
 
     def enqueue(self, task, headers):
-        self.validate_schema(task.data)
-        self.queue.enqueue(task)
+        self.validate_schema(task)
+        self.get_connection().lpush(self.redis_queue, json.dumps(task))
         return True
 
-    def dequeue(self, requestor_id):
-        return self.queue.wait()
+    def dequeue(self, requestor_id, timeout=0):
+        data = self.get_connection().brpop(self.redis_queue, timeout=timeout)
+        if data:
+            task = json.loads(data[1])
+            return task
+        logger.warning("Redis dequeue returned nothing: %s", data)
+        return None
 
     def connect(self):
-        if not self.use_fake:
-            return self.queue.connect()
-        else:
-            # Hack for testing.
-            import fakeredis
-            self.queue.rdb = fakeredis.FakeStrictRedis()
-            self.queue.connected = True
+        if self.use_fake:
+            self.redis = FakeRedis()
             return True
+
+        try:
+            self.redis = Redis(**self.redis_config)
+            self.redis.info()
+        except RedisConnectionError:
+            logger.exception("Not in test cases.")
+            return False
+        return True
+
+    def get_connection(self):
+        if self.redis is None:
+            raise RedisConnectionError
+        return self.redis
 
 
 class StickyQueue(BaseQueue):
@@ -76,7 +113,7 @@ class StickyQueue(BaseQueue):
         self.condition = Condition(self.requestor_lock)
 
     def enqueue(self, task, headers):
-        self.validate_schema(task.data)
+        self.validate_schema(task)
         with self.condition:
             self.sticky_message = task
             self.requestors = set()
@@ -110,9 +147,9 @@ class KeyedStickyQueue(BaseQueue):
         except KeyError:
             raise RequiredFieldsMissing
 
-        self.validate_schema(task.data)
+        self.validate_schema(task)
         with self.condition:
-            self.sticky_map[key] = task.data
+            self.sticky_map[key] = task
             self.condition.notify_all()
 
     def dequeue(self, requestor_id):
@@ -128,7 +165,7 @@ class KeyedStickyQueue(BaseQueue):
         with self.condition:
             self.condition.wait_for(can_dequeue)
             self.requestor_map[requestor_id] |= self.sticky_map.keys()
-            return Task(self.sticky_map)
+            return self.sticky_map
 
 
 class MessageHandler(StreamRequestHandler):
@@ -199,6 +236,9 @@ class MessageServer(ThreadingTCPServer):
             raise QueueNotFound
         except ValidationError:
             raise SchemaValidationFailed
+        except RedisConnectionError:
+            logger.exception("Failed to talk to Redis.")
+            raise InternalMessagingError
 
     def handle_dequeue(self, msg):
         try:
@@ -209,9 +249,12 @@ class MessageServer(ThreadingTCPServer):
         requestor_id = msg.headers["SESS"]
         try:
             queue = self.queue_map[queue_name]
+            return queue.dequeue(requestor_id)
         except KeyError:
             raise QueueNotFound
-        return queue.dequeue(requestor_id)
+        except RedisConnectionError:
+            logger.exception("failed to talk to Redis.")
+            raise InternalMessagingError
 
     def run(self):
         for queue in self.queue_map.values():
