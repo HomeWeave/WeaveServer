@@ -7,7 +7,7 @@ from wakeonlan import wol
 
 import app.core.netutils as netutils
 from app.core.messaging import Receiver, Sender
-from app.core.service_base import BaseService, BackgroundProcessServiceStart
+from app.core.services import BaseService, BackgroundProcessServiceStart
 
 
 logger = logging.getLogger(__name__)

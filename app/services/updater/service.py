@@ -9,7 +9,7 @@ from git.util import RemoteProgress
 from git.exc import GitError
 
 from app.core.messaging import Receiver, Sender
-from app.core.service_base import BaseService, BackgroundProcessServiceStart
+from app.core.services import BaseService, BackgroundProcessServiceStart
 
 
 logger = logging.getLogger(__name__)

@@ -3,7 +3,7 @@ import os
 from roku import Roku
 
 from app.core.messaging import Receiver
-from app.core.servicemanager import ServiceManager
+from app.core.services import ServiceManager
 from app.services.tv_remote.service import RokuScanner, RokuTV
 
 

@@ -13,7 +13,7 @@ from app.core.messaging import read_message, serialize_message, Message
 from app.core.messaging import SchemaValidationFailed, BadOperation
 from app.core.messaging import RequiredFieldsMissing, InternalMessagingError
 from app.core.messaging import MessagingException, QueueNotFound
-from app.core.service_base import BaseService, BackgroundProcessServiceStart
+from app.core.services import BaseService, BackgroundProcessServiceStart
 
 
 logger = logging.getLogger(__name__)

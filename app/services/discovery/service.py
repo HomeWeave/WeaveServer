@@ -6,7 +6,7 @@ from ipaddress import IPv4Network
 from threading import Event
 
 import app.core.netutils as netutils
-from app.core.service_base import BaseService, BackgroundProcessServiceStart
+from app.core.services import BaseService, BackgroundProcessServiceStart
 
 
 logger = logging.getLogger(__name__)

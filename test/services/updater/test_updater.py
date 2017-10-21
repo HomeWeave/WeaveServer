@@ -7,7 +7,7 @@ import git
 
 from app.core.logger import configure_logging
 from app.core.messaging import Receiver, Sender
-from app.core.servicemanager import ServiceManager
+from app.core.services import ServiceManager
 from app.services.updater.service import UpdaterService, UpdateScanner
 from app.services.updater.service import Updater
 
