@@ -1,7 +1,23 @@
 {
-    "queues": [
+    "system_queues": [
         {
-            "queue_name": "/devices",
+            "queue_name": "/services",
+            "queue_type": "keyedsticky",
+            "request_schema": {
+                "type": "string"
+            }
+        }
+    ],
+    "default_app_queues": [
+        {
+            "queue_name": "/info/status",
+            "queue_type": "sticky",
+            "request_schema": {
+                "type": "object"
+            }
+        },
+        {
+            "queue_name": "/info/commands",
             "queue_type": "keyedsticky",
             "request_schema": {
                 "type": "object",
@@ -15,8 +31,10 @@
                             "properties": {
                                 "name": {"type": "string"},
                                 "id": {"type": "string"},
-                                "type": {"type": "string"}
-                            }
+                                "type": {"type": "string"},
+                                "description": {"type": "string"}
+                            },
+                            "required": ["id", "name", "type"]
                         }
                     }
                 },
@@ -28,7 +46,19 @@
             }
         },
         {
-            "queue_name": "/device/tv/command",
+            "queue_name": "/info/capabilities",
+            "queue_type": "keyedsticky",
+            "request_schema": {
+                "type": "object",
+                "properties": {
+                    "id": {"type": "string"},
+                    "description": {"type": "string"}
+                },
+                "required": ["id", "description"]
+            }
+        },
+        {
+            "queue_name": "/command",
             "request_schema": {
                 "type": "object",
                 "properties": {
@@ -43,38 +73,16 @@
             }
         },
         {
-            "queue_name": "/services/shell/notifications",
-            "queue_type": "keyedsticky",
+            "queue_name": "/capability-execute",
             "request_schema": {
                 "type": "object",
-                "properties": {
-                    "message": {"type": "string"}
-                },
-                "required": ["message"]
-            }
-        },
-        {
-            "queue_name": "/services/updater/status",
-            "queue_type": "sticky",
-            "request_schema": {
-                "type": "object",
-                "properties": {
-                    "message": {"type": "string"}
-                },
-                "required": ["message"]
-            }
-        },
-        {
-            "queue_name": "/services/updater/command",
-            "request_schema": {
-                "type": "object",
-                "properties": {
-                    "action": {
-                        "type": "string",
-                        "enum": ["TRIGGER"]
+                "propertties": {
+                    "capability_id": {"type": "string"},
+                    "capability_arguments": {
+                        "type": "array",
+                        "items": {"type": "string"}
                     }
-                },
-                "required": ["action"]
+                }
             }
         }
     ]

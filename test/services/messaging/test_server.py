@@ -16,7 +16,8 @@ CONFIG = {
         "USE_FAKE_REDIS": True
     },
     "queues": {
-        "queues": [
+        "default_app_queues": [],
+        "system_queues": [
             {
                 "queue_name": "a.b.c",
                 "request_schema": {
@@ -272,6 +273,11 @@ class TestMessagingService(object):
         Thread(target=r2.run).start()
 
         assert sem2.acquire(timeout=10)  # Must not timeout.
+        queue_types = {
+            "redis": RedisQueue,
+            "sticky": StickyQueue,
+            "keyedsticky": KeyedStickyQueue,
+        }
         assert obj2 == {"1": {"foo": "bar"}}
 
         s2.start()
@@ -298,3 +304,24 @@ class TestMessagingServiceWithRealRedis(object):
 
         service_thread.join()
         service.message_server.server_close()
+
+class TestAppSpecificQueueCreator(object):
+    @classmethod
+    def setup_class(cls):
+        event = Event()
+        cls.service = MessageService(CONFIG)
+        cls.service.notify_start = lambda: event.set()
+        cls.service_thread = Thread(target=cls.service.on_service_start)
+        cls.service_thread.start()
+        event.wait()
+
+    @classmethod
+    def teardown_class(cls):
+        cls.service.on_service_stop()
+        cls.service_thread.join()
+
+    def test_app_queues(self):
+        sender = Sender("/services")
+        sender.start()
+        sender.send("test.app", headers={"KEY": "test.app"})
+

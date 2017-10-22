@@ -20,7 +20,15 @@ from app.core.services import BaseService, BackgroundProcessServiceStart
 
 
 logger = logging.getLogger(__name__)
-
+SYSTEM_QUEUES = [
+        {
+            "queue_name": "_system/queues/create",
+            "queue_type": "keyedsticky",
+            "request_schema": {
+                "type": "string"
+            }
+        }
+    ]
 
 class FakeRedis(object):
     """ Fake Redis. Use for testing only. Uses queue.Queue."""
@@ -190,7 +198,7 @@ class MessageHandler(StreamRequestHandler):
         self.wfile.flush()
 
 
-class AppSpecificQueueCreator(Receiver):
+class CustomQueueCreator(Receiver):
     def __init__(self, message_server, app_queue_info):
         self.message_server = message_server
         self.app_queue_info = app_queue_info
