@@ -1,15 +1,18 @@
 import json
 import logging
+import os
 from collections import defaultdict
+from copy import deepcopy
 from queue import Queue
 from socketserver import ThreadingTCPServer, StreamRequestHandler
-from threading import Condition, RLock
+from threading import Condition, RLock, Thread
 from uuid import uuid4
 
 from jsonschema import validate, ValidationError
 from redis import Redis, ConnectionError as RedisConnectionError
 
 from app.core.messaging import read_message, serialize_message, Message
+from app.core.messaging import Receiver
 from app.core.messaging import SchemaValidationFailed, BadOperation
 from app.core.messaging import RequiredFieldsMissing, InternalMessagingError
 from app.core.messaging import MessagingException, QueueNotFound
@@ -187,6 +190,24 @@ class MessageHandler(StreamRequestHandler):
         self.wfile.flush()
 
 
+class AppSpecificQueueCreator(Receiver):
+    def __init__(self, message_server, app_queue_info):
+        self.message_server = message_server
+        self.app_queue_info = app_queue_info
+        self.services = set()
+        super().__init__("/services")
+
+    def on_message(self, services):
+        for service_name, service_info in services.items():
+            if service_name not in self.services:
+                queue_info = deepcopy(self.app_queue_info)
+                new_queue = os.path.join("/", service_name,
+                                         queue_info["queue_name"])
+                queue_info["queue_name"] = new_queue
+                self.message_server.create_queue(queue_info)
+                self.services |= service_name
+
+
 class MessageServer(ThreadingTCPServer):
     allow_reuse_address = True
 
@@ -197,17 +218,24 @@ class MessageServer(ThreadingTCPServer):
         self.queue_map = {}
         self.listener_map = {}
         self.sticky_messages = {}
+        self.redis_config = redis_config
 
+        app_queue_config = queue_config["default_app_queues"]
+        self.app_queue_creator = AppSpecificQueueCreator(self, app_queue_config)
+        self.app_queue_thread = Thread(target=self.app_queue_creator.run)
+        for queue_info in queue_config["system_queues"]:
+            self.create_queue(queue_info)
+
+    def create_queue(self, queue_info):
         queue_types = {
             "redis": RedisQueue,
             "sticky": StickyQueue,
             "keyedsticky": KeyedStickyQueue,
         }
-        for queue_info in queue_config["queues"]:
-            queue_name = queue_info["queue_name"]
-            cls = queue_types[queue_info.get("queue_type", "redis")]
-            queue = cls(queue_info, queue_name, redis_config)
-            self.queue_map[queue_name] = queue
+        queue_name = queue_info["queue_name"]
+        cls = queue_types[queue_info.get("queue_type", "redis")]
+        queue = cls(queue_info, queue_name, self.redis_config)
+        self.queue_map[queue_name] = queue
 
     def handle_message(self, msg):
         if msg.operation == "dequeue":
@@ -261,6 +289,8 @@ class MessageServer(ThreadingTCPServer):
             if not queue.connect():
                 logger.error("Unable to connect to: %s", queue)
                 return
+        self.app_queue_creator.start()
+        self.app_queue_thread.start()
         self.serve_forever()
 
     def service_actions(self):
@@ -271,6 +301,8 @@ class MessageServer(ThreadingTCPServer):
     def shutdown(self):
         for _, queue in self.queue_map.items():
             queue.disconnect()
+        self.app_queue_creator.stop()
+        self.app_queue_thread.join()
         super().shutdown()
         super().server_close()
 
