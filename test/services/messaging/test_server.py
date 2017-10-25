@@ -16,8 +16,17 @@ CONFIG = {
         "USE_FAKE_REDIS": True
     },
     "queues": {
-        "default_app_queues": [],
-        "system_queues": [
+        "default_app_queues": [
+            {
+                "queue_name": "/suffix1",
+                "queue_type": "keyedsticky"
+            },
+            {
+                "queue_name": "/suffix2",
+                "queue_type": "keyedsticky"
+            }
+        ],
+        "custom_queues": [
             {
                 "queue_name": "a.b.c",
                 "request_schema": {
@@ -273,11 +282,6 @@ class TestMessagingService(object):
         Thread(target=r2.run).start()
 
         assert sem2.acquire(timeout=10)  # Must not timeout.
-        queue_types = {
-            "redis": RedisQueue,
-            "sticky": StickyQueue,
-            "keyedsticky": KeyedStickyQueue,
-        }
         assert obj2 == {"1": {"foo": "bar"}}
 
         s2.start()
@@ -305,6 +309,7 @@ class TestMessagingServiceWithRealRedis(object):
         service_thread.join()
         service.message_server.server_close()
 
+
 class TestAppSpecificQueueCreator(object):
     @classmethod
     def setup_class(cls):
@@ -321,7 +326,15 @@ class TestAppSpecificQueueCreator(object):
         cls.service_thread.join()
 
     def test_app_queues(self):
-        sender = Sender("/services")
+        sender = Sender("_system/app-queues/create")
         sender.start()
         sender.send("test.app", headers={"KEY": "test.app"})
 
+        expected_queues = [
+            "/test.app/suffix1",
+            "/test.app/suffix2"
+        ]
+        return
+        for queue in expected_queues:
+            assert queue in self.service.message_server.queue_map
+        sender.close()
