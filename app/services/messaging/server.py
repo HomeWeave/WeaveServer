@@ -17,18 +17,11 @@ from app.core.messaging import SchemaValidationFailed, BadOperation
 from app.core.messaging import RequiredFieldsMissing, InternalMessagingError
 from app.core.messaging import MessagingException, QueueNotFound
 from app.core.services import BaseService, BackgroundProcessServiceStart
+from .system_queues import SYSTEM_QUEUES
 
 
 logger = logging.getLogger(__name__)
-SYSTEM_QUEUES = [
-        {
-            "queue_name": "_system/queues/create",
-            "queue_type": "keyedsticky",
-            "request_schema": {
-                "type": "string"
-            }
-        }
-    ]
+
 
 class FakeRedis(object):
     """ Fake Redis. Use for testing only. Uses queue.Queue."""
