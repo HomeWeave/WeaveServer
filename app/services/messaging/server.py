@@ -104,7 +104,7 @@ class RedisQueue(BaseQueue):
 
     def get_connection(self):
         if self.redis is None:
-            raise RedisConnectionError
+            raise RedisConnectionError()
         return self.redis
 
 
