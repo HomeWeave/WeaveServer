@@ -218,22 +218,30 @@ class MessageHandler(StreamRequestHandler):
         self.wfile.flush()
 
 
-class CustomQueueCreator(Receiver):
-    def __init__(self, message_server, app_queue_info):
+class TemplateQueueCreator(Receiver):
+    def __init__(self, message_server, app_queue_infos):
         self.message_server = message_server
-        self.app_queue_info = app_queue_info
+        self.app_queue_infos = app_queue_infos
         self.services = set()
-        super().__init__("/services")
+        super().__init__("_system/app-queues/create")
 
-    def on_message(self, services):
-        for service_name, service_info in services.items():
-            if service_name not in self.services:
-                queue_info = deepcopy(self.app_queue_info)
-                new_queue = os.path.join("/", service_name,
-                                         queue_info["queue_name"])
-                queue_info["queue_name"] = new_queue
-                self.message_server.create_queue(queue_info)
-                self.services |= service_name
+    def on_message(self, service_name):
+        logger.info(service_name)
+        if service_name not in self.services:
+            for queue_info in self.app_queue_infos:
+                self.create_dynamic_queue(service_name, queue_info)
+                self.services.add(service_name)
+
+    def create_dynamic_queue(self, service_name, queue_info):
+        queue_info = deepcopy(queue_info)
+        rel_name = queue_info["queue_name"].lstrip('/')
+        new_queue = os.path.join("/", service_name, rel_name)
+        queue_info["queue_name"] = new_queue
+        queue = self.message_server.create_queue(queue_info)
+        queue.connect()
+
+    def stop(self):
+        super().stop()
 
 
 class MessageServer(ThreadingTCPServer):
@@ -249,9 +257,13 @@ class MessageServer(ThreadingTCPServer):
         self.redis_config = redis_config
 
         app_queue_config = queue_config["default_app_queues"]
-        self.app_queue_creator = AppSpecificQueueCreator(self, app_queue_config)
-        self.app_queue_thread = Thread(target=self.app_queue_creator.run)
-        for queue_info in queue_config["system_queues"]:
+        self.app_queue_creator = TemplateQueueCreator(self, app_queue_config)
+        self.app_queue_thread = Thread(target=self.app_queue_creator.run,
+                                       name="DynQueueThread")
+        for queue_info in SYSTEM_QUEUES:
+            self.create_queue(queue_info)
+
+        for queue_info in queue_config["custom_queues"]:
             self.create_queue(queue_info)
 
     def create_queue(self, queue_info):
@@ -264,6 +276,8 @@ class MessageServer(ThreadingTCPServer):
         cls = queue_types[queue_info.get("queue_type", "redis")]
         queue = cls(queue_info, queue_name, self.redis_config)
         self.queue_map[queue_name] = queue
+        logger.info("Connecting to %s", queue)
+        return queue
 
     def handle_message(self, msg):
         if msg.operation == "dequeue":
