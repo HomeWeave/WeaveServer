@@ -1,13 +1,4 @@
 {
-    "system_queues": [
-        {
-            "queue_name": "/services",
-            "queue_type": "keyedsticky",
-            "request_schema": {
-                "type": "string"
-            }
-        }
-    ],
     "default_app_queues": [
         {
             "queue_name": "/info/status",
