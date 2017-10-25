@@ -67,7 +67,7 @@
             "queue_name": "/capability-execute",
             "request_schema": {
                 "type": "object",
-                "propertties": {
+                "properties": {
                     "capability_id": {"type": "string"},
                     "capability_arguments": {
                         "type": "array",
