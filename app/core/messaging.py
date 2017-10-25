@@ -7,12 +7,17 @@ logger = logging.getLogger(__name__)
 
 
 class MessagingException(Exception):
+    def __init__(self, extra=None):
+        self.extra = extra
+
     def err_msg(self):
         return self.__class__.__name__
 
     def to_msg(self):
         msg = Message("result")
         msg.headers["RES"] = self.err_msg()
+        if self.extra is not None:
+            msg.headers["ERRMSG"] = str(self.extra)
         return msg
 
 
@@ -108,7 +113,7 @@ def write_message(conn, msg):
     conn.flush()
 
 
-def raise_message_exception(err):
+def raise_message_exception(err, extra):
     known_exceptions = {
         InvalidMessageStructure, BadOperation, RequiredFieldsMissing,
         QueueNotFound, SchemaValidationFailed
@@ -118,13 +123,13 @@ def raise_message_exception(err):
 
     ex = responses.get(err, Exception)
     if ex:
-        raise ex(err)
+        raise ex(extra)
 
 
 def ensure_ok_message(msg):
     if msg.op != "result" or "RES" not in msg.headers:
         raise MessagingException("Invalid acknowledgement message.")
-    raise_message_exception(msg.headers["RES"])
+    raise_message_exception(msg.headers["RES"], msg.headers.get("ERRMSG"))
 
 
 class Message(object):
@@ -219,7 +224,7 @@ class Receiver(object):
             return msg
         if "RES" not in msg.headers:
             raise MessagingException("RES header absent. Not an inform msg.")
-        raise_message_exception(msg.headers["RES"])
+        raise_message_exception(msg.headers["RES"], msg.headers["ERRMSG"])
 
     def stop(self):
         self.active = False

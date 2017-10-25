@@ -144,12 +144,13 @@ class KeyedStickyQueue(BaseQueue):
         self.sticky_map = {}
         self.requestor_map = defaultdict(set)
         self.condition = Condition()
+        self.active = False
 
     def enqueue(self, task, headers):
         try:
             key = headers["KEY"]
         except KeyError:
-            raise RequiredFieldsMissing
+            raise RequiredFieldsMissing("Field ''KEY' is required.")
 
         self.validate_schema(task)
         with self.condition:
@@ -248,39 +249,39 @@ class MessageServer(ThreadingTCPServer):
             msg.headers["RES"] = "OK"
             return serialize_message(msg)
         else:
-            raise BadOperation
+            raise BadOperation(msg.operation)
 
     def handle_enqueue(self, msg):
         if msg.task is None:
-            raise RequiredFieldsMissing
+            raise RequiredFieldsMissing("Task is required for enqueue.")
         try:
             queue_name = msg.headers["Q"]
         except KeyError:
-            raise RequiredFieldsMissing
+            raise RequiredFieldsMissing("Field 'Q' is required for enqueue.")
 
         try:
             queue = self.queue_map[queue_name]
             queue.enqueue(msg.task, msg.headers)
         except KeyError:
-            raise QueueNotFound
+            raise QueueNotFound(queue_name)
         except ValidationError:
-            raise SchemaValidationFailed
+            raise SchemaValidationFailed()
         except RedisConnectionError:
             logger.exception("Failed to talk to Redis.")
-            raise InternalMessagingError
+            raise InternalMessagingError()
 
     def handle_dequeue(self, msg):
         try:
             queue_name = msg.headers["Q"]
         except KeyError:
-            raise RequiredFieldsMissing
+            raise RequiredFieldsMissing("Field 'Q' is required for dequeue.")
 
         requestor_id = msg.headers["SESS"]
         try:
             queue = self.queue_map[queue_name]
             return queue.dequeue(requestor_id)
         except KeyError:
-            raise QueueNotFound
+            raise QueueNotFound(queue_name)
         except RedisConnectionError:
             logger.exception("failed to talk to Redis.")
             raise InternalMessagingError
