@@ -115,6 +115,7 @@ class StickyQueue(BaseQueue):
         self.requestors = set()
         self.requestor_lock = RLock()
         self.condition = Condition(self.requestor_lock)
+        self.active = False
 
     def enqueue(self, task, headers):
         self.validate_schema(task)
@@ -125,17 +126,28 @@ class StickyQueue(BaseQueue):
 
     def dequeue(self, requestor_id):
         def can_dequeue():
+            if not self.active:
+                return True
             has_msg = self.sticky_message is not None
             new_requestor = requestor_id not in self.requestors
             return has_msg and new_requestor
 
         with self.condition:
             self.condition.wait_for(can_dequeue)
-            self.requestors.add(requestor_id)
+            if self.active:
+                self.requestors.add(requestor_id)
+            else:
+                return None
             return self.sticky_message
 
     def connect(self):
+        self.active = True
         return True
+
+    def disconnect(self):
+        with self.condition:
+            self.active = False
+            self.condition.notify_all()
 
 
 class KeyedStickyQueue(BaseQueue):
@@ -159,6 +171,9 @@ class KeyedStickyQueue(BaseQueue):
 
     def dequeue(self, requestor_id):
         def can_dequeue():
+            # Return if no longer active.
+            if not self.active:
+                return True
             # If a new requestor, always send something, including empty {}
             if requestor_id not in self.requestor_map:
                 return True
@@ -169,9 +184,20 @@ class KeyedStickyQueue(BaseQueue):
 
         with self.condition:
             self.condition.wait_for(can_dequeue)
-            self.requestor_map[requestor_id] |= self.sticky_map.keys()
-            return self.sticky_map
+            if self.active:
+                self.requestor_map[requestor_id] |= self.sticky_map.keys()
+                return self.sticky_map
+            else:
+                return None
 
+    def connect(self):
+        self.active = True
+        return True
+
+    def disconnect(self):
+        with self.condition:
+            self.active = False
+            self.condition.notify_all()
 
 class MessageHandler(StreamRequestHandler):
     def handle(self):
