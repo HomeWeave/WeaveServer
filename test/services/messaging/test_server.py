@@ -10,9 +10,7 @@ from app.core.messaging import InvalidMessageStructure, BadOperation
 from app.core.messaging import read_message, ensure_ok_message
 from app.services.messaging import MessageService
 
-from app.core.logger import configure_logging
 
-configure_logging()
 CONFIG = {
     "redis_config": {
         "USE_FAKE_REDIS": True
