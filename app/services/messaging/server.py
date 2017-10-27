@@ -1,6 +1,7 @@
 import json
 import logging
 import os
+import socket
 from collections import defaultdict
 from copy import deepcopy
 from queue import Queue
@@ -12,7 +13,7 @@ from jsonschema import validate, ValidationError
 from redis import Redis, ConnectionError as RedisConnectionError
 
 from app.core.messaging import read_message, serialize_message, Message
-from app.core.messaging import Receiver
+from app.core.messaging import Receiver, QueueAlreadyExists
 from app.core.messaging import SchemaValidationFailed, BadOperation
 from app.core.messaging import RequiredFieldsMissing, InternalMessagingError
 from app.core.messaging import MessagingException, QueueNotFound
@@ -97,7 +98,7 @@ class RedisQueue(BaseQueue):
             self.redis = Redis(**self.redis_config)
             self.redis.info()
         except RedisConnectionError:
-            logger.exception("Not in test cases.")
+            logger.exception("Unable to connect to real Redis.")
             return False
         return True
 
@@ -226,6 +227,7 @@ class MessageServer(ThreadingTCPServer):
         self.service = service
         self.sent_start_notification = False
         self.queue_map = {}
+        self.queue_map_lock = RLock()
         self.listener_map = {}
         self.sticky_messages = {}
         self.clients = {}
@@ -241,6 +243,7 @@ class MessageServer(ThreadingTCPServer):
             "keyedsticky": KeyedStickyQueue,
         }
         queue_name = queue_info["queue_name"]
+
         cls = queue_types[queue_info.get("queue_type", "redis")]
         queue = cls(queue_info, queue_name, self.redis_config)
         self.queue_map[queue_name] = queue
@@ -253,6 +256,11 @@ class MessageServer(ThreadingTCPServer):
             return serialize_message(Message("inform", item))
         elif msg.operation == "enqueue":
             self.handle_enqueue(msg)
+            msg = Message("result")
+            msg.headers["RES"] = "OK"
+            return serialize_message(msg)
+        elif msg.operation == "create":
+            self.handle_create(msg)
             msg = Message("result")
             msg.headers["RES"] = "OK"
             return serialize_message(msg)
@@ -293,6 +301,22 @@ class MessageServer(ThreadingTCPServer):
         except RedisConnectionError:
             logger.exception("failed to talk to Redis.")
             raise InternalMessagingError
+
+    def handle_create(self, msg):
+        if msg.task is None:
+            raise RequiredFieldsMissing("QueueInfo is required for create.")
+
+        queue_name = os.path.join("/", msg.task["queue_name"].lstrip("/"))
+        msg.task["queue_name"] = queue_name
+        with self.queue_map_lock:
+            if queue_name in self.queue_map:
+                raise QueueAlreadyExists(queue_name)
+
+            queue = self.create_queue(msg.task)
+        if not queue.connect():
+            raise InternalMessagingError("Cant connect: " + queue_name)
+
+        logger.info("Connected: %s", queue)
 
     def run(self):
         for queue in self.queue_map.values():
