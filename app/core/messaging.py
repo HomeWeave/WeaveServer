@@ -212,8 +212,10 @@ class Receiver(object):
                 if self.active:
                     logger.exception("Encountered error. Stopping receiver.")
                 break
-            if msg.task is not None:
+            if msg.op == "inform":
                 self.on_message(msg.task)
+            elif msg.op == "result":
+                ensure_ok_message(msg)
             else:
                 logger.warning("Dropping message without data.")
                 continue
