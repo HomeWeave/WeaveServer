@@ -144,7 +144,6 @@ class KeyedStickyQueue(BaseQueue):
         self.sticky_map = {}
         self.requestor_map = defaultdict(set)
         self.condition = Condition()
-        self.active = False
 
     def enqueue(self, task, headers):
         try:
