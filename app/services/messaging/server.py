@@ -162,7 +162,7 @@ class KeyedStickyQueue(BaseQueue):
         try:
             key = headers["KEY"]
         except KeyError:
-            raise RequiredFieldsMissing("Field ''KEY' is required.")
+            raise RequiredFieldsMissing("Field 'KEY' is required.")
 
         self.validate_schema(task)
         with self.condition:
