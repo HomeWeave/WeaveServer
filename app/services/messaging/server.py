@@ -202,7 +202,6 @@ class KeyedStickyQueue(BaseQueue):
 class MessageHandler(StreamRequestHandler):
     def handle(self):
         sess_id = str(uuid4())
-        self.server.add_client(sess_id, self)
         sess = str(uuid4())
         while True:
             try:
@@ -214,7 +213,6 @@ class MessageHandler(StreamRequestHandler):
                 continue
             except IOError:
                 break
-        self.server.remove_client(sess_id)
 
     def reply(self, msg):
         self.wfile.write((msg + "\n").encode())
@@ -344,25 +342,11 @@ class MessageServer(ThreadingTCPServer):
             self.service.notify_start()
             self.sent_start_notification = True
 
-    def add_client(self, sess_id, handler):
-        self.clients[sess_id] = handler
-
-    def remove_client(self, sess_id):
-        del self.clients[sess_id]
-
-    def remove_all_clients(self):
-        import socket
-        for sess, client in self.clients.items():
-            client.finish()
-            client.connection.shutdown(socket.SHUT_RDWR)
-            client.connection.close()
-
     def shutdown(self):
         for _, queue in self.queue_map.items():
             queue.disconnect()
         self.app_queue_creator.stop()
         self.app_queue_thread.join()
-        self.remove_all_clients()
         super().shutdown()
         super().server_close()
 
