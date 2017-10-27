@@ -45,6 +45,10 @@ class QueueNotFound(MessagingException):
     pass
 
 
+class QueueAlreadyExists(MessagingException):
+    pass
+
+
 class SchemaValidationFailed(MessagingException):
     pass
 
@@ -236,6 +240,35 @@ class Receiver(object):
 
     def on_message(self, msg):
         pass
+
+
+class Creator(object):
+    PORT = 11023
+    READ_BUF_SIZE = -1
+    WRITE_BUF_SIZE = 10240
+
+    def __init__(self, host="localhost"):
+        self.host = host
+        self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        self.active = False
+
+    def start(self):
+        self.sock.connect((self.host, self.PORT))
+        self.rfile = self.sock.makefile('rb', self.READ_BUF_SIZE)
+        self.wfile = self.sock.makefile('wb', self.WRITE_BUF_SIZE)
+
+    def create(self, queue_info, headers=None):
+        msg = Message("create", queue_info)
+        if headers is not None:
+            msg.headers = headers
+
+        write_message(self.wfile, msg)
+        msg = read_message(self.rfile)
+        ensure_ok_message(msg)
+
+    def close(self):
+        self.sock.shutdown(socket.SHUT_RDWR)
+        self.sock.close()
 
 
 def discover_message_server():
