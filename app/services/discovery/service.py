@@ -1,7 +1,6 @@
 import json
 import logging
 import socket
-import struct
 from ipaddress import IPv4Network
 from threading import Event
 
