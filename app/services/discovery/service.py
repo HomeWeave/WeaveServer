@@ -1,7 +1,6 @@
 import json
 import logging
 import socket
-import struct
 from ipaddress import IPv4Network
 from threading import Event
 
@@ -24,7 +23,6 @@ def get_message_server_address(request_addr):
 
 
 class DiscoveryServer(object):
-    MULTICAST_GROUP = '224.108.73.1'
     SERVER_PORT = 23034
     ACTIVE_POLL_TIME = 15
 
@@ -34,11 +32,7 @@ class DiscoveryServer(object):
         self.exited = Event()
 
     def run(self, success_callback=None):
-        self.sock.setsockopt(socket.IPPROTO_IP, socket.SO_REUSEADDR, 1)
-        self.sock.bind((self.MULTICAST_GROUP, self.SERVER_PORT))
-        group = socket.inet_aton(self.MULTICAST_GROUP)
-        mreq = struct.pack('4sL', group, socket.INADDR_ANY)
-        self.sock.setsockopt(socket.IPPROTO_IP, socket.IP_ADD_MEMBERSHIP, mreq)
+        self.sock.bind(('', self.SERVER_PORT))
         self.sock.settimeout(self.ACTIVE_POLL_TIME)
         if success_callback:
             success_callback()
@@ -53,9 +47,7 @@ class DiscoveryServer(object):
             if res:
                 self.sock.sendto(res, address)
 
-        self.sock.setsockopt(socket.IPPROTO_IP, socket.IP_DROP_MEMBERSHIP, mreq)
         self.sock.close()
-        # del self.sock
         self.exited.set()
 
     def process(self, address, msg):

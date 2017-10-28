@@ -3,9 +3,14 @@ from threading import Event, Thread
 import app.core.netutils as netutils
 from app.core.messaging import discover_message_server
 from app.services.discovery import DiscoveryService
+from app.services.discovery.service import DiscoveryServer
 
 
 class TestDiscoverMessageServer(object):
+    @classmethod
+    def setup_class(cls):
+        DiscoveryServer.ACTIVE_POLL_TIME = 1
+
     def test_no_discovery_server(self):
         assert discover_message_server() is None
 
