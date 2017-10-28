@@ -6,11 +6,13 @@ import pytest
 
 import app.core.netutils as netutils
 from app.services.discovery import DiscoveryService
+from app.services.discovery.service import DiscoveryServer
 
 
 class TestDiscoveryService(object):
     @classmethod
     def setup_class(cls):
+        DiscoveryServer.ACTIVE_POLL_TIME = 1
         cls.service = DiscoveryService(None)
         event = Event()
         cls.service.notify_start = event.set
@@ -22,8 +24,10 @@ class TestDiscoveryService(object):
         cls.service.on_service_stop()
 
     def test_bad_query(self):
-        ip_addr, port = "224.108.73.1", 23034
+        ip_addr, port = "<broadcast>", 23034
         client = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        client.bind(('', 0))
+        client.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
         client.sendto("BAD_QUERY".encode('UTF-8'), (ip_addr, port))
 
         client.settimeout(3)
@@ -34,8 +38,10 @@ class TestDiscoveryService(object):
         backup = netutils.iter_ipv4_addresses
         netutils.iter_ipv4_addresses = lambda: []
 
-        ip_addr, port = "224.108.73.1", 23034
+        ip_addr, port = "<broadcast>", 23034
         client = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        client.bind(('', 0))
+        client.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
         client.sendto("QUERY".encode('UTF-8'), (ip_addr, port))
 
         client.settimeout(5)
@@ -46,8 +52,10 @@ class TestDiscoveryService(object):
         netutils.iter_ipv4_addresses = backup
 
     def test_get_message_server_address(self):
-        ip_addr, port = "224.108.73.1", 23034
+        ip_addr, port = "<broadcast>", 23034
         client = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        client.bind(('', 0))
+        client.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
         client.sendto("QUERY".encode('UTF-8'), (ip_addr, port))
 
         client.settimeout(5)
