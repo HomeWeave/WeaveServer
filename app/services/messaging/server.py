@@ -194,6 +194,7 @@ class MessageHandler(StreamRequestHandler):
 
 class MessageServer(ThreadingTCPServer):
     allow_reuse_address = True
+    daemon_threads = True
 
     def __init__(self, service, port, redis_config, queue_config):
         super().__init__(("", port), MessageHandler)
