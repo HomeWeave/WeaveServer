@@ -31,15 +31,17 @@ def create_capabilities_queue(queue_name):
 
 
 class Capability(Message):
-    def __init__(self, name, description, params):
+    def __init__(self, name, description, params, queue_template):
         self.uuid = str(uuid4())
         self.params = deepcopy(params)
         self.name = name
+        self.queue = queue_template.format(self.uuid)
         obj = {
             "name": name,
             "description": description,
             "params": self.params,
             "id": self.uuid,
+            "queue": self.queue
         }
         super().__init__("enqueue", obj)
 
@@ -90,7 +92,9 @@ class EventDrivenService(object):
         self.capabilities_queue_lock = RLock()
         super().on_service_start(*args, **kwargs)
 
-    def express_capability(self, capability, handler):
+    def express_capability(self, name, description, params, handler):
+        queue_template = self.get_service_queue_name("capability/{}")
+        capability = Capability(name, description, params, queue_template)
         queue_name = self.get_service_queue_name("capabilities")
         capability_sender = Sender(queue_name)
         capability_sender.start()
@@ -116,7 +120,7 @@ class EventDrivenService(object):
 
     def start_event_receiver(self, capability, handler):
         qid = capability.unique_id
-        queue_name = self.get_service_queue_name("capability/" + qid)
+        queue_name = capability.queue
         receiver = EventReceiver(queue_name, capability, handler)
         thread = Thread(target=self.run_event_receiver, args=(receiver,))
         thread.start()
