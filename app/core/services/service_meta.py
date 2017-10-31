@@ -69,12 +69,6 @@ class EventReceiver(Receiver):
         logger.info("Started listening for event: %s", self.capability.name)
 
     def on_message(self, msg):
-        try:
-            validate(msg, self.capability.schema)
-        except ValidationError:
-            logger.warning("Failed EventReceiver schema validation: %s", msg)
-            return
-
         self.handler(**msg)
 
 
