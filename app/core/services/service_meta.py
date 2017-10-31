@@ -1,6 +1,6 @@
 import logging
 from copy import deepcopy
-from threading import Thread
+from threading import Thread, RLock
 from uuid import uuid4
 
 from jsonschema import validate, ValidationError
@@ -13,7 +13,7 @@ logger = logging.getLogger(__name__)
 
 def create_capabilities_queue(queue_name):
     queue_info = {
-        "queue_name":queue_name,
+        "queue_name": queue_name,
         "queue_type": "keyedsticky",
         "request_schema": {
             "type": "object",
@@ -34,6 +34,7 @@ class Capability(Message):
     def __init__(self, name, description, params):
         self.uuid = str(uuid4())
         self.params = deepcopy(params)
+        self.name = name
         obj = {
             "name": name,
             "description": description,
@@ -58,12 +59,19 @@ class Capability(Message):
             "required": list(self.params.keys())
         }
 
+    def __repr__(self):
+        return "Capability({})".format(self.name)
+
 
 class EventReceiver(Receiver):
     def __init__(self, queue_name, capability, handler):
         super().__init__(queue_name)
         self.capability = capability
         self.handler = handler
+
+    def start(self):
+        super().start()
+        logger.info("Started listening for event: %s", self.capability.name)
 
     def on_message(self, msg):
         try:
@@ -76,10 +84,13 @@ class EventReceiver(Receiver):
 
 
 class EventDrivenService(object):
-    def express_capability(self, capability, handler):
-        if not hasattr(self, 'event_driven_intialized'):
-            self.initialize_event_driven_service()
+    def on_service_start(self, *args, **kwargs):
+        create_capabilities_queue(self.get_service_queue_name("capabilities"))
+        self.capabilities_queue_map = {}
+        self.capabilities_queue_lock = RLock()
+        super().on_service_start(*args, **kwargs)
 
+    def express_capability(self, capability, handler):
         queue_name = self.get_service_queue_name("capabilities")
         capability_sender = Sender(queue_name)
         capability_sender.start()
@@ -87,10 +98,10 @@ class EventDrivenService(object):
         capability_sender.send(capability, headers=headers)
 
         self.create_event_queue(capability)
-        self.start_event_receiver(queue_name, capability, handler)
-
-    def initialize_event_driven_service(self):
-        create_capabilities_queue(self.get_service_queue_name("capabilities"))
+        thread, receiver = self.start_event_receiver(capability, handler)
+        with self.capabilities_queue_lock:
+            self.capabilities_queue_map[capability.unique_id] = (thread,
+                                                                 receiver)
 
     def create_event_queue(self, capability):
         qid = capability.unique_id
@@ -103,17 +114,25 @@ class EventDrivenService(object):
         creator.start()
         creator.create(queue_info)
 
-    def start_event_receiver(self, queue_name, capability, handler):
-        params = (queue_name, capability, handler)
-        thread = Thread(target=self.run_event_receiver, args=params)
-        thread.start()
-        return thread
-
-    def run_event_receiver(self, queue_name, capability, handler):
+    def start_event_receiver(self, capability, handler):
+        qid = capability.unique_id
+        queue_name = self.get_service_queue_name("capability/" + qid)
         receiver = EventReceiver(queue_name, capability, handler)
+        thread = Thread(target=self.run_event_receiver, args=(receiver,))
+        thread.start()
+        return thread, receiver
+
+    def run_event_receiver(self, receiver):
         receiver.start()
         receiver.run()
 
     def get_service_queue_name(self, queue_name):
         service_name = self.get_component_name()
         return "/services/{}/{}".format(service_name, queue_name)
+
+    def on_service_stop(self):
+        with self.capabilities_queue_lock:
+            for _, (thread, receiver) in self.capabilities_queue_map.items():
+                logger.info("stopping receiver..")
+                receiver.stop()
+                thread.join()
