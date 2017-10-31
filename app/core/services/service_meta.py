@@ -50,19 +50,12 @@ class Capability(Message):
         return self.uuid
 
     @property
-    def parameters(self):
-        return self.params
-
-    @property
     def schema(self):
         return {
             "type": "object",
             "properties": self.params,
             "required": list(self.params.keys())
         }
-
-    def __repr__(self):
-        return "Capability({})".format(self.name)
 
 
 class EventReceiver(Receiver):
