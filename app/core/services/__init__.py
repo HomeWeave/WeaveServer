@@ -1,6 +1,7 @@
 from .service_base import BaseService
 from .service_base import BackgroundThreadServiceStart
 from .service_base import BackgroundProcessServiceStart
+from .service_meta import EventDrivenService, Capability
 from .servicemanager import ServiceManager
 
 __all__ = [

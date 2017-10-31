@@ -1,13 +1,17 @@
+import logging
 from copy import deepcopy
 from threading import Thread
 from uuid import uuid4
 
 from jsonschema import validate, ValidationError
 
-from app.core.messaging import Message, Creator, Receiver
+from app.core.messaging import Message, Creator, Receiver, Sender
 
 
-def create_capability_queue(queue_name):
+logger = logging.getLogger(__name__)
+
+
+def create_capabilities_queue(queue_name):
     queue_info = {
         "queue_name":queue_name,
         "queue_type": "keyedsticky",
@@ -46,21 +50,24 @@ class Capability(Message):
     def parameters(self):
         return self.params
 
+    @property
+    def schema(self):
+        return {
+            "type": "object",
+            "properties": self.params,
+            "required": list(self.params.keys())
+        }
+
 
 class EventReceiver(Receiver):
     def __init__(self, queue_name, capability, handler):
         super().__init__(queue_name)
         self.capability = capability
         self.handler = handler
-        self.schema = {
-            "type": "object",
-            "properties": capability.parameters,
-            "required": list(capability.keys())
-        }
 
     def on_message(self, msg):
         try:
-            validate(msg, self.schema)
+            validate(msg, self.capability.schema)
         except ValidationError:
             logger.warning("Failed EventReceiver schema validation: %s", msg)
             return
@@ -75,13 +82,14 @@ class EventDrivenService(object):
 
         queue_name = self.get_service_queue_name("capabilities")
         capability_sender = Sender(queue_name)
+        capability_sender.start()
         headers = {"KEY": capability.unique_id}
         capability_sender.send(capability, headers=headers)
 
         self.create_event_queue(capability)
         self.start_event_receiver(queue_name, capability, handler)
 
-    def initialize_event_driven_service(self, queue_name):
+    def initialize_event_driven_service(self):
         create_capabilities_queue(self.get_service_queue_name("capabilities"))
 
     def create_event_queue(self, capability):
@@ -99,6 +107,7 @@ class EventDrivenService(object):
         params = (queue_name, capability, handler)
         thread = Thread(target=self.run_event_receiver, args=params)
         thread.start()
+        return thread
 
     def run_event_receiver(self, queue_name, capability, handler):
         receiver = EventReceiver(queue_name, capability, handler)
@@ -106,4 +115,5 @@ class EventDrivenService(object):
         receiver.run()
 
     def get_service_queue_name(self, queue_name):
+        service_name = self.get_component_name()
         return "/services/{}/{}".format(service_name, queue_name)
