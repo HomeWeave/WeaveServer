@@ -10,30 +10,13 @@ CONFIG = {
     "redis_config": {
         "USE_FAKE_REDIS": True
     },
-    "queues": {
-        "system_queues": [
-            {
-                "queue_name": "_system/dynamic-queues/create",
-                "request_schema": {
-                    "type": "object",
-                    "properties": {
-                        "queue_name": {"type": "string"},
-                        "queue_type": {
-                            "type": "string",
-                            "enum": ["redis", "sticky", "keyedsticky"]
-                        },
-                        "request_schema": {"type": "object"}
-                    },
-                    "required": ["queue_name", "request_schema"]
-                }
-            }
-        ]
-    }
+    "queues": {}
 }
 
 
-class Service(EventDrivenService, BackgroundThreadServiceStart, BaseService):
+class Service(EventDrivenService, BaseService):
     def on_service_start(self, *args, **kwargs):
+        super().on_service_start(*args, **kwargs)
         params = {
             "arg1": {"type": "string"}
         }
