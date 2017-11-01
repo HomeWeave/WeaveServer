@@ -12,21 +12,7 @@ from app.core.services import BaseService, BackgroundProcessServiceStart
 logger = logging.getLogger(__name__)
 
 
-class TV(object):
-    def list_commands(self):
-        return []
-
-    def send_command(self, command_id):
-        pass
-
-    def powered(self):
-        return False
-
-    def device_id(self):
-        return None
-
-
-class RokuTV(TV):
+class RokuTV(object):
     def __init__(self, mac, roku):
         super().__init__()
         self.mac = mac
