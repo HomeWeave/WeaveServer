@@ -1,10 +1,12 @@
 import os
+from threading import Event
 
+import pytest
 from roku import Roku
 
-from app.core.messaging import Receiver
+from app.core.messaging import Receiver, Sender, SchemaValidationFailed
 from app.core.services import ServiceManager
-from app.services.tv_remote.service import RokuScanner, RokuTV
+from app.services.tv_remote.service import RokuScanner, RokuTV, TVRemoteService
 
 
 class TestRokuScanner(object):
@@ -19,54 +21,73 @@ class TestRokuScanner(object):
 
     def test_basic_discovery(self):
         roku1 = Roku("abc")
-        scanner = RokuScanner("/devices")
-        scanner.discover_devices = lambda: [roku1]
-        scanner.get_device_id = lambda x: "deviceid"
-        scanner.start()
+        service = TVRemoteService(None)
+        service.scanner.discover_devices = lambda: [roku1]
+        service.scanner.get_device_id = lambda x: "deviceid"
+        service.on_service_start()
 
-        receiver = Receiver("/devices")
+        receiver = Receiver("/services/tv_remote/capabilities")
         receiver.start()
-        msg = receiver.receive().task
-        expected = {
-            "deviceid": {
-                "device_id": "deviceid",
-                "device_commands_queue": "/device/tv/command",
-                "device_commands": RokuTV(None, None).read_commands()
-            }
-        }
-        assert msg == expected
+        msg = next(iter(receiver.receive().task.values()))
+        assert set(msg.keys()) == {"description", "id", "name", "params",
+                                   "queue"}
 
         receiver.stop()
-        scanner.stop()
+        service.on_service_stop()
 
     def test_new_tv_discovery(self):
         roku1 = Roku("abc")
         roku2 = Roku("def")
-        scanner = RokuScanner("/devices")
-        scanner.discover_devices = lambda: [roku1]
-        scanner.get_device_id = lambda x: x
-        scanner.start()
+        service = TVRemoteService(None)
+        service.scanner.discover_devices = lambda: [roku1]
+        service.scanner.get_device_id = lambda x: x
+        service.on_service_start()
 
-        receiver = Receiver("/devices")
+        receiver = Receiver("/services/tv_remote/capabilities")
         receiver.start()
-        msg = receiver.receive().task
-        expected = {
-            "abc": {
-                "device_id": "abc",
-                "device_commands_queue": "/device/tv/command",
-                "device_commands": RokuTV(None, None).read_commands()
-            }
-        }
-        assert msg == expected
+        msg = next(iter(receiver.receive().task.values()))
+        assert set(msg.keys()) == {"description", "id", "name", "params",
+                                   "queue"}
 
-        scanner.discover_devices = lambda: [roku1, roku2]
-        scanner.scan()
+        service.scanner.discover_devices = lambda: [roku1, roku2]
 
         msg = receiver.receive().task
-        expected["def"] = expected["abc"].copy()
-        expected["def"]["device_id"] = "def"
-
-        assert msg == expected
+        assert len(msg) == 2
 
         receiver.stop()
-        scanner.stop()
+        service.on_service_stop()
+
+    def test_send_command(self):
+        called_with_url = None
+        called = Event()
+
+        def patched(obj, url):
+            nonlocal called_with_url
+            called_with_url = url
+            called.set()
+
+        Roku._post = patched
+        roku1 = Roku("abc")
+        service = TVRemoteService(None)
+        service.scanner.discover_devices = lambda: [roku1]
+        service.scanner.get_device_id = lambda x: "deviceid"
+        service.on_service_start()
+
+        receiver = Receiver("/services/tv_remote/capabilities")
+        receiver.start()
+        msg = next(iter(receiver.receive().task.values()))
+        assert set(msg.keys()) == {"description", "id", "name", "params",
+                                   "queue"}
+
+        sender = Sender(msg["queue"])
+        sender.start()
+        with pytest.raises(SchemaValidationFailed):
+            sender.send({"command_id": "non-existant", "command_args": ""})
+
+        sender.send({"command_id": "back", "command_args": ""})
+
+        called.wait()
+        assert called_with_url == '/keypress/Back'
+
+        receiver.stop()
+        service.on_service_stop()

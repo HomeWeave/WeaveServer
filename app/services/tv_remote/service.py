@@ -7,6 +7,7 @@ from wakeonlan import wol
 
 import app.core.netutils as netutils
 from app.core.services import BaseService, BackgroundProcessServiceStart
+from app.core.services import EventDrivenService
 
 
 logger = logging.getLogger(__name__)
@@ -45,17 +46,16 @@ class RokuTV(object):
     def register(self, service):
         def make_cmd(item):
             return {
-                "enum": item["id"],
+                "enum": [item["id"]],
                 "title": item["name"],
-                "type": item["type"]
+                "input_type": item["type"]
             }
         params = {
             "command_id": {
                 "anyOf": [make_cmd(x) for x in self.read_commands()]
             },
-            "param": {"type": "string"}
+            "command_args": {"type": "string"}
         }
-        print(params)
         service.express_capability("Roku Remote", "TV Remote for Roku", params,
                                    self.on_command)
 
@@ -70,7 +70,6 @@ class RokuScanner(object):
         self.scanner_thread = Thread(target=self.run)
 
     def start(self):
-        self.service_sender.start()
         self.scan()
         self.scanner_thread.start()
 
@@ -101,7 +100,8 @@ class RokuScanner(object):
         return netutils.get_mac_address(host)
 
 
-class TVRemoteService(BackgroundProcessServiceStart, BaseService):
+class TVRemoteService(EventDrivenService, BackgroundProcessServiceStart,
+                      BaseService):
     def __init__(self, config):
         self.scanner = RokuScanner(self)
         super().__init__()
@@ -110,8 +110,10 @@ class TVRemoteService(BackgroundProcessServiceStart, BaseService):
         return "tv_remote"
 
     def on_service_start(self, *args, **kwargs):
+        super().on_service_start()
         self.notify_start()
         self.scanner.start()
 
     def on_service_stop(self):
         self.scanner.stop()
+        super().on_service_stop()
