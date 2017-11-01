@@ -117,12 +117,12 @@ class EventDrivenService(object):
         qid = capability.unique_id
         queue_name = capability.queue
         receiver = EventReceiver(queue_name, capability, handler)
-        thread = Thread(target=self.run_event_receiver, args=(receiver,))
+        receiver.start()
+        thread = Thread(target=receiver.run)
         thread.start()
         return thread, receiver
 
     def run_event_receiver(self, receiver):
-        receiver.start()
         receiver.run()
 
     def get_service_queue_name(self, queue_name):
