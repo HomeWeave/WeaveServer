@@ -135,3 +135,4 @@ class EventDrivenService(object):
                 logger.info("stopping receiver..")
                 receiver.stop()
                 thread.join()
+        super().on_service_stop()
