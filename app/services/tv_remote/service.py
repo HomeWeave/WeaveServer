@@ -20,30 +20,20 @@ class RokuTV(object):
         self.commands = self.read_commands()
         self.command_ids = [x["id"] for x in self.commands]
 
-    def list_commands(self):
-        return self.commands
-
-    def send_command(self, command):
-        if command["id"] not in self.command_ids:
-            logger.warning("%s not in commands.", command["id"])
-            return False
-
+    def on_command(self, command_id, command_args):
         try:
-            func = getattr(self, "handle_" + command["id"])
+            func = getattr(self, "handle_" + command_id)
         except AttributeError:
             try:
-                func = getattr(self.roku, command["id"])
+                func = getattr(self.roku, command_id)
             except AttributeError:
                 return False
-        func(*command["params"])
+        func(*command_args)
         return True
 
     def read_commands(self):
         with open("app/services/tv_remote/roku-commands.json") as inp:
             return json.load(inp)
-
-    def device_id(self):
-        return self.mac
 
     def handle_power(self):
         if netutils.ping_host(self.roku.host):
@@ -52,13 +42,30 @@ class RokuTV(object):
             # TV is probably unreachable because its off. Send a WOL packet.
             wol.send_magic_packet(self.mac)
 
+    def register(self, service):
+        def make_cmd(item):
+            return {
+                "enum": item["id"],
+                "title": item["name"],
+                "type": item["type"]
+            }
+        params = {
+            "command_id": {
+                "anyOf": [make_cmd(x) for x in self.read_commands()]
+            },
+            "param": {"type": "string"}
+        }
+        print(params)
+        service.express_capability("Roku Remote", "TV Remote for Roku", params,
+                                   self.on_command)
+
 
 class RokuScanner(object):
     SCAN_INTERVAL = 60
 
-    def __init__(self, service_queue):
+    def __init__(self, service):
+        self.service = service
         self.device_lock = RLock()
-        self.device_map = {}
         self.shutdown = Event()
         self.scanner_thread = Thread(target=self.run)
 
@@ -77,21 +84,11 @@ class RokuScanner(object):
             self.shutdown.wait(timeout=self.SCAN_INTERVAL)
 
     def scan(self):
-        devices = {}
         for roku in self.discover_devices():
             logger.info("Found a Roku TV at %s", roku.host)
             mac = self.get_device_id(roku.host)
-            devices[mac] = RokuTV(mac, roku)
-        with self.device_lock:
-            self.device_map = devices
-
-        for device_id, roku_tv in devices.items():
-            task = {
-                "device_id": device_id,
-                "device_commands_queue": "/device/tv/command",
-                "device_commands": roku_tv.list_commands(),
-            }
-            self.service_sender.send(task, headers={"KEY": device_id})
+            tv = RokuTV(mac, roku)
+            tv.register(self.service)
 
     def discover_devices(self):
         for _ in range(3):
