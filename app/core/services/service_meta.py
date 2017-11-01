@@ -1,5 +1,6 @@
 import logging
 from copy import deepcopy
+from inspect import signature
 from threading import Thread, RLock
 from uuid import uuid4
 
@@ -28,6 +29,12 @@ def create_capabilities_queue(queue_name):
     creator = Creator()
     creator.start()
     creator.create(queue_info)
+
+def check_handler_param(params, handler):
+    schema_args = set(params.keys())
+    handler_args = set(signature(handler).parameters.keys())
+    if schema_args != handler_args:
+        raise TypeError("Parameter mismatch between Schema and Handler args.")
 
 
 class Capability(Message):
@@ -80,6 +87,7 @@ class EventDrivenService(object):
         super().on_service_start(*args, **kwargs)
 
     def express_capability(self, name, description, params, handler):
+        check_handler_param(params, handler)
         queue_template = self.get_service_queue_name("capability/{}")
         capability = Capability(name, description, params, queue_template)
         queue_name = self.get_service_queue_name("capabilities")

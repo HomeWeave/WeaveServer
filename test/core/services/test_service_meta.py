@@ -55,6 +55,11 @@ class TestEventDrivenService(object):
         cls.message_service_thread.join()
         cls.service.on_service_stop()
 
+    def test_bad_express_capability(self):
+        with pytest.raises(TypeError):
+            params = {"arg2": {"type": "string"}}
+            self.service.express_capability("", "", params, self.service.handle)
+
     def test_express_simple_capability_with_bad_schema(self):
         receiver = Receiver("/services/test/capabilities")
         receiver.start()
