@@ -6,7 +6,6 @@ from roku import Roku
 from wakeonlan import wol
 
 import app.core.netutils as netutils
-from app.core.messaging import Receiver, Sender
 from app.core.services import BaseService, BackgroundProcessServiceStart
 
 
@@ -72,7 +71,6 @@ class RokuScanner(object):
     SCAN_INTERVAL = 60
 
     def __init__(self, service_queue):
-        self.service_sender = Sender(service_queue)
         self.device_lock = RLock()
         self.device_map = {}
         self.shutdown = Event()
@@ -119,49 +117,18 @@ class RokuScanner(object):
     def get_device_id(self, host):
         return netutils.get_mac_address(host)
 
-    def get_device(self, device_id):
-        with self.device_lock:
-            return self.device_map[device_id]
-
-
-class TVRemoteReceiver(Receiver):
-    def __init__(self, scanner, queue_name):
-        self.scanner = scanner
-        super().__init__(queue_name)
-
-    def on_message(self, msg):
-        try:
-            device = self.scanner.get_device(msg["device_id"])
-        except KeyError:
-            logger.warning("Not found device id: %s.", msg["device_id"])
-            return
-
-        command = {
-            "id": msg["command_id"],
-            "params": msg.get("args", [])
-        }
-
-        if device.send_command(command):
-            logger.info("Command %s sent to %s", command, device)
-        else:
-            logger.info("Could not send command %s to %s", command, device)
-
 
 class TVRemoteService(BackgroundProcessServiceStart, BaseService):
     def __init__(self, config):
-        self.scanner = RokuScanner("/devices")
-        self.receiver = TVRemoteReceiver(self.scanner, "/device/tv/command")
+        self.scanner = RokuScanner(self)
         super().__init__()
 
     def get_component_name(self):
         return "tv_remote"
 
     def on_service_start(self, *args, **kwargs):
-        self.receiver.start()
         self.notify_start()
         self.scanner.start()
-        self.receiver.run()
 
     def on_service_stop(self):
         self.scanner.stop()
-        self.receiver.stop()
