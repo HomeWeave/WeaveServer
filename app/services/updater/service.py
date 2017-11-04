@@ -167,10 +167,26 @@ class Updater(Receiver):
         for repo in repos:
             repo.pull(self.send_pull_progress)
 
-        self.perform_ansible_update()
+        if self.perform_ansible_update():
+            self.update_status("Configuration update failed.")
+            return
+
+        self.update_status("Configuration complete. Restarting ..")
+
+        self.reboot()
+
+    def reboot(self):
+        logger.info("Rebooting..")
+        self.update_status("Going down for restart ..")
+        reboot_path = os.path.join(SCRIPTS_DIR, "reboot.sh")
+        args = [reboot_path]
+        with subprocess.Popen(args) as proc:
+            proc.wait()
+            return proc.returncode
 
     def perform_ansible_update(self):
         logger.info("Running ansible")
+        self.update_status("Updating configurations ..")
         run_ansible_path = os.path.join(SCRIPTS_DIR, "run_ansible.sh")
         args = [run_ansible_path]
         with subprocess.Popen(args) as proc:
