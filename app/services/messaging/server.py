@@ -204,8 +204,9 @@ class MessageServer(ThreadingTCPServer):
         self.clients = {}
         self.redis_config = redis_config
 
-        for queue_info in queue_config.get("system_queues", []):
-            self.create_queue(queue_info)
+        for queue_info in queue_config.get("custom_queues", []):
+            queue = self.create_queue(queue_info)
+            self.queue_map[queue_info["queue_name"]] = queue
 
     def create_queue(self, queue_info):
         queue_types = {
@@ -286,6 +287,8 @@ class MessageServer(ThreadingTCPServer):
 
         if not queue.connect():
             raise InternalMessagingError("Cant connect: " + queue_name)
+
+        self.queue_map[msg.task["queue_name"]] = queue
 
         logger.info("Connected: %s", queue)
 
