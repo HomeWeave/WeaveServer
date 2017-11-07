@@ -6,12 +6,27 @@ from app.core.messaging import Receiver, Sender, SchemaValidationFailed
 from app.core.services import EventDrivenService, BaseService
 from app.services.messaging import MessageService
 
+from app.core.logger import configure_logging
+
+
+configure_logging()
+
 
 CONFIG = {
     "redis_config": {
         "USE_FAKE_REDIS": True
     },
-    "queues": {}
+    "queues": {
+        "custom_queues": [
+            {
+                "queue_name": "/root/services",
+                "queue_type": "keyedsticky",
+                "request_schema": {
+                    "type": "object"
+                }
+            }
+        ]
+    }
 }
 
 
@@ -79,6 +94,13 @@ class TestEventDrivenService(object):
         sender.start()
         with pytest.raises(SchemaValidationFailed):
             sender.send({"arg2": "new-value"})
+
+    def test_service_registration(self):
+        receiver = Receiver("/root/services")
+        receiver.start()
+        obj = receiver.receive().task
+
+        assert obj == {"/services/test/": {}}
 
     def test_express_simple_capability_with_correct_schema(self):
         receiver = Receiver("/services/test/capabilities")
