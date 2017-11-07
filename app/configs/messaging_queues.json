@@ -1,81 +1,11 @@
 {
-    "default_app_queues": [
+    "custom_queues": [
         {
-            "queue_name": "/info/status",
-            "queue_type": "sticky",
+            "queue_name": "/root/services",
+            "queue_type": "keyedsticky",
             "request_schema": {
                 "type": "object"
             }
         },
-        {
-            "queue_name": "/info/commands",
-            "queue_type": "keyedsticky",
-            "request_schema": {
-                "type": "object",
-                "properties": {
-                    "device_id": {"type": "string"},
-                    "device_command_queue": {"type": "string"},
-                    "device_commands": {
-                        "type": "array",
-                        "items": {
-                            "type": "object",
-                            "properties": {
-                                "name": {"type": "string"},
-                                "id": {"type": "string"},
-                                "type": {"type": "string"},
-                                "description": {"type": "string"}
-                            },
-                            "required": ["id", "name", "type"]
-                        }
-                    }
-                },
-                "required": [
-                    "device_id",
-                    "device_commands",
-                    "device_commands_queue"
-                ]
-            }
-        },
-        {
-            "queue_name": "/info/capabilities",
-            "queue_type": "keyedsticky",
-            "request_schema": {
-                "type": "object",
-                "properties": {
-                    "id": {"type": "string"},
-                    "description": {"type": "string"}
-                },
-                "required": ["id", "description"]
-            }
-        },
-        {
-            "queue_name": "/command",
-            "request_schema": {
-                "type": "object",
-                "properties": {
-                    "command_id": {"type": "string"},
-                    "device_id": {"type": "string"},
-                    "args": {
-                        "type": "array",
-                        "items": {"type": "string"}
-                    }
-                },
-                "required": ["command_id", "device_id"]
-            }
-        },
-        {
-            "queue_name": "/capability-execute",
-            "request_schema": {
-                "type": "object",
-                "properties": {
-                    "capability_id": {"type": "string"},
-                    "capability_arguments": {
-                        "type": "array",
-                        "items": {"type": "string"}
-                    }
-                }
-            }
-        }
     ],
-    "custom_queues": []
 }
