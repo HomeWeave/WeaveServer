@@ -30,7 +30,8 @@ def create_capabilities_queue(queue_name):
     creator.start()
     creator.create(queue_info)
 
-def create_capability_queue(queue_name):
+
+def create_events_queue(queue_name):
     queue_info = {
         "queue_name": queue_name,
         "queue_type": "keyedsticky",
@@ -47,6 +48,7 @@ def create_capability_queue(queue_name):
     creator = Creator()
     creator.start()
     creator.create(queue_info)
+
 
 def check_handler_param(params, handler):
     schema_args = set(params.keys())
@@ -147,7 +149,7 @@ class EventDrivenService(object):
 
     def express_event(self, name, description, params):
         queue_template = self.get_service_queue_name("event/{}")
-        event = Event(name, description, params)
+        event = Event(name, description, params, queue_template)
         queue_name = self.get_service_queue_name("events")
         event_sender = Sender(queue_name)
         event_sender.start()
