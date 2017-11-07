@@ -1,19 +1,17 @@
 import json
 import logging
 import os
-import socket
 from collections import defaultdict
-from copy import deepcopy
 from queue import Queue
 from socketserver import ThreadingTCPServer, StreamRequestHandler
-from threading import Condition, RLock, Thread
+from threading import Condition, RLock
 from uuid import uuid4
 
 from jsonschema import validate, ValidationError
 from redis import Redis, ConnectionError as RedisConnectionError
 
 from app.core.messaging import read_message, serialize_message, Message
-from app.core.messaging import Receiver, QueueAlreadyExists
+from app.core.messaging import QueueAlreadyExists
 from app.core.messaging import SchemaValidationFailed, BadOperation
 from app.core.messaging import RequiredFieldsMissing, InternalMessagingError
 from app.core.messaging import MessagingException, QueueNotFound
@@ -174,7 +172,6 @@ class KeyedStickyQueue(BaseQueue):
 
 class MessageHandler(StreamRequestHandler):
     def handle(self):
-        sess_id = str(uuid4())
         sess = str(uuid4())
         while True:
             try:
@@ -285,8 +282,8 @@ class MessageServer(ThreadingTCPServer):
         with self.queue_map_lock:
             if queue_name in self.queue_map:
                 raise QueueAlreadyExists(queue_name)
-
             queue = self.create_queue(msg.task)
+
         if not queue.connect():
             raise InternalMessagingError("Cant connect: " + queue_name)
 
