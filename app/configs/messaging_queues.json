@@ -6,6 +6,6 @@
             "request_schema": {
                 "type": "object"
             }
-        },
-    ],
+        }
+    ]
 }
