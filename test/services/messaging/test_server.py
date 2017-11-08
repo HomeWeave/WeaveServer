@@ -16,25 +16,15 @@ CONFIG = {
         "USE_FAKE_REDIS": True
     },
     "queues": {
-        "system_queues": [
+        "custom_queues": [
             {
-                "queue_name": "_system/dynamic-queues/create",
-                "request_schema": {
-                    "type": "object",
-                    "properties": {
-                        "queue_name": {"type": "string"},
-                        "queue_type": {
-                            "type": "string",
-                            "enum": ["redis", "sticky", "keyedsticky"]
-                        },
-                        "request_schema": {"type": "object"}
-                    },
-                    "required": ["queue_name", "request_schema"]
-                }
+                "queue_name": "dummy",
+                "request_schema": {"type": "object"}
             }
         ]
     }
 }
+
 TEST_QUEUES = [
     {
         "queue_name": "a.b.c",
@@ -67,6 +57,7 @@ TEST_QUEUES = [
         "request_schema": {"type": "object"}
     }
 ]
+
 
 def send_raw(msg):
     sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
