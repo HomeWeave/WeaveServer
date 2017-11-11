@@ -206,10 +206,6 @@ class EventDrivenService(object):
         headers = {"KEY": self.get_service_queue_name("")}
         sender.send({}, headers=headers)
 
-    def get_service_queue_name(self, queue_name):
-        service_name = self.get_component_name()
-        return "/services/{}/{}".format(service_name, queue_name)
-
     def on_service_stop(self):
         with self.capabilities_queue_lock:
             for _, (thread, receiver) in self.capabilities_queue_map.items():
