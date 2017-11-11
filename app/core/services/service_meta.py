@@ -90,6 +90,9 @@ class Event(object):
         self.queue = queue_template.format(self.unique_id)
         self.sender = Sender(self.queue)
 
+    def start(self):
+        self.sender.start()
+
     def build_announcement(self):
         data = {
             "name": self.name,
@@ -157,6 +160,9 @@ class EventDrivenService(object):
         event_sender.send(event.build_announcement(), headers=headers)
 
         self.create_event_queue(event)
+
+        event.start()
+        return event
 
     def create_capability_queue(self, capability):
         qid = capability.unique_id
