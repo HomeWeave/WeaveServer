@@ -4,8 +4,6 @@ from inspect import signature
 from threading import Thread, RLock
 from uuid import uuid4
 
-from jsonschema import validate, ValidationError
-
 from app.core.messaging import Message, Creator, Receiver, Sender
 
 
@@ -191,7 +189,6 @@ class EventDrivenService(object):
         creator.create(queue_info)
 
     def start_capability_receiver(self, capability, handler):
-        qid = capability.unique_id
         queue_name = capability.queue
         receiver = EventReceiver(queue_name, capability, handler)
         receiver.start()
