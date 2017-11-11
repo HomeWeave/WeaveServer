@@ -50,6 +50,17 @@ def create_events_queue(queue_name):
     creator.create(queue_info)
 
 
+def create_status_queue(queue_name):
+    queue_info = {
+        "queue_name": queue_name,
+        "queue_type": "sticky",
+        "request_schema": {"type": "string"}
+    }
+    creator = Creator()
+    creator.start()
+    creator.create(queue_info)
+
+
 def check_handler_param(params, handler):
     schema_args = set(params.keys())
     handler_args = set(signature(handler).parameters.keys())
@@ -213,3 +224,18 @@ class EventDrivenService(object):
                 receiver.stop()
                 thread.join()
         super().on_service_stop()
+
+
+class StatusService(object):
+    def on_service_start(self, *args, **kwargs):
+        queue = self.get_service_queue_name("status")
+        create_status_queue(queue)
+        self.status_sender = Sender(queue)
+        self.status_sender.start()
+        super().on_service_start(*args, **kwargs)
+
+    def update_status(self, msg):
+        self.status_sender.send(msg)
+
+    def on_service_stop(self):
+        self.status_sender.close()

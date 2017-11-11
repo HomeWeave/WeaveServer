@@ -3,7 +3,7 @@ from threading import Event, Thread
 import pytest
 
 from app.core.messaging import Receiver, Sender, SchemaValidationFailed
-from app.core.services import EventDrivenService, BaseService
+from app.core.services import EventDrivenService, BaseService, StatusService
 from app.services.messaging import MessageService
 
 from app.core.logger import configure_logging
@@ -30,7 +30,7 @@ CONFIG = {
 }
 
 
-class Service(EventDrivenService, BaseService):
+class Service(EventDrivenService, StatusService, BaseService):
     def on_service_start(self, *args, **kwargs):
         super().on_service_start(*args, **kwargs)
         self.value_event = Event()
@@ -146,3 +146,11 @@ class TestEventDrivenService(object):
 
         obj = event_receiver.receive().task
         assert obj == {"arg1": "blah"}
+
+    def test_update_status(self):
+        receiver = Receiver("/services/test/status")
+        receiver.start()
+
+        self.service.update_status("test-status")
+
+        receiver.receive().task == "test-status"
