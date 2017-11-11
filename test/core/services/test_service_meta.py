@@ -38,6 +38,7 @@ class Service(EventDrivenService, BaseService):
             "arg1": {"type": "string"}
         }
         self.express_capability("test", "testdesc", params, self.handle)
+        self.event = self.express_event("event", "event-desc", params)
 
     def get_component_name(self):
         return "test"
@@ -122,3 +123,26 @@ class TestEventDrivenService(object):
         sender.send({"arg1": "new-value"})
 
         assert self.service.get_value() == "new-value"
+
+    def test_express_event(self):
+        receiver = Receiver("/services/test/events")
+        receiver.start()
+        obj = receiver.receive()
+
+        assert len(obj.task) == 1
+        value = next(iter(obj.task.values()))
+        value.pop("id")
+        queue = value.pop("queue")
+        assert value == {
+            "name": "event",
+            "description": "event-desc",
+            "params": {"arg1": {"type": "string"}}
+        }
+
+        event_receiver = Receiver(queue)
+        event_receiver.start()
+
+        self.service.event.fire(arg1="blah")
+
+        obj = event_receiver.receive().task
+        assert obj == {"arg1": "blah"}

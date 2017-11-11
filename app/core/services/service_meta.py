@@ -105,10 +105,14 @@ class Event(object):
 
     @property
     def schema(self):
-        return {"type": "string"}
+        return {
+            "type": "object",
+            "properties": self.params,
+            "required": list(self.params.keys())
+        }
 
-    def fire(self):
-        self.sender.send(self.unique_id)
+    def fire(self, **kwargs):
+        self.sender.send(kwargs)
 
 
 class EventReceiver(Receiver):
@@ -189,7 +193,7 @@ class EventDrivenService(object):
         queue_name = self.get_service_queue_name("event/" + qid)
         queue_info = {
             "queue_name": queue_name,
-            "request_schema": {"type": "object"}
+            "request_schema": event.schema
         }
 
         creator = Creator()
