@@ -83,11 +83,14 @@ class Capability(Message):
 
     @property
     def schema(self):
-        return {
+        schema = {
             "type": "object",
             "properties": self.params,
-            "required": list(self.params.keys())
+            "additionalProperties": False
         }
+        if self.params:
+            schema["required"] = list(self.params.keys())
+        return schema
 
 
 class Event(object):
@@ -114,11 +117,14 @@ class Event(object):
 
     @property
     def schema(self):
-        return {
+        schema = {
             "type": "object",
             "properties": self.params,
-            "required": list(self.params.keys())
+            "additionalProperties": False
         }
+        if self.params:
+            schema["required"] = list(self.params.keys())
+        return schema
 
     def fire(self, **kwargs):
         self.sender.send(kwargs)
