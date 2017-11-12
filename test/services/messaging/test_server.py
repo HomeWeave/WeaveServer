@@ -4,9 +4,10 @@ from threading import Thread, Event, Semaphore
 
 import pytest
 
-from app.core.messaging import Sender, Receiver, RequiredFieldsMissing
+from app.core.messaging import Sender, Receiver, Creator, RequiredFieldsMissing
 from app.core.messaging import QueueNotFound, SchemaValidationFailed
 from app.core.messaging import InvalidMessageStructure, BadOperation
+from app.core.messaging import QueueAlreadyExists
 from app.core.messaging import read_message, ensure_ok_message
 from app.services.messaging import MessageService
 
@@ -16,40 +17,47 @@ CONFIG = {
         "USE_FAKE_REDIS": True
     },
     "queues": {
-        "queues": [
+        "custom_queues": [
             {
-                "queue_name": "a.b.c",
-                "request_schema": {
-                    "type": "object",
-                    "properties": {
-                        "foo": {
-                            "type": "string"
-                        }
-                    },
-                    "required": ["foo"]
-                }
-            },
-            {
-                "queue_name": "a.sticky",
-                "queue_type": "sticky",
-                "request_schema": {
-                    "type": "object",
-                    "properties": {
-                        "foo": {
-                            "type": "string"
-                        }
-                    },
-                    "required": ["foo"]
-                }
-            },
-            {
-                "queue_name": "x.keyedsticky",
-                "queue_type": "keyedsticky",
+                "queue_name": "dummy",
                 "request_schema": {"type": "object"}
             }
         ]
     }
 }
+
+TEST_QUEUES = [
+    {
+        "queue_name": "a.b.c",
+        "request_schema": {
+            "type": "object",
+            "properties": {
+                "foo": {
+                    "type": "string"
+                }
+            },
+            "required": ["foo"]
+        }
+    },
+    {
+        "queue_name": "a.sticky",
+        "queue_type": "sticky",
+        "request_schema": {
+            "type": "object",
+            "properties": {
+                "foo": {
+                    "type": "string"
+                }
+            },
+            "required": ["foo"]
+        }
+    },
+    {
+        "queue_name": "x.keyedsticky",
+        "queue_type": "keyedsticky",
+        "request_schema": {"type": "object"}
+    }
+]
 
 
 def send_raw(msg):
@@ -78,6 +86,10 @@ class TestMessagingService(object):
         cls.service_thread = Thread(target=cls.service.on_service_start)
         cls.service_thread.start()
         event.wait()
+        creator = Creator()
+        creator.start()
+        for queue_info in TEST_QUEUES:
+            creator.create(queue_info)
 
     @classmethod
     def teardown_class(cls):
@@ -109,7 +121,7 @@ class TestMessagingService(object):
             send_raw('MSG {"a": "b"}\nOP enqueue\n\n')
 
     def test_enqueue_without_task(self):
-        s = Sender("a.b.c")
+        s = Sender("/a.b.c")
         s.start()
         with pytest.raises(RequiredFieldsMissing):
             s.send(None)
@@ -131,7 +143,7 @@ class TestMessagingService(object):
             send_raw('OP dequeue\n\n')
 
     def test_enqueue_with_bad_schema(self):
-        s = Sender("a.b.c")
+        s = Sender("/a.b.c")
         s.start()
         with pytest.raises(SchemaValidationFailed):
             s.send({"foo": [1, 2]})
@@ -139,8 +151,8 @@ class TestMessagingService(object):
     def test_simple_enqueue_dequeue(self):
         msgs = []
 
-        s = Sender("a.b.c")
-        r = Receiver("a.b.c")
+        s = Sender("/a.b.c")
+        r = Receiver("/a.b.c")
         s.start()
         r.start()
         r.on_message = lambda msg: msgs.append(msg) or r.stop()
@@ -156,8 +168,8 @@ class TestMessagingService(object):
     def test_multiple_enqueue_dequeue(self):
         obj = {"foo": "bar"}
 
-        s = Sender("a.b.c")
-        r = Receiver("a.b.c")
+        s = Sender("/a.b.c")
+        r = Receiver("/a.b.c")
 
         s.start()
         for _ in range(10):
@@ -195,9 +207,9 @@ class TestMessagingService(object):
         msgs2 = []
         op = {"foo": "bar"}
 
-        s = Sender("a.sticky")
+        s = Sender("/a.sticky")
         s.start()
-        r1 = Receiver("a.sticky")
+        r1 = Receiver("/a.sticky")
         r1.on_message = make_receiver(2, msgs1, sem1, r1)
         r1.start()
         Thread(target=r1.run).start()
@@ -212,7 +224,7 @@ class TestMessagingService(object):
         assert not sem1.acquire(timeout=2)  # This should timeout again.
         assert len(msgs1) == 1
 
-        r2 = Receiver("a.sticky")
+        r2 = Receiver("/a.sticky")
         r2.on_message = make_receiver(2, msgs2, sem2, r2)
         r2.start()
         Thread(target=r2.run).start()
@@ -230,7 +242,7 @@ class TestMessagingService(object):
         assert len(msgs2) == 2
 
     def test_keyed_enqueue_without_key_header(self):
-        s = Sender("x.keyedsticky")
+        s = Sender("/x.keyedsticky")
         s.start()
         with pytest.raises(RequiredFieldsMissing):
             s.send({"foo": "bar"})
@@ -246,14 +258,14 @@ class TestMessagingService(object):
                     r.stop()
             return on_message
 
-        s1 = Sender("x.keyedsticky")
-        s2 = Sender("x.keyedsticky")
+        s1 = Sender("/x.keyedsticky")
+        s2 = Sender("/x.keyedsticky")
         obj1 = {}
         obj2 = {}
         sem1 = Semaphore(0)
         sem2 = Semaphore(0)
-        r1 = Receiver("x.keyedsticky")
-        r2 = Receiver("x.keyedsticky")
+        r1 = Receiver("/x.keyedsticky")
+        r2 = Receiver("/x.keyedsticky")
 
         r1.on_message = make_receiver(3, obj1, sem1, r1)
         r1.start()
@@ -280,6 +292,51 @@ class TestMessagingService(object):
         assert sem2.acquire(timeout=10)
         assert obj1 == {"1": {"foo": "bar"}, "2": {"baz": "grr"}}
         assert obj2 == {"1": {"foo": "bar"}, "2": {"baz": "grr"}}
+
+    def test_create_queue_with_no_payload(self):
+        with pytest.raises(RequiredFieldsMissing):
+            send_raw("OP create\n\n")
+
+    def test_create_duplicate_queues(self):
+        queue_info = {
+            "queue_name": "dummy",
+            "request_schema": {"type": "object"}
+        }
+        creator = Creator()
+        creator.start()
+        creator.create(queue_info)
+
+        with pytest.raises(QueueAlreadyExists):
+            creator.create(queue_info)
+
+    def test_create_bad_schema_object(self):
+        queue_info = {
+            "queue_name": "bad-schema",
+            "request_schema": [1, 2, 3]
+        }
+        creator = Creator()
+        creator.start()
+        with pytest.raises(SchemaValidationFailed):
+            creator.create(queue_info)
+
+    def test_create_incorrect_schema(self):
+        queue_info = {
+            "queue_name": "bad-schema",
+            "request_schema": {"type": "wrong"}
+        }
+        creator = Creator()
+        creator.start()
+        with pytest.raises(SchemaValidationFailed):
+            creator.create(queue_info)
+
+    def test_create_without_request_schema(self):
+        queue_info = {
+            "queue_name": "bad-schema",
+        }
+        creator = Creator()
+        creator.start()
+        with pytest.raises(SchemaValidationFailed):
+            creator.create(queue_info)
 
 
 class TestMessagingServiceWithRealRedis(object):

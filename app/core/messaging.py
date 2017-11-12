@@ -7,12 +7,17 @@ logger = logging.getLogger(__name__)
 
 
 class MessagingException(Exception):
+    def __init__(self, extra=None):
+        self.extra = extra
+
     def err_msg(self):
         return self.__class__.__name__
 
     def to_msg(self):
         msg = Message("result")
         msg.headers["RES"] = self.err_msg()
+        if self.extra is not None:
+            msg.headers["ERRMSG"] = str(self.extra)
         return msg
 
 
@@ -37,6 +42,10 @@ class WaitTimeoutError(MessagingException):
 
 
 class QueueNotFound(MessagingException):
+    pass
+
+
+class QueueAlreadyExists(MessagingException):
     pass
 
 
@@ -108,23 +117,23 @@ def write_message(conn, msg):
     conn.flush()
 
 
-def raise_message_exception(err):
+def raise_message_exception(err, extra):
     known_exceptions = {
         InvalidMessageStructure, BadOperation, RequiredFieldsMissing,
-        QueueNotFound, SchemaValidationFailed
+        QueueNotFound, SchemaValidationFailed, QueueAlreadyExists
     }
     responses = {c().err_msg(): c for c in known_exceptions}
     responses["OK"] = None
 
     ex = responses.get(err, Exception)
     if ex:
-        raise ex(err)
+        raise ex(extra)
 
 
 def ensure_ok_message(msg):
     if msg.op != "result" or "RES" not in msg.headers:
         raise MessagingException("Invalid acknowledgement message.")
-    raise_message_exception(msg.headers["RES"])
+    raise_message_exception(msg.headers["RES"], msg.headers.get("ERRMSG"))
 
 
 class Message(object):
@@ -200,10 +209,13 @@ class Receiver(object):
             try:
                 msg = self.receive()
             except IOError:
-                logger.exception("Stopping receiver.")
+                if self.active:
+                    logger.exception("Encountered error. Stopping receiver.")
                 break
-            if msg.task is not None:
+            if msg.op == "inform":
                 self.on_message(msg.task)
+            elif msg.op == "result":
+                ensure_ok_message(msg)
             else:
                 logger.warning("Dropping message without data.")
                 continue
@@ -219,7 +231,7 @@ class Receiver(object):
             return msg
         if "RES" not in msg.headers:
             raise MessagingException("RES header absent. Not an inform msg.")
-        raise_message_exception(msg.headers["RES"])
+        raise_message_exception(msg.headers["RES"], msg.headers["ERRMSG"])
 
     def stop(self):
         self.active = False
@@ -230,6 +242,35 @@ class Receiver(object):
 
     def on_message(self, msg):
         pass
+
+
+class Creator(object):
+    PORT = 11023
+    READ_BUF_SIZE = -1
+    WRITE_BUF_SIZE = 10240
+
+    def __init__(self, host="localhost"):
+        self.host = host
+        self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        self.active = False
+
+    def start(self):
+        self.sock.connect((self.host, self.PORT))
+        self.rfile = self.sock.makefile('rb', self.READ_BUF_SIZE)
+        self.wfile = self.sock.makefile('wb', self.WRITE_BUF_SIZE)
+
+    def create(self, queue_info, headers=None):
+        msg = Message("create", queue_info)
+        if headers is not None:
+            msg.headers = headers
+
+        write_message(self.wfile, msg)
+        msg = read_message(self.rfile)
+        ensure_ok_message(msg)
+
+    def close(self):
+        self.sock.shutdown(socket.SHUT_RDWR)
+        self.sock.close()
 
 
 def discover_message_server():
