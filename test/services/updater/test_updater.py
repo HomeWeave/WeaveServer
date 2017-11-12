@@ -40,7 +40,7 @@ class TestUpdateScanner(object):
         logging.info("Stopping service manager..")
         self.service_manager.stop()
 
-    def test_simple_update(self):
+    def tst_simple_update(self):
         mock_repo = Mock()
         mock_repo.needs_pull = Mock(return_value=False)
         UpdateScanner.list_repos = lambda x, y: ["dir"]
@@ -68,7 +68,7 @@ class TestUpdateScanner(object):
         assert next(x for x in obj1.values()) == {"message": "Update available."}
         service.on_service_stop()
 
-    def test_trigger_update_when_no_update(self):
+    def tst_trigger_update_when_no_update(self):
         mock_repo = Mock()
         mock_repo.needs_pull = Mock(return_value=False)
         UpdateScanner.list_repos = lambda x, y: ["dir"]
