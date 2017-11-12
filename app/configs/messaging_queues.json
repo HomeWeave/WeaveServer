@@ -1,80 +1,10 @@
 {
-    "queues": [
+    "custom_queues": [
         {
-            "queue_name": "/devices",
+            "queue_name": "/root/services",
             "queue_type": "keyedsticky",
             "request_schema": {
-                "type": "object",
-                "properties": {
-                    "device_id": {"type": "string"},
-                    "device_command_queue": {"type": "string"},
-                    "device_commands": {
-                        "type": "array",
-                        "items": {
-                            "type": "object",
-                            "properties": {
-                                "name": {"type": "string"},
-                                "id": {"type": "string"},
-                                "type": {"type": "string"}
-                            }
-                        }
-                    }
-                },
-                "required": [
-                    "device_id",
-                    "device_commands",
-                    "device_commands_queue"
-                ]
-            }
-        },
-        {
-            "queue_name": "/device/tv/command",
-            "request_schema": {
-                "type": "object",
-                "properties": {
-                    "command_id": {"type": "string"},
-                    "device_id": {"type": "string"},
-                    "args": {
-                        "type": "array",
-                        "items": {"type": "string"}
-                    }
-                },
-                "required": ["command_id", "device_id"]
-            }
-        },
-        {
-            "queue_name": "/services/shell/notifications",
-            "queue_type": "keyedsticky",
-            "request_schema": {
-                "type": "object",
-                "properties": {
-                    "message": {"type": "string"}
-                },
-                "required": ["message"]
-            }
-        },
-        {
-            "queue_name": "/services/updater/status",
-            "queue_type": "sticky",
-            "request_schema": {
-                "type": "object",
-                "properties": {
-                    "message": {"type": "string"}
-                },
-                "required": ["message"]
-            }
-        },
-        {
-            "queue_name": "/services/updater/command",
-            "request_schema": {
-                "type": "object",
-                "properties": {
-                    "action": {
-                        "type": "string",
-                        "enum": ["TRIGGER"]
-                    }
-                },
-                "required": ["action"]
+                "type": "object"
             }
         }
     ]

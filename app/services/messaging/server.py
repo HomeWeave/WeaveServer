@@ -1,19 +1,21 @@
 import json
 import logging
+import os
 from collections import defaultdict
 from queue import Queue
 from socketserver import ThreadingTCPServer, StreamRequestHandler
 from threading import Condition, RLock
 from uuid import uuid4
 
-from jsonschema import validate, ValidationError
+from jsonschema import validate, ValidationError, SchemaError
 from redis import Redis, ConnectionError as RedisConnectionError
 
 from app.core.messaging import read_message, serialize_message, Message
+from app.core.messaging import QueueAlreadyExists
 from app.core.messaging import SchemaValidationFailed, BadOperation
 from app.core.messaging import RequiredFieldsMissing, InternalMessagingError
 from app.core.messaging import MessagingException, QueueNotFound
-from app.core.service_base import BaseService, BackgroundProcessServiceStart
+from app.core.services import BaseService, BackgroundProcessServiceStart
 
 
 logger = logging.getLogger(__name__)
@@ -94,13 +96,13 @@ class RedisQueue(BaseQueue):
             self.redis = Redis(**self.redis_config)
             self.redis.info()
         except RedisConnectionError:
-            logger.exception("Not in test cases.")
+            logger.exception("Unable to connect to real Redis.")
             return False
         return True
 
     def get_connection(self):
         if self.redis is None:
-            raise RedisConnectionError
+            raise RedisConnectionError()
         return self.redis
 
 
@@ -145,7 +147,7 @@ class KeyedStickyQueue(BaseQueue):
         try:
             key = headers["KEY"]
         except KeyError:
-            raise RequiredFieldsMissing
+            raise RequiredFieldsMissing("Field 'KEY' is required.")
 
         self.validate_schema(task)
         with self.condition:
@@ -189,25 +191,48 @@ class MessageHandler(StreamRequestHandler):
 
 class MessageServer(ThreadingTCPServer):
     allow_reuse_address = True
+    daemon_threads = True
 
     def __init__(self, service, port, redis_config, queue_config):
         super().__init__(("", port), MessageHandler)
         self.service = service
         self.sent_start_notification = False
         self.queue_map = {}
+        self.queue_map_lock = RLock()
         self.listener_map = {}
         self.sticky_messages = {}
+        self.clients = {}
+        self.redis_config = redis_config
+
+        for queue_info in queue_config.get("custom_queues", []):
+            queue = self.create_queue(queue_info)
+            self.queue_map[queue_info["queue_name"]] = queue
+
+    def create_queue(self, queue_info):
+        try:
+            schema = queue_info["request_schema"]
+            if not isinstance(schema, dict):
+                raise SchemaValidationFailed(json.dumps(schema))
+            validate({}, schema)
+        except KeyError:
+            raise SchemaValidationFailed("'request_schema' required.")
+        except SchemaError:
+            raise SchemaValidationFailed(json.dumps(schema))
+        except ValidationError:
+            pass
 
         queue_types = {
             "redis": RedisQueue,
             "sticky": StickyQueue,
             "keyedsticky": KeyedStickyQueue,
         }
-        for queue_info in queue_config["queues"]:
-            queue_name = queue_info["queue_name"]
-            cls = queue_types[queue_info.get("queue_type", "redis")]
-            queue = cls(queue_info, queue_name, redis_config)
-            self.queue_map[queue_name] = queue
+        queue_name = queue_info["queue_name"]
+
+        cls = queue_types[queue_info.get("queue_type", "redis")]
+        queue = cls(queue_info, queue_name, self.redis_config)
+        self.queue_map[queue_name] = queue
+        logger.info("Connecting to %s", queue)
+        return queue
 
     def handle_message(self, msg):
         if msg.operation == "dequeue":
@@ -218,43 +243,66 @@ class MessageServer(ThreadingTCPServer):
             msg = Message("result")
             msg.headers["RES"] = "OK"
             return serialize_message(msg)
+        elif msg.operation == "create":
+            self.handle_create(msg)
+            msg = Message("result")
+            msg.headers["RES"] = "OK"
+            return serialize_message(msg)
         else:
-            raise BadOperation
+            raise BadOperation(msg.operation)
 
     def handle_enqueue(self, msg):
         if msg.task is None:
-            raise RequiredFieldsMissing
+            raise RequiredFieldsMissing("Task is required for enqueue.")
         try:
             queue_name = msg.headers["Q"]
         except KeyError:
-            raise RequiredFieldsMissing
+            raise RequiredFieldsMissing("Field 'Q' is required for enqueue.")
 
         try:
             queue = self.queue_map[queue_name]
             queue.enqueue(msg.task, msg.headers)
         except KeyError:
-            raise QueueNotFound
+            raise QueueNotFound(queue_name)
         except ValidationError:
-            raise SchemaValidationFailed
+            raise SchemaValidationFailed()
         except RedisConnectionError:
             logger.exception("Failed to talk to Redis.")
-            raise InternalMessagingError
+            raise InternalMessagingError()
 
     def handle_dequeue(self, msg):
         try:
             queue_name = msg.headers["Q"]
         except KeyError:
-            raise RequiredFieldsMissing
+            raise RequiredFieldsMissing("Field 'Q' is required for dequeue.")
 
         requestor_id = msg.headers["SESS"]
         try:
             queue = self.queue_map[queue_name]
             return queue.dequeue(requestor_id)
         except KeyError:
-            raise QueueNotFound
+            raise QueueNotFound(queue_name)
         except RedisConnectionError:
             logger.exception("failed to talk to Redis.")
             raise InternalMessagingError
+
+    def handle_create(self, msg):
+        if msg.task is None:
+            raise RequiredFieldsMissing("QueueInfo is required for create.")
+
+        queue_name = os.path.join("/", msg.task["queue_name"].lstrip("/"))
+        msg.task["queue_name"] = queue_name
+        with self.queue_map_lock:
+            if queue_name in self.queue_map:
+                raise QueueAlreadyExists(queue_name)
+            queue = self.create_queue(msg.task)
+
+        if not queue.connect():
+            raise InternalMessagingError("Cant connect: " + queue_name)
+
+        self.queue_map[msg.task["queue_name"]] = queue
+
+        logger.info("Connected: %s", queue)
 
     def run(self):
         for queue in self.queue_map.values():

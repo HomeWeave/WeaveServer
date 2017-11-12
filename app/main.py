@@ -6,7 +6,7 @@ NavigationChannel, View Manager.
 import signal
 
 from .core.registry import Registry
-from .core.servicemanager import ServiceManager
+from .core.services import ServiceManager
 
 
 class Hulk(object):
