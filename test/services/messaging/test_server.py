@@ -7,6 +7,7 @@ import pytest
 from app.core.messaging import Sender, Receiver, Creator, RequiredFieldsMissing
 from app.core.messaging import QueueNotFound, SchemaValidationFailed
 from app.core.messaging import InvalidMessageStructure, BadOperation
+from app.core.messaging import QueueAlreadyExists
 from app.core.messaging import read_message, ensure_ok_message
 from app.services.messaging import MessageService
 
@@ -291,6 +292,42 @@ class TestMessagingService(object):
         assert sem2.acquire(timeout=10)
         assert obj1 == {"1": {"foo": "bar"}, "2": {"baz": "grr"}}
         assert obj2 == {"1": {"foo": "bar"}, "2": {"baz": "grr"}}
+
+    def test_create_queue_with_no_payload(self):
+        with pytest.raises(RequiredFieldsMissing):
+            send_raw("OP create\n\n")
+
+    def test_create_duplicate_queues(self):
+        queue_info = {
+            "queue_name": "dummy",
+            "request_schema": {"type": "object"}
+        }
+        creator = Creator()
+        creator.start()
+        creator.create(queue_info)
+
+        with pytest.raises(QueueAlreadyExists):
+            creator.create(queue_info)
+
+    def test_create_bad_schema_object(self):
+        queue_info = {
+            "queue_name": "bad-schema",
+            "request_schema": [1, 2, 3]
+        }
+        creator = Creator()
+        creator.start()
+        with pytest.raises(SchemaValidationFailed):
+            creator.create(queue_info)
+
+    def test_create_incorrect_schema(self):
+        queue_info = {
+            "queue_name": "bad-schema",
+            "request_schema": {"type": "wrong"}
+        }
+        creator = Creator()
+        creator.start()
+        with pytest.raises(SchemaValidationFailed):
+            creator.create(queue_info)
 
 
 class TestMessagingServiceWithRealRedis(object):

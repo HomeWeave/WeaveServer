@@ -7,7 +7,7 @@ from socketserver import ThreadingTCPServer, StreamRequestHandler
 from threading import Condition, RLock
 from uuid import uuid4
 
-from jsonschema import validate, ValidationError
+from jsonschema import validate, ValidationError, SchemaError
 from redis import Redis, ConnectionError as RedisConnectionError
 
 from app.core.messaging import read_message, serialize_message, Message
@@ -209,6 +209,15 @@ class MessageServer(ThreadingTCPServer):
             self.queue_map[queue_info["queue_name"]] = queue
 
     def create_queue(self, queue_info):
+        try:
+            if not isinstance(queue_info["request_schema"], dict):
+                raise SchemaValidationFailed()
+            validate({}, queue_info["request_schema"])
+        except SchemaError:
+            raise SchemaValidationFailed()
+        except ValidationError:
+            pass
+
         queue_types = {
             "redis": RedisQueue,
             "sticky": StickyQueue,
