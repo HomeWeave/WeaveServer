@@ -329,6 +329,15 @@ class TestMessagingService(object):
         with pytest.raises(SchemaValidationFailed):
             creator.create(queue_info)
 
+    def test_create_without_request_schema(self):
+        queue_info = {
+            "queue_name": "bad-schema",
+        }
+        creator = Creator()
+        creator.start()
+        with pytest.raises(SchemaValidationFailed):
+            creator.create(queue_info)
+
 
 class TestMessagingServiceWithRealRedis(object):
     """ Obviously, we do not have Redis running. Testing for graceful fails."""

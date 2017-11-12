@@ -210,11 +210,14 @@ class MessageServer(ThreadingTCPServer):
 
     def create_queue(self, queue_info):
         try:
-            if not isinstance(queue_info["request_schema"], dict):
-                raise SchemaValidationFailed()
-            validate({}, queue_info["request_schema"])
+            schema = queue_info["request_schema"]
+            if not isinstance(schema, dict):
+                raise SchemaValidationFailed(json.dumps(schema))
+            validate({}, schema)
+        except KeyError:
+            raise SchemaValidationFailed("'request_schema' required.")
         except SchemaError:
-            raise SchemaValidationFailed()
+            raise SchemaValidationFailed(json.dumps(schema))
         except ValidationError:
             pass
 
