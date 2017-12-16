@@ -10,3 +10,4 @@ jsonschema
 roku
 netifaces
 wakeonlan
+git+https://github.com/supersaiyanmode/PyWebOSTV
