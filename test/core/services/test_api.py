@@ -67,3 +67,22 @@ class TestAPI(object):
             "args": [x.info for x in api.args],
             "kwargs": {p.name: p.info for p in api.kwargs}
         }
+
+    def test_call(self):
+        api = API("uid", "name", "desc", [
+            KeywordParameter("a2", "d2", int),
+            ArgParameter("a1", "d1", str),
+            KeywordParameter("a3", "d3", bool),
+            ArgParameter("a4", "d1", str),
+            KeywordParameter("a5", "d1", str),
+
+        ])
+
+        def test_func(a, b, a2, a3, a5):
+            return "{}{}{}{}{}".format(a, b, a2, a3, a5)
+
+        assert "ab135" == api(test_func, {
+            "command": "uid",
+            "args": ["a", "b"],
+            "kwargs": {"a2": 1, "a3": 3, "a5": 5}
+        })
