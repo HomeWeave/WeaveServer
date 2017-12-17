@@ -1,7 +1,7 @@
 import pytest
 from jsonschema import validate, ValidationError
 
-from app.core.services.api import Parameter, API
+from app.core.services.api import Parameter, API, ArgParameter, KeywordParameter
 
 
 class TestParameter(object):
@@ -34,18 +34,15 @@ class TestAPI(object):
 
     def test_validate_schema_with_args(self):
         api = API("uid", "name", "desc", [
-            Parameter("a1", "d1", str),
-            Parameter("a2", "d2", int),
-            Parameter("a3", "d3", bool),
+            ArgParameter("a1", "d1", str),
+            KeywordParameter("a2", "d2", int),
+            ArgParameter("a3", "d3", bool),
         ])
 
         obj = {
             "command": "uid",
-            "args": {
-                "a1": "string",
-                "a2": 5,
-                "a3": False
-            }
+            "args": ["string", False],
+            "kwargs": {"a2": 5},
         }
         assert validate(obj, api.schema) is None
 
@@ -58,14 +55,15 @@ class TestAPI(object):
 
     def test_info(self):
         api = API("uid", "name", "desc", [
-            Parameter("a1", "d1", str),
-            Parameter("a2", "d2", int),
-            Parameter("a3", "d3", bool),
+            KeywordParameter("a2", "d2", int),
+            ArgParameter("a1", "d1", str),
+            KeywordParameter("a3", "d3", bool),
         ])
 
         assert api.info == {
             "name": "name",
             "id": "uid",
             "description": "desc",
-            "parameters": {p.name: p.info for p in api.parameters}
+            "args": [x.info for x in api.args],
+            "kwargs": {p.name: p.info for p in api.kwargs}
         }

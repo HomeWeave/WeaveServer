@@ -24,12 +24,21 @@ class Parameter(object):
         }
 
 
+class ArgParameter(Parameter):
+    positional = True
+
+
+class KeywordParameter(Parameter):
+    positional = False
+
+
 class API(object):
     def __init__(self, unique_id, name, desc, params=None):
         self.id = unique_id
         self.name = name
         self.description = desc
-        self.parameters = params or []
+        self.args = [x for x in (params or []) if x.positional]
+        self.kwargs = [x for x in (params or []) if not x.positional]
 
     @property
     def schema(self):
@@ -42,14 +51,22 @@ class API(object):
             "required": ["command"],
         }
 
-        if self.parameters:
-            params_schema = {
-                "type": "object",
-                "properties": {p.name: p.schema for p in self.parameters}
+        if self.args:
+            obj["properties"]["args"] = {
+                "type": "array",
+                "items": [p.schema for p in self.args],
+                "minItems": len(self.args),
+                "maxItems": len(self.args)
             }
-            params_schema["required"] = list(params_schema["properties"].keys())
-            obj["properties"]["args"] = params_schema
             obj["required"].append("args")
+
+        if self.kwargs:
+            obj["properties"]["kwargs"] = {
+                "type": "object",
+                "properties": {p.name: p.schema for p in self.kwargs},
+                "required": [p.name for p in self.kwargs]
+            }
+            obj["required"].append("kwargs")
 
         return obj
 
@@ -59,5 +76,9 @@ class API(object):
             "id": self.id,
             "name": self.name,
             "description": self.description,
-            "parameters": {x.name: x.info for x in self.parameters}
+            "args": [x.info for x in self.args],
+            "kwargs": {x.name: x.info for x in self.kwargs}
         }
+
+    def __call__(self, func, params):
+        return func(*params["args"], **params["kwargs"])
