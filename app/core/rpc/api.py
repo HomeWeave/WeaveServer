@@ -1,3 +1,6 @@
+from uuid import uuid4
+
+from jsonschema import validate, ValidationError
 
 
 class Parameter(object):
@@ -27,18 +30,34 @@ class Parameter(object):
 class ArgParameter(Parameter):
     positional = True
 
+    @staticmethod
+    def from_info(info):
+        try:
+            cls = {"text": str, "number": int, "toggle": bool}[info["type"]]
+            return ArgParameter(info["name"], info["description"], cls)
+        except KeyError:
+            raise ValueError("Invalid ArgParameter info object.")
+
 
 class KeywordParameter(Parameter):
     positional = False
 
+    @staticmethod
+    def from_info(info):
+        try:
+            cls = {"text": str, "number": int, "toggle": bool}[info["type"]]
+            return KeywordParameter(info["name"], info["description"], cls)
+        except KeyError:
+            raise ValueError("Invalid KeywordParameter info object.")
+
 
 class API(object):
-    def __init__(self, unique_id, name, desc, params=None):
-        self.id = unique_id
+    def __init__(self, name, desc, params):
+        self.id = str(uuid4())
         self.name = name
         self.description = desc
-        self.args = [x for x in (params or []) if x.positional]
-        self.kwargs = [x for x in (params or []) if not x.positional]
+        self.args = [x for x in params if x.positional]
+        self.kwargs = [x for x in params if not x.positional]
 
     @property
     def schema(self):
@@ -80,5 +99,26 @@ class API(object):
             "kwargs": {x.name: x.info for x in self.kwargs}
         }
 
-    def __call__(self, func, params):
-        return func(*params["args"], **params["kwargs"])
+    def validate_call(self, *args, **kwargs):
+        obj = {"command": self.id}
+        if args:
+            obj["args"] = list(args)
+        if kwargs:
+            obj["kwargs"] = kwargs
+
+        try:
+            validate(obj, self.schema)
+        except ValidationError:
+            raise TypeError("Bad parameters for function call.")
+
+        return obj
+
+    @staticmethod
+    def from_info(info):
+        api = API(info["name"], info["description"], [])
+        api.id = info["id"]
+        api.args = [ArgParameter.from_info(x) for x in info["args"]]
+        api.kwargs = [KeywordParameter.from_info(x) for x in
+                      info["kwargs"].values()]
+
+        return api
