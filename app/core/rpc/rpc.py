@@ -61,6 +61,7 @@ class RPCReceiver(Receiver):
     def on_message(self, obj):
         self.server.execute_command(obj)
 
+
 class RPCServer(RPC):
     def __init__(self, name, description, apis, service):
         super(RPCServer, self).__init__(name, description, apis)
@@ -80,6 +81,8 @@ class RPCServer(RPC):
         self.receiver_thread.start()
 
     def stop(self):
+        # TODO: Delete the queue, too.
+
         self.receiver.stop()
         self.receiver_thread.join()
 
