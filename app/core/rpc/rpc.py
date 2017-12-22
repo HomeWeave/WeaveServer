@@ -63,6 +63,8 @@ class RPCReceiver(Receiver):
 
 
 class RPCServer(RPC):
+    RPC_INFO_QUEUE = "/_system/rpc-servers"
+
     def __init__(self, name, description, apis, service):
         super(RPCServer, self).__init__(name, description, apis)
         self.queue_name = service.get_service_queue_name("/apis/" + str(uuid4()))
@@ -79,6 +81,11 @@ class RPCServer(RPC):
 
         self.receiver.start()
         self.receiver_thread.start()
+
+        sender = Sender(self.RPC_INFO_QUEUE)
+        sender.start()
+        sender.send(self.info_message, headers={"KEY": self.queue_name})
+        sender.close()
 
     def stop(self):
         # TODO: Delete the queue, too.
