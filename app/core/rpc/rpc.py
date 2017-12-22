@@ -67,7 +67,7 @@ class RPCServer(RPC):
 
     def __init__(self, name, description, apis, service):
         super(RPCServer, self).__init__(name, description, apis)
-        self.queue_name = service.get_service_queue_name("/apis/" + str(uuid4()))
+        self.queue_name = service.get_service_queue_name("apis/" + str(uuid4()))
         self.receiver = RPCReceiver(self, self.queue_name)
         self.receiver_thread = Thread(target=self.receiver.run)
 
