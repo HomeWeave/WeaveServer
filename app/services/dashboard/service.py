@@ -30,5 +30,8 @@ class DashboardService(BackgroundProcessServiceStart, BaseService):
         self.app.run(self.flask_app, host="0.0.0.0", debug=True,
                      use_reloader=False)
 
+    def get_component_name(self):
+        return "dashboard"
+
     def on_service_stop(self):
         self.flask_app.shutdown()
