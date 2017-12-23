@@ -236,9 +236,11 @@ class Receiver(object):
     def stop(self):
         self.active = False
         self.sock.shutdown(socket.SHUT_RDWR)
-        self.rfile.close()
-        self.wfile.close()
-        self.sock.close()
+        for item in (self.rfile, self.wfile, self.sock):
+            try:
+                item.close()
+            except ConnectionError:
+                pass
 
     def on_message(self, msg):
         pass
