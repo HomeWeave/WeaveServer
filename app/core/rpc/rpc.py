@@ -79,13 +79,13 @@ class RPCServer(RPC):
             "request_schema": self.receiving_schema
         })
 
-        self.receiver.start()
-        self.receiver_thread.start()
-
         sender = Sender(self.RPC_INFO_QUEUE)
         sender.start()
         sender.send(self.info_message, headers={"KEY": self.queue_name})
         sender.close()
+
+        self.receiver.start()
+        self.receiver_thread.start()
 
     def stop(self):
         # TODO: Delete the queue, too.

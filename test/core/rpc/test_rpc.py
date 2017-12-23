@@ -51,7 +51,7 @@ class DummyService(object):
         self.value_set.set()
 
     def get_service_queue_name(self, path):
-        return path
+        return "/" + path
 
     def start(self):
         self.rpc_server.start()
