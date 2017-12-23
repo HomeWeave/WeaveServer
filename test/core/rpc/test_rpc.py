@@ -1,10 +1,11 @@
-from threading import Event, Thread
+import os
+from threading import Event
 
 from app.core.rpc import RPCServer, RPCClient, ServerAPI
 from app.core.rpc import ArgParameter, KeywordParameter
-from app.services.messaging import MessageService
-
+from app.core.services import ServiceManager
 from app.core.logger import configure_logging
+
 configure_logging()
 
 
@@ -62,17 +63,14 @@ class DummyService(object):
 class TestRPC(object):
     @classmethod
     def setup_class(cls):
-        event = Event()
-        cls.service = MessageService(CONFIG)
-        cls.service.notify_start = event.set
-        cls.service_thread = Thread(target=cls.service.on_service_start)
-        cls.service_thread.start()
-        event.wait()
+        os.environ["USE_FAKE_REDIS"] = "TRUE"
+        cls.service_manager = ServiceManager(None)
+        cls.service_manager.start_services(["messaging"])
 
     @classmethod
     def teardown_class(cls):
-        cls.service.on_service_stop()
-        cls.service_thread.join()
+        del os.environ["USE_FAKE_REDIS"]
+        cls.service_manager.stop()
 
     def setup_method(self):
         self.service = DummyService()
