@@ -1,3 +1,7 @@
+/*************************
+*******General Utils******
+**************************/
+
 
 /*************************
 *******Typography******
@@ -69,6 +73,10 @@ a:hover {
   flex-direction: column;
 }
 
+
+/****
+ * TOP BAR
+ */
 #page-topbar {
   height: 30px;
   margin-bottom: 6px;
@@ -79,6 +87,26 @@ a:hover {
 
   display : flex;
   align-items : center;
+}
+
+/*
+ * BOTTOM BAR
+ */
+#page-bottombar {
+  height: 100px;
+  background-color: rgba(0, 0, 0, 0.3);
+  border-radius: 5px 5px 0px 0px;
+  z-index: 125;
+  padding: 2px;
+
+  display: flex;
+  align-items: center;
+}
+
+#page-bottombar #dock-contents ul {
+    list-style: none;
+    font-size: 30px;
+    float: left;
 }
 
 .page-content {
