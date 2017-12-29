@@ -12,31 +12,60 @@
 </head>
 
 <body>
-  <script type="text/template" id="application-wrap-template">
-  <li data-appid="{{id}}">
-    <div class="application-wrap">
-      
-    </div>
-  </li>
+  <script id="rpc-template" type="text/template">
+    <h1>{{name}}</h1>
+    <h4>{{description}}</h4>
+    <hr>
+    {{#each apis}}
+        <form data-uri="{{../uri}}" data-api-id="{{id}}" id="rpc-form-{{id}}">
+        <strong>{{description}}</strong>
+        {{#each args}}
+            {{#equals type "text"}}
+            <input type="text" name="{{name}}" />
+            {{/equals}}
+            {{#equals type "number"}}
+            <input type="number" name="{{name}}" required />
+            {{/equals}}
+            {{#equals type "toggle"}}
+            <input type="checkbox" name="{{name}}" />
+            {{/equals}}
+        {{/each}}
+        {{#each kwargs}}
+            {{#equals type "text"}}
+            <input type="text" name="{{name}}" />
+            {{/equals}}
+            {{#equals type "number"}}
+            <input type="number" name="{{name}}" required />
+            {{/equals}}
+            {{#equals type "toggle"}}
+            <input type="checkbox" name="{{name}}" />
+            {{/equals}}
+        {{/each}}
+        <button type="submit">Submit</button>
+        </form>
+    {{/each}}
   </script>
-  <div id="page-wrapper">
-    <div id="page-topbar">
+  <div class="page-wrapper" id="page-wrapper">
+    <div id="page-topbar" class="glass-blur">
       TOP BAR
     </div>
     <div class="page-content">
       <div class="frame oneperframe" id="oneperframe">
         <ul class="clearfix">
-          
+          <li data-appid="{{id}}">
+            <div class="application-wrap glass-blur">
+              <div class="application-content">
+              </div>
+            </div>
+          </li>
         </ul>
       </div>
     </div>
     <div id="page-bottombar" class="glass-blur">
         <div id="dock-contents">
-            <ul>
-                <li>
-                    <i class="fa fa-{{icon}}" title="{{description}}"></i>
-                </li>
-            </ul>
+            <div>
+                <i class="fa fa-{{icon}}" title="{{description}}"></i>
+            </div>
         </div>
     </div>
   </div>
