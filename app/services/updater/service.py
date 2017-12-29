@@ -7,9 +7,8 @@ from git import Repo
 from git.util import RemoteProgress
 from git.exc import GitError
 
-from app.core.messaging import Receiver, Sender
+from app.core.rpc import ServerAPI, ArgParameter, KeywordParameter, RPCServer
 from app.core.services import BaseService, BackgroundProcessServiceStart
-from app.core.services import EventDrivenService, StatusService
 
 
 logger = logging.getLogger(__name__)
@@ -79,8 +78,6 @@ class UpdateScanner(object):
         self.repos_to_update = {}
 
     def start(self):
-        self.new_updates_event = self.service.express_event(
-            "Updates available", "New system updates found.", {})
         self.cancel_event.clear()
         self.thread.start()
 
@@ -117,7 +114,6 @@ class UpdateScanner(object):
 
     def update_status(self, msg):
         logger.info("UpdateScanner Status: %s", msg)
-        self.service.update_status(msg)
 
     def has_new_updates(self, res):
         keys = {x.repo_name for x in res}
@@ -144,9 +140,7 @@ class Updater(object):
         self.service = service
 
     def start(self):
-        self.service.express_capability("Perform upgrade.",
-                                        "Trigger system upgrade.", {},
-                                        self.upgrade_handler)
+        pass
 
     def upgrade_handler(self):
         repos = self.scanner.get_repos_to_update()
@@ -176,16 +170,20 @@ class Updater(object):
 
     def update_status(self, msg):
         logger.info("Updater status: %s", msg)
-        self.service.update_status(msg)
 
 
-class UpdaterService(EventDrivenService, StatusService,
-                     BackgroundProcessServiceStart, BaseService):
+class UpdaterService(BackgroundProcessServiceStart, BaseService):
 
     def __init__(self, config):
         self.update_scanner = UpdateScanner(self)
         self.updater = Updater(self, self.update_scanner)
         self.shutdown = Event()
+        self.rpc = RPCServer("System Update", "Update the System", [
+            ServerAPI("check_updates", "Check for updates", [],
+                      self.update_scanner.check_updates),
+            ServerAPI("perform_upgrade", "Perform update", [],
+                      self.updater.upgrade_handler),
+        ], self)
         super().__init__()
 
     def get_component_name(self):
@@ -193,6 +191,7 @@ class UpdaterService(EventDrivenService, StatusService,
 
     def on_service_start(self, *args, **kwargs):
         super().on_service_start(*args, **kwargs)
+        self.rpc.start()
         self.update_scanner.start()
         self.updater.start()
         self.notify_start()
@@ -202,4 +201,5 @@ class UpdaterService(EventDrivenService, StatusService,
         logger.info("Stopping update scanner..")
         self.update_scanner.stop()
         self.shutdown.set()
+        self.rpc.stop()
         super().on_service_stop()
