@@ -101,11 +101,13 @@ var ApplicationRPC = function() {
                 return state;
             }, {});
 
-            var data = {
-                command: api.id,
-                args: args,
-                kwargs: kwargs
-            };
+            var data = {command: api.id};
+            if (args.length) {
+                data.args = args;
+            }
+            if (Object.keys(kwargs).length) {
+                data.kwargs = kwargs;
+            }
             socket.send("messaging", {data: data, uri: $form.data("uri")});
             console.log("Sent to uri: ", $form.data("uri"), ", data: ", data);
             return false;
