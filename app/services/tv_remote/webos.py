@@ -25,6 +25,10 @@ def get_apis(client):
 
 class WebOSTV(object):
     def __init__(self, service, mac, client):
+        store = {'client_key': 'c2a6e6a1a8ebf46ccddaabaf7c15bad6'}
+        client.connect()
+        list(client.register(store))
+
         self.mac = mac
         apis = get_apis(client)
         self.rpc = RPCServer("LG TV Commands", "Remote control for LG TVs.",
