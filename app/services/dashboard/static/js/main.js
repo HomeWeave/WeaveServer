@@ -52,7 +52,7 @@ var Socket = function(namespace, params) {
     }
 }
 
-var MessagingChannel = function(socket, queueName) {
+var MessagingChannel = function(socket) {
     var receivers = {};
     socket.register("messaging", function(obj) {
         if (receivers[obj.queue] !== undefined) {
