@@ -73,6 +73,27 @@ var MessagingChannel = function(socket) {
     }
 };
 
+var RPC = function(channel, apis) {
+    var fixedApis = Object.keys(apis).map(function(apiId) {
+        var api = apis[apiId];
+        api.args = api.args || [];
+        api.kwargs = api.kwargs || {};
+        return api;
+    });
+    var apisByName = fixedApis.reduce(function(state, cur) {
+        state[cur.name] = cur;
+        return state;
+    });
+    var getApiFunc = function(name) {
+        var api = apisByName[apiName];
+        return function(args, kwargs) {
+            channel.send(api.uri, {args: args, kwargs: kwargs});
+        }
+    }
+
+    return getApiFunc;
+};
+
 var ApplicationRPC = function() {
     var rpcTemplate = Handlebars.compile($("#rpc-template").html());
 
