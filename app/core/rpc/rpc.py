@@ -63,11 +63,12 @@ class RPCReceiver(Receiver):
 
 
 class RPCServer(RPC):
-    RPC_INFO_QUEUE = "/_system/rpc-servers"
-
     def __init__(self, name, description, apis, service):
         super(RPCServer, self).__init__(name, description, apis)
-        self.queue_name = service.get_service_queue_name("apis/" + str(uuid4()))
+        self.service = service
+        self.unique_id = "rpc-" + str(uuid4())
+        self.queue_name = service.get_service_queue_name(
+            "apis/" + self.unique_id)
         self.receiver = RPCReceiver(self, self.queue_name)
         self.receiver_thread = Thread(target=self.receiver.run)
 
@@ -79,13 +80,10 @@ class RPCServer(RPC):
             "request_schema": self.receiving_schema
         })
 
-        sender = Sender(self.RPC_INFO_QUEUE)
-        sender.start()
-        sender.send(self.info_message, headers={"KEY": self.queue_name})
-        sender.close()
-
         self.receiver.start()
         self.receiver_thread.start()
+
+        self.service.app.register_rpc_server(self)
 
     def stop(self):
         # TODO: Delete the queue, too.
