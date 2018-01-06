@@ -51,12 +51,12 @@ class ShellComponent(BaseComponent):
         self.reply('dock_apps', self.app_lister.apps)
 
     def on_messaging(self, obj):
-        uri = obj["uri"]
+        queue = obj["queue"]
         data = obj["data"]
         # self.get_sender(uri).send(data)
-        sender = Sender(uri)
+        sender = Sender(queue)
         sender.start()
-        logger.info("Sent Message to %s: %s", uri, str(data))
+        logger.info("Sent Message to %s: %s", queue, str(data))
         sender.send(data)
 
     def get_sender(self, queue):
