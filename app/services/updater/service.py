@@ -9,6 +9,7 @@ from git.exc import GitError
 
 from app.core.rpc import ServerAPI, ArgParameter, KeywordParameter, RPCServer
 from app.core.services import BaseService, BackgroundProcessServiceStart
+from app.core.services.http import AppHTTPServer
 
 
 logger = logging.getLogger(__name__)
@@ -184,6 +185,7 @@ class UpdaterService(BackgroundProcessServiceStart, BaseService):
             ServerAPI("perform_upgrade", "Perform update", [],
                       self.updater.upgrade_handler),
         ], self)
+        self.http = AppHTTPServer(self)
         super().__init__()
 
     def get_component_name(self):
@@ -194,6 +196,7 @@ class UpdaterService(BackgroundProcessServiceStart, BaseService):
         self.rpc.start()
         self.update_scanner.start()
         self.updater.start()
+        self.http.start()
         self.notify_start()
         self.shutdown.wait()
 
