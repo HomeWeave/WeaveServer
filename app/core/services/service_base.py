@@ -25,7 +25,7 @@ class BaseService(object):
     def __init__(self, target_args=None, target_kwargs=None):
         self.target_args = () if target_args is None else target_args
         self.target_kwargs = {} if target_kwargs is None else target_kwargs
-        self.app = Application()
+        self.app = Application(self)
 
     def service_start(self):
         self.before_service_start(*self.target_args, **self.target_kwargs)
