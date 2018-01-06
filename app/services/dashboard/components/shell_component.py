@@ -12,23 +12,23 @@ class AppLister(object):
     def __init__(self, shell_component):
         self.apps = []
         self.shell_component = shell_component
-        self.rpc_list_receiver = Receiver("/_system/rpc-servers")
+        self.app_list_receiver = Receiver("/_system/applications")
 
     def start(self):
-        self.rpc_list_receiver.on_message = self.process_rpc_list_message
-        self.rpc_list_receiver.start()
+        self.app_list_receiver.on_message = self.process_app_list_message
+        self.app_list_receiver.start()
 
-        self.receiver_thread = Thread(target=self.rpc_list_receiver.run)
+        self.receiver_thread = Thread(target=self.app_list_receiver.run)
         self.receiver_thread.start()
 
     def stop(self):
-        self.rpc_list_receiver.stop()
+        self.app_list_receiver.stop()
         self.receiver_thread.join()
 
-    def process_rpc_list_message(self, msg):
+    def process_app_list_message(self, msg):
         self.apps = msg
         for obj in self.apps.values():
-            obj["kind"] = "RPC"
+            obj["kind"] = "APP"
 
         self.shell_component.notify_all('dock_apps', self.apps)
 
