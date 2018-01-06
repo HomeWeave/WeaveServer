@@ -199,6 +199,8 @@ class Receiver(object):
 
     def start(self):
         self.sock.connect((self.host, self.PORT))
+        self.sock.settimeout(None)
+
         self.rfile = self.sock.makefile('rb', self.READ_BUF_SIZE)
         self.wfile = self.sock.makefile('wb', self.WRITE_BUF_SIZE)
 

@@ -1,22 +1,23 @@
 {
     "custom_queues": [
         {
-            "queue_name": "/root/services",
-            "queue_type": "keyedsticky",
-            "request_schema": {
-                "type": "object"
-            }
-        },
-        {
-            "queue_name": "/_system/rpc-servers",
+            "queue_name": "/_system/applications",
             "queue_type": "keyedsticky",
             "request_schema": {
                 "type": "object",
                 "properties": {
-                    "name": {"type": "string"},
-                    "description": {"type": "string"},
-                    "uri": {"type": "string"},
-                    "apis": {"type": "object"}
+                    "rpc": {
+                        "type": "object",
+                        "properties": {
+                            "name": {"type": "string"},
+                            "description": {"type": "string"},
+                            "uri": {"type": "string"},
+                            "apis": {"type": "object"}
+                        }
+                    },
+                    "apps": {
+                        "type": "object"
+                    }
                 }
             }
         }

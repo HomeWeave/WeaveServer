@@ -1,3 +1,10 @@
+/*************************
+*******General Utils******
+**************************/
+.glass-blur {
+    background-color: rgba(0, 0, 0, 0.4);
+    -webkit-backdrop-filter: blur(15px);
+}
 
 /*************************
 *******Typography******
@@ -69,17 +76,44 @@ a:hover {
   flex-direction: column;
 }
 
+
+/****
+ * TOP BAR
+ */
 #page-topbar {
   height: 30px;
   margin-bottom: 6px;
-  background-color: rgba(0, 0, 0, 0.3);
-  border-radius: 0px 0px 5px 5px;
-  z-index: 125;
+  border-radius: 0px 0px 15px 15px;
   padding: 2px;
 
   display : flex;
   align-items : center;
 }
+
+/*
+ * BOTTOM BAR
+ */
+#page-bottombar {
+  height: 84px;
+  border-radius: 15px 15px 0px 0px;
+  padding: 2px;
+  margin-top: 6px;
+
+  display: flex;
+  align-items: center;
+}
+
+#page-bottombar #dock-contents {
+  display: flex;
+  flex-direction: row;
+}
+
+#page-bottombar #dock-contents > div {
+  font-size: 48px;
+  padding: 10px;
+  margin: 10px;
+}
+
 
 .page-content {
   flex-grow: 1;
@@ -117,6 +151,6 @@ a:hover {
 }
 
 .application-wrap {
-  background-color: rgba(0, 0, 0, 0.3);
+  border-radius: 15px;
   padding: 5px;
 }
