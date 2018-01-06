@@ -53,7 +53,7 @@ class KeywordParameter(Parameter):
 
 class API(object):
     def __init__(self, name, desc, params):
-        self.id = str(uuid4())
+        self.id = "api-" + str(uuid4())
         self.name = name
         self.description = desc
         self.args = [x for x in params if x.positional]
