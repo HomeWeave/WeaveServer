@@ -158,9 +158,10 @@ var DockComponent = function(selector, appManager) {
 
     var curItems = {};
 
+    $(selector).html("");
+
     return {
         addItems: function(data) {
-            $(selector).html("");
             var newItems = Object.keys(data).filter(function(key) {
                 return !(key in curItems);
             });
