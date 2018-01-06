@@ -24,7 +24,7 @@ class Application(object):
 
     def register_application_server(self, server):
         with self.info_lock:
-            self.app_servers[server.id] = server
+            self.app_servers[server.unique_id] = server
             self.push_update()
 
     def push_update(self):
@@ -36,8 +36,10 @@ class Application(object):
     @property
     def info_message(self):
         with self.info_lock:
+            apps = self.app_servers.values()
+            rpcs = self.rpc_servers.values()
             return {
-                "apps": {x.unique_id: x.info_message for x in self.app_servers},
-                "rpc": {x.unique_id: x.info_message for x in self.rpc_servers}
+                "apps": {x.unique_id: x.info_message for x in apps},
+                "rpcs": {x.unique_id: x.info_message for x in rpcs},
                 "service_queue_prefix": self.service.get_service_queue_name("")
             }
