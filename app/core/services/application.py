@@ -7,8 +7,9 @@ from app.core.messaging import Sender
 class Application(object):
     APPLICATION_INFO_QUEUE = "/_system/applications"
 
-    def __init__(self):
-        self.unique_id = str(uuid4())
+    def __init__(self, service):
+        self.service = service
+        self.unique_id = "app-" + str(uuid4())
         self.rpc_servers = {}
         self.app_servers = {}
         self.info_lock = RLock()
@@ -38,4 +39,5 @@ class Application(object):
             return {
                 "apps": {x.unique_id: x.info_message for x in self.app_servers},
                 "rpc": {x.unique_id: x.info_message for x in self.rpc_servers}
+                "service_queue_prefix": self.service.get_service_queue_name("")
             }
