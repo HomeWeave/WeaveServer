@@ -63,6 +63,7 @@ var MessagingChannel = function(socket) {
     return {
         register: function(queue, handler) {
             receivers[queue] = handler;
+            socket.send("queue_receive", {queue: queue})
         },
         unregister: function(queue) {
             delete receivers[queue];

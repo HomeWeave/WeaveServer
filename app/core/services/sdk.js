@@ -43,6 +43,10 @@ var App = function(callback) {
     sendMessage("app-info", null);
 
     var funcs = {
+        queue: function(queueName, handler) {
+            queueReceivers[queueName] = handler;
+            sendMessage('queue-receive-register', queueName);
+        },
         rpc: function(name) {
             var rpc = Object.keys(appInfo.rpcs).map(function(key) {
                 return appInfo.rpcs[key];

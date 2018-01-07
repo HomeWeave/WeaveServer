@@ -29,6 +29,9 @@ class BaseComponent(Namespace):
             for sid in self.clients:
                 self.socketio.emit(key, obj, room=sid, namespace=self.namespace)
 
+    def notify(self, sid, key, obj):
+        self.socketio.emit(key, obj, room=sid, namespace=self.namespace)
+
     def reply(self, key, obj):
         self.socketio.emit(key, obj, room=self.client_id,
                            namespace=self.namespace)
@@ -36,3 +39,8 @@ class BaseComponent(Namespace):
     @property
     def client_id(self):
         return request.sid
+
+    @property
+    def connected_clients(self):
+        with self.clients_lock:
+            return set(self.clients)
