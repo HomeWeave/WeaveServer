@@ -76,7 +76,6 @@ var App = function(callback) {
                         data.kwargs = kwargs;
                     }
                     sendMessage('queue-send', {
-                        absoluteQueue: true,
                         queue: rpc.uri,
                         message: data
                     });

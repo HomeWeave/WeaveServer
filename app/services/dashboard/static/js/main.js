@@ -157,8 +157,6 @@ var ApplicationManager = function(channel) {
 
     var operations = {
         "queue-receive-register": function(app, queueName) {
-            queueName = app.service_queue_prefix + queueName;
-
             channel.register(queueName, function(obj) {
                 sendMessage(app, "queue-message", {
                     queue: queueName,
@@ -167,13 +165,9 @@ var ApplicationManager = function(channel) {
             });
         },
         "queue-receive-unregister": function(app, queueName) {
-            queueName = app.service_queue_prefix + queueName;
             channel.unregister(queueName);
         },
         "queue-send": function(app, obj) {
-            if (!obj.absoluteQueue) {
-                obj.queue = app.service_queue_prefix + obj.queue;
-            }
             channel.send(obj.queue, obj.message);
         },
         "app-info": function(app, obj) {
