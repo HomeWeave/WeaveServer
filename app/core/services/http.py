@@ -31,6 +31,9 @@ class AppHTTPServer(object):
     def root_handler(self):
         return redirect("/static/index.html", code=302)
 
+    def add_rule(self, path, handler):
+        self.flask.add_url_rule(path, "custom-" + str(uuid4()), handler)
+
     def start(self):
         Thread(target=self.launch_server, daemon=True).start()
         Thread(target=self.register_server).start()
