@@ -1,0 +1,100 @@
+<!doctype html>
+<html>
+<head>
+<style>
+body {
+    color: white;
+}
+</style>
+</head>
+
+<body>
+    <script type="text/template" id="cam-template">
+        <div id="{{id}}">
+        <h3>{{id}}</h3>
+        <canvas></canvas>
+        <button class="start-stream">Start</button>
+        <button class="stop-stream">Stop</button>
+        </div>
+    </script>
+    <h1>Camera Streams</h1>
+    <div id="body-content"></div>
+
+    <script src="https://code.jquery.com/jquery-2.2.4.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/handlebars.js/4.0.11/handlebars.min.js"></script>
+    <script src="/app.js"></script>
+
+    <script type="text/javascript">
+        var Camera = function(cam, selector, start, stop) {
+            var canvas = $(selector + " canvas")[0];
+            var ctx = canvas.getContext('2d');
+            var img = new Image();
+            img.onload = function() {
+                // From: https://stackoverflow.com/a/23105310/227884
+
+                var hRatio = canvas.width  / img.width;
+                var vRatio = canvas.height / img.height;
+                var ratio  = Math.min(hRatio, vRatio);
+                var centerShift_x = (canvas.width - img.width*ratio) / 2;
+                var centerShift_y = (canvas.height - img.height*ratio) / 2;
+                ctx.clearRect(0,0,canvas.width, canvas.height);
+                ctx.drawImage(img,
+                    0, 0, img.width, img.height,
+                    centerShift_x, centerShift_y,
+                    img.width * ratio, img.height * ratio);
+
+            };
+
+            $(selector + " button.start-stream").click(start);
+            $(selector + " button.stop-stream").click(stop);
+
+            return {
+                render: function(imageStr) {
+                    img.src = "data:image/png;base64," + imageStr;
+                }
+            }
+        };
+
+        $(function() {
+            App(function(app) {
+                var rpc = app.rpc("Camera");
+                var streamStart = rpc("start_stream");
+                var streamStop = rpc("stop_stream");
+
+                var template = Handlebars.compile($("#cam-template").html());
+
+                function setupCamera(obj) {
+                    Object.keys(obj).forEach(function(key) {
+                        var camInfo = obj[key];
+                        var html = template(camInfo);
+                        $("#body-content").append(html);
+
+                        var start = function() {
+                            streamStart([camInfo.id]);
+                        };
+                        var stop = function() {
+                            streamStop([camInfo.id]);
+                        }
+                        var camera = Camera(camInfo, "#" + camInfo.id,
+                            start, stop);
+
+                        app.queue(camInfo.queue, function(obj) {
+                            camera.render(obj);
+                        })
+                    });
+
+                }
+
+                $.ajax({
+                    "url": "/cameras",
+                    "type": "GET"
+                }).done(function(res) {
+                    setupCamera(JSON.parse(res));
+                }).fail(function() {
+                    console.log("Failed to get camera list.");
+                });
+            });
+        });
+    </script>
+</body>
+</html>
