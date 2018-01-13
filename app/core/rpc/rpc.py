@@ -49,8 +49,12 @@ class RPC(object):
         return self.apis[name]
 
     @property
-    def receiving_schema(self):
+    def request_schema(self):
         return api_group_schema(self.apis.values())
+
+    @property
+    def response_schema(self):
+        return {"type": "object"}
 
 
 class RPCReceiver(Receiver):
@@ -67,19 +71,28 @@ class RPCServer(RPC):
         super(RPCServer, self).__init__(name, description, apis)
         self.service = service
         self.unique_id = "rpc-" + str(uuid4())
-        self.queue_name = service.get_service_queue_name(
-            "apis/" + self.unique_id)
-        self.receiver = RPCReceiver(self, self.queue_name)
+        self.queue = service.get_service_queue_name("apis/" + self.unique_id)
+        self.request_queue = self.queue + "/request"
+        self.response_queue = self.queue + "/response"
+
+        self.sender = Sender(self.response_queue)
+        self.receiver = RPCReceiver(self, self.request_queue)
         self.receiver_thread = Thread(target=self.receiver.run)
 
     def start(self):
         creator = Creator()
         creator.start()
         creator.create({
-            "queue_name": self.queue_name,
-            "request_schema": self.receiving_schema
+            "queue_name": self.request_queue,
+            "request_schema": self.request_schema
         })
 
+        creator.create({
+            "queue_name": self.response_queue,
+            "request_schema": self.response_schema
+        })
+
+        self.sender.start()
         self.receiver.start()
         self.receiver_thread.start()
 
@@ -102,20 +115,30 @@ class RPCServer(RPC):
             "name": self.name,
             "description": self.description,
             "apis": {name: api.info for name, api in self.apis.items()},
-            "uri": self.queue_name
+            "uri": self.queue
         }
 
 
 class RPCClient(RPC):
     def __init__(self, rpc_info):
-        self.sender = Sender(rpc_info["uri"])
         name = rpc_info["name"]
         description = rpc_info["description"]
         apis = [self.get_api_call(x) for x in rpc_info["apis"].values()]
         super(RPCClient, self).__init__(name, description, apis)
 
+        self.sender = Sender(rpc_info["uri"] + "/request")
+        self.receiver = RPCReceiver(self, rpc_info["uri"] + "/response")
+        self.receiver_thread = Thread(target=self.receiver.run)
+
     def start(self):
         self.sender.start()
+        self.receiver.start()
+        self.receiver_thread.start()
+
+    def stop(self):
+        self.sender.close()
+        self.receiver.stop()
+        self.receiver_thread.join()
 
     def get_api_call(self, obj):
         return ClientAPI.from_info(obj, self.sender.send)
