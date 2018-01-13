@@ -104,4 +104,4 @@ class TestSyncMessenger(object):
 
         assert obj == sync.send(obj)
 
-        sync.close()
+        sync.stop()
