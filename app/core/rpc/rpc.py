@@ -25,7 +25,7 @@ class ClientAPI(API):
         super(ClientAPI, self).__init__(name, desc, params)
         self.handler = handler
 
-    def __call__(self, _block=False, _callback=None, *args, **kwargs):
+    def __call__(self, *args, _block=False, _callback=None, **kwargs):
         obj = self.validate_call(*args, **kwargs)
         return self.handler(obj, block=_block, callback=_callback)
 
