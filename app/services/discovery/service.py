@@ -75,4 +75,4 @@ class DiscoveryService(BackgroundProcessServiceStart, BaseService):
         self.server.run(lambda: self.notify_start())
 
     def on_service_stop(self):
-        os.kill(os.getpid(), signal.SIGKILL)
+        self.server.stop()
