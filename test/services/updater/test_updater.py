@@ -54,7 +54,9 @@ class TestUpdateScanner(object):
 
         started.wait()
 
-        assert service.get_status() == "No updates available."
+        while service.get_status() != "No updates available.":
+            time.sleep(1)
+
         mock_repo.asssert_called_with("dir")
 
         mock_repo.needs_pull = Mock(return_value=True)
