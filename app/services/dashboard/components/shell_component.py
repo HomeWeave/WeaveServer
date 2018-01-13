@@ -112,13 +112,21 @@ class ShellComponent(BaseComponent):
         receiver.register(self.client_id)
         logger.info("Listening on queue: %s", obj["queue"])
 
+    def on_disconnect(self):
+        super(ShellComponent, self).on_disconnect()
+        with self.receivers_lock:
+            items = self.receivers.items
+            temp = {x: y for x, y in items() if x[0] != self.client_id}
+            self.receivers = temp
+
     def get_receiver(self, queue):
         with self.receivers_lock:
-            if queue in self.receivers:
-                return self.receivers[queue]
-            self.receivers[queue] = WebSocketReceiver(queue, self)
-            self.receivers[queue].start()
-            return self.receivers[queue]
+            key = (self.client_id, queue)
+            if key in self.receivers:
+                return self.receivers[key]
+            self.receivers[key] = WebSocketReceiver(queue, self)
+            self.receivers[key].start()
+            return self.receivers[key]
 
     def get_sender(self, queue):
         with self.senders_lock:
