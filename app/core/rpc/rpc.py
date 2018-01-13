@@ -23,12 +23,10 @@ class ClientAPI(API):
     @staticmethod
     def from_info(info, handler):
         api = ClientAPI(info["name"], info["description"], [], handler)
-        api.id = info["id"]
         api.args = [ArgParameter.from_info(x) for x in info.get("args", [])]
         api.kwargs = [KeywordParameter.from_info(x) for x in
                       info.get("kwargs", {}).values()]
         return api
-
 
 
 class ServerAPI(API):
@@ -46,7 +44,9 @@ class RPC(object):
         self.name = name
         self.description = description
         self.apis = {x.name: x for x in apis}
-        self.apis_by_id = {x.id: x for x in apis}
+
+    def __getitem__(self, name):
+        return self.apis[name]
 
     @property
     def receiving_schema(self):
@@ -101,7 +101,7 @@ class RPCServer(RPC):
         return {
             "name": self.name,
             "description": self.description,
-            "apis": {uid: api.info for uid, api in self.apis_by_id.items()},
+            "apis": {name: api.info for name, api in self.apis.items()},
             "uri": self.queue_name
         }
 
