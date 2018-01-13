@@ -63,10 +63,11 @@ class API(object):
         obj = {
             "type": "object",
             "properties": {
-                "command": {"enum": [self.id]},
+                "command": {"enum": [self.name]},
+                "id": {"type": "string"},
             },
             "additionalProperties": False,
-            "required": ["command"],
+            "required": ["command", "id"],
         }
 
         if self.args:
@@ -98,7 +99,7 @@ class API(object):
         }
 
     def validate_call(self, *args, **kwargs):
-        obj = {"command": self.id}
+        obj = {"command": self.name, "id": "invocation-" + str(uuid4())}
         if args:
             obj["args"] = list(args)
         if kwargs:
