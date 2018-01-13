@@ -1,9 +1,26 @@
 from threading import Event, Thread
 
 import app.core.netutils as netutils
-from app.core.messaging import discover_message_server
+from app.core.messaging import discover_message_server, Sender, Receiver
+from app.core.messaging import SyncMessenger
 from app.services.discovery import DiscoveryService
 from app.services.discovery.service import DiscoveryServer
+from app.services.messaging import MessageService
+
+
+CONFIG = {
+    "redis_config": {
+        "USE_FAKE_REDIS": True
+    },
+    "queues": {
+        "custom_queues": [
+            {
+                "queue_name": "dummy",
+                "request_schema": {"type": "object"}
+            }
+        ]
+    }
+}
 
 
 class TestDiscoverMessageServer(object):
@@ -48,3 +65,43 @@ class TestDiscoverMessageServer(object):
             assert discover_message_server()[0] in ip_addresses
         finally:
             service.on_service_stop()
+
+
+class TestSyncMessenger(object):
+    @classmethod
+    def setup_class(cls):
+        event = Event()
+        cls.service = MessageService(CONFIG)
+        cls.service.notify_start = lambda: event.set()
+        cls.service_thread = Thread(target=cls.service.on_service_start)
+        cls.service_thread.start()
+        event.wait()
+
+        cls.start_echo_receiver("dummy")
+
+    @classmethod
+    def teardown_class(cls):
+        cls.service.on_service_stop()
+        cls.service_thread.join()
+
+    @classmethod
+    def start_echo_receiver(cls, queue):
+        sender = Sender(queue)
+        sender.start()
+
+        def reply(msg):
+            sender.send(msg)
+
+        receiver = Receiver(queue)
+        receiver.on_message = reply
+        receiver.start()
+
+    def test_send_sync(self):
+        obj = {"test": "test-messsage", "arr": [1, 2, 3]}
+
+        sync = SyncMessenger("dummy")
+        sync.start()
+
+        assert obj == sync.send(obj)
+
+        sync.close()

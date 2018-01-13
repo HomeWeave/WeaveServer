@@ -1,5 +1,5 @@
 import pytest
-from jsonschema import validate, ValidationError
+from jsonschema import validate
 
 from app.core.rpc.api import API, ArgParameter, KeywordParameter
 
@@ -33,12 +33,14 @@ class TestParameter(object):
 class TestAPI(object):
     def test_validate_schema_without_args(self):
         api = API("name", "desc", [])
-        obj = {"command": api.id}
+        obj = {"command": "name", "id": ""}
 
         assert validate(obj, api.schema) is None
 
-        with pytest.raises(ValidationError):
-            validate({"command": api.id, "args": {}}, api.schema)
+        api.validate_call()
+
+        with pytest.raises(TypeError):
+            api.validate_call(1, 2, 3, k=5)
 
     def test_validate_schema_with_args(self):
         api = API("name", "desc", [
@@ -47,19 +49,13 @@ class TestAPI(object):
             ArgParameter("a3", "d3", bool),
         ])
 
-        obj = {
-            "command": api.id,
-            "args": ["string", False],
-            "kwargs": {"a2": 5},
-        }
-        assert validate(obj, api.schema) is None
+        api.validate_call("a1", False, a2=5)
 
-        with pytest.raises(ValidationError):
-            validate({"command": "uid"}, api.schema)
+        with pytest.raises(TypeError):
+            api.validate_call()
 
-        with pytest.raises(ValidationError):
-            validate({"command": "uid", "args": dict(a1="a", a2="", a3=True)},
-                     api.schema)
+        with pytest.raises(TypeError):
+            api.validate_call("a", True, {1: 2}, a4=5)
 
     def test_info(self):
         api = API("name", "desc", [
@@ -70,7 +66,6 @@ class TestAPI(object):
 
         assert api.info == {
             "name": "name",
-            "id": api.id,
             "description": "desc",
             "args": [x.info for x in api.args],
             "kwargs": {p.name: p.info for p in api.kwargs}
@@ -84,8 +79,9 @@ class TestAPI(object):
         ])
 
         obj = api.validate_call("str", a2=5, a3=False)
+        obj.pop("id")
         assert obj == {
-            "command": api.id,
+            "command": "name",
             "args": ["str"],
             "kwargs": {"a2": 5, "a3": False}
         }

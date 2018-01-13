@@ -19,7 +19,7 @@ class Application(object):
             names = {x.name for x in self.rpc_servers.values()}
             if rpc_server.name in names:
                 raise ValueError("Name already exists: " + rpc_server.name)
-            self.rpc_servers[rpc_server.queue_name] = rpc_server
+            self.rpc_servers[rpc_server.queue] = rpc_server
             self.push_update()
 
     def register_application_server(self, server):
