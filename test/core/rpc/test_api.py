@@ -29,6 +29,13 @@ class TestParameter(object):
         }
         assert ArgParameter.from_info(obj).info == obj
 
+    def test_arg_from_bad_info(self):
+        with pytest.raises(ValueError):
+            KeywordParameter.from_info({})
+
+        with pytest.raises(ValueError):
+            ArgParameter.from_info({})
+
 
 class TestAPI(object):
     def test_validate_schema_without_args(self):
@@ -94,3 +101,11 @@ class TestAPI(object):
         ])
 
         assert API.from_info(api.info).info == api.info
+
+    def test_api_reconstruct_without_args(self):
+        api = API("name", "desc", [])
+        assert API.from_info(api.info).info == api.info
+
+    def test_api_bad_reconstruct(self):
+        with pytest.raises(ValueError):
+            API.from_info({})

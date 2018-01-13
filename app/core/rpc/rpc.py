@@ -16,6 +16,10 @@ def api_group_schema(apis):
     }
 
 
+class RemoteAPIError(RuntimeError):
+    """Raised to indicate exception thrown by remote API."""
+
+
 class ClientAPI(API):
     def __init__(self, name, desc, params, handler):
         super(ClientAPI, self).__init__(name, desc, params)
@@ -204,7 +208,6 @@ class RPCClient(RPC):
             if callback:
                 with self.callbacks_lock:
                     self.callbacks[msg_id] = callback
-
 
             self.sender.send(obj)
             if not block:

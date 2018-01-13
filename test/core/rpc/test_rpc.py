@@ -1,10 +1,13 @@
 import os
 import time
 import random
+from threading import Event
 from concurrent.futures import ThreadPoolExecutor
 
+import pytest
+
 from app.core.rpc import RPCServer, RPCClient, ServerAPI
-from app.core.rpc import ArgParameter, KeywordParameter
+from app.core.rpc import ArgParameter, KeywordParameter, RemoteAPIError
 from app.core.services import ServiceManager, BaseService
 from app.core.logger import configure_logging
 
@@ -20,6 +23,7 @@ class DummyService(BaseService):
                 KeywordParameter("k3", "d3", bool)
             ], self.api1),
             ServerAPI("api2", "desc2", [], self.api2),
+            ServerAPI("exception", "desc2", [], self.exception)
         ]
         self.rpc_server = RPCServer("name", "desc", apis, self)
         self.paused = False
@@ -38,6 +42,9 @@ class DummyService(BaseService):
 
     def api2(self):
         return "API2"
+
+    def exception(self):
+        raise RuntimeError("dummy")
 
     def get_service_queue_name(self, path):
         return "/" + path
@@ -105,4 +112,36 @@ class TestRPC(object):
             for future, expected in res:
                 assert future.result() == expected
             exc.shutdown()
+        client.stop()
+
+    def test_callback_rpc_invoke(self):
+        info = self.service.rpc_server.info_message
+        client = RPCClient(info)
+        client.start()
+
+        event = Event()
+        result = []
+
+        def callback(res):
+            result.append(res)
+            event.set()
+
+        client["api1"]("hello", 5, k3=False, _callback=callback)
+
+        event.wait()
+
+        assert result[0]["result"] == "hello5False"
+
+        client.stop()
+
+    def test_api_with_exception(self):
+        info = self.service.rpc_server.info_message
+        client = RPCClient(info)
+        client.start()
+
+        with pytest.raises(RemoteAPIError):
+            client["exception"](_block=True)
+
+        client["exception"]()  # Exception is not visible.
+
         client.stop()

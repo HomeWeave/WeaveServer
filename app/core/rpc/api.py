@@ -114,9 +114,13 @@ class API(object):
 
     @staticmethod
     def from_info(info):
-        api = API(info["name"], info["description"], [])
-        api.args = [ArgParameter.from_info(x) for x in info["args"]]
+        try:
+            api = API(info["name"], info["description"], [])
+        except KeyError:
+            raise ValueError("Invalid API info object.")
+
+        api.args = [ArgParameter.from_info(x) for x in info.get("args", [])]
         api.kwargs = [KeywordParameter.from_info(x) for x in
-                      info["kwargs"].values()]
+                      info.get("kwargs", {}).values()]
 
         return api
