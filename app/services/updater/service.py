@@ -1,13 +1,13 @@
 import logging
 import os
 import subprocess
-from threading import Thread, Event
+from threading import Thread, Event, RLock
 
 from git import Repo
 from git.util import RemoteProgress
 from git.exc import GitError
 
-from app.core.rpc import ServerAPI, ArgParameter, KeywordParameter, RPCServer
+from app.core.rpc import ServerAPI, RPCServer
 from app.core.services import BaseService, BackgroundProcessServiceStart
 from app.core.services.http import AppHTTPServer
 
@@ -114,7 +114,7 @@ class UpdateScanner(object):
         return res
 
     def update_status(self, msg):
-        logger.info("UpdateScanner Status: %s", msg)
+        self.service.update_status(msg)
 
     def has_new_updates(self, res):
         keys = {x.repo_name for x in res}
@@ -123,7 +123,6 @@ class UpdateScanner(object):
 
     def notify_updates(self):
         self.update_status("Updates available.")
-        self.new_updates_event.fire()
 
     def list_repos(self, path):
         return [os.path.join(path, x) for x in os.listdir(path)]
@@ -143,15 +142,13 @@ class Updater(object):
     def start(self):
         pass
 
-    def upgrade_handler(self):
+    def perform_upgrade(self):
         repos = self.scanner.get_repos_to_update()
+        print("repos to UPDATE: ", repos)
         if not repos:
             self.update_status("No updates available.")
             return
 
-        Thread(target=self.perform_upgrade, args=(repos,)).start()
-
-    def perform_upgrade(self, repos):
         for repo in repos:
             repo.pull(self.send_pull_progress)
 
@@ -170,7 +167,7 @@ class Updater(object):
         self.update_status(msg)
 
     def update_status(self, msg):
-        logger.info("Updater status: %s", msg)
+        self.service.update_status(msg)
 
 
 class UpdaterService(BackgroundProcessServiceStart, BaseService):
@@ -183,9 +180,13 @@ class UpdaterService(BackgroundProcessServiceStart, BaseService):
             ServerAPI("check_updates", "Check for updates", [],
                       self.update_scanner.check_updates),
             ServerAPI("perform_upgrade", "Perform update", [],
-                      self.updater.upgrade_handler),
+                      self.updater.perform_upgrade),
         ], self)
+
         self.http = AppHTTPServer(self)
+        self.http.flask.add_url_rule("/status", self.get_status)
+        self.status_lock = RLock()
+        self.status = "No updates available."
         super().__init__()
 
     def get_component_name(self):
@@ -206,3 +207,12 @@ class UpdaterService(BackgroundProcessServiceStart, BaseService):
         self.shutdown.set()
         self.rpc.stop()
         super().on_service_stop()
+
+    def update_status(self, msg):
+        logger.info("Updater status: %s", msg)
+        with self.status_lock:
+            self.status = msg
+
+    def get_status(self):
+        with self.status_lock:
+            return self.status
