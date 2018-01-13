@@ -5,27 +5,48 @@
 body {
     color: white;
 }
+
+#body-content {
+    display: flex;
+    flex-direction: column;
+}
+
+#main-stream-content {
+    flex-grow: 1;
+}
+
+#stream-thumbnails {
+    height: 30%;
+    float: left;
+}
 </style>
+<link href="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0-beta.3/css/bootstrap.min.css" rel="stylesheet">
 </head>
 
 <body>
     <script type="text/template" id="cam-template">
         <div id="{{id}}">
-        <h3>{{id}}</h3>
         <canvas></canvas>
-        <button class="start-stream">Start</button>
-        <button class="stop-stream">Stop</button>
         </div>
     </script>
     <h1>Camera Streams</h1>
-    <div id="body-content"></div>
+    <div id="body-content">
+        <div id="main-stream-content">
+            <h3 id="stream-name"></h3>
+            <canvas></canvas>
+            <button class="start-stream">Start</button>
+            <button class="stop-stream">Stop</button>
+        </div>
+        <div id="stream-thumbnails">
+        </div>
+    </div>
 
     <script src="https://code.jquery.com/jquery-2.2.4.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/handlebars.js/4.0.11/handlebars.min.js"></script>
     <script src="/app.js"></script>
 
     <script type="text/javascript">
-        var Camera = function(cam, selector, start, stop) {
+        var Camera = function(selector) {
             var canvas = $(selector + " canvas")[0];
             var ctx = canvas.getContext('2d');
             var img = new Image();
@@ -67,7 +88,7 @@ body {
                     Object.keys(obj).forEach(function(key) {
                         var camInfo = obj[key];
                         var html = template(camInfo);
-                        $("#body-content").append(html);
+                        $("#stream-thumbnails").append(html);
 
                         var start = function() {
                             streamStart([camInfo.id]);
@@ -75,8 +96,7 @@ body {
                         var stop = function() {
                             streamStop([camInfo.id]);
                         }
-                        var camera = Camera(camInfo, "#" + camInfo.id,
-                            start, stop);
+                        var camera = Camera("#" + camInfo.id);
 
                         app.queue(camInfo.queue, function(obj) {
                             camera.render(obj);
