@@ -1,34 +1,18 @@
 import os
-from threading import Event
+import time
+import random
+from concurrent.futures import ThreadPoolExecutor
 
 from app.core.rpc import RPCServer, RPCClient, ServerAPI
 from app.core.rpc import ArgParameter, KeywordParameter
-from app.core.services import ServiceManager
+from app.core.services import ServiceManager, BaseService
 from app.core.logger import configure_logging
 
 configure_logging()
 
 
-CONFIG = {
-    "redis_config": {
-        "USE_FAKE_REDIS": True
-    },
-    "queues": {
-        "custom_queues": [
-            {
-                "queue_name": "dummy",
-                "request_schema": {"type": "object"}
-            }
-        ]
-    }
-}
-
-
-class DummyService(object):
+class DummyService(BaseService):
     def __init__(self):
-        self.value = None
-        self.value_set = Event()
-
         apis = [
             ServerAPI("api1", "desc1", [
                 ArgParameter("p1", "d1", str),
@@ -38,17 +22,22 @@ class DummyService(object):
             ServerAPI("api2", "desc2", [], self.api2),
         ]
         self.rpc_server = RPCServer("name", "desc", apis, self)
+        self.paused = False
+        super(DummyService, self).__init__()
 
     def api1(self, p1, p2, k3):
         if type(p1) != str or type(p2) != int or type(k3) != bool:
-            self.value = None
-        else:
-            self.value = "{}{}{}".format(p1, p2, k3)
-        self.value_set.set()
+            return "BAD"
+
+        if self.paused:
+            while self.paused:
+                sleep_time = random.randrange(500, 1500)/1000.0
+                time.sleep(sleep_time)
+
+        return "{}{}{}".format(p1, p2, k3)
 
     def api2(self):
-        self.value = "API2"
-        self.value_set.set()
+        return "API2"
 
     def get_service_queue_name(self, path):
         return "/" + path
@@ -84,26 +73,36 @@ class TestRPC(object):
         client = RPCClient(info)
         client.start()
 
-        client.apis["api1"]("hello", 5, k3=False)
+        res = client["api1"]("hello", 5, k3=False, _block=True)
+        assert res == "hello5False"
 
-        self.service.value_set.wait()
-        assert self.service.value == "hello5False"
+        client.stop()
 
     def test_several_functions_invoke(self):
         info = self.service.rpc_server.info_message
+
+        self.service.paused = True
+
         client = RPCClient(info)
         client.start()
+        api1 = client["api1"]
+        api2 = client["api2"]
 
-        api1 = client.apis["api1"]
-        api2 = client.apis["api2"]
+        res = []
 
-        for i in range(50):
-            api1("iter", i, k3=i % 2 == 0)
-            self.service.value_set.wait()
-            assert self.service.value == "iter{}{}".format(i, i % 2 == 0)
-            self.service.value_set.clear()
+        with ThreadPoolExecutor(max_workers=100) as exc:
+            for i in range(20):
+                future = exc.submit(api1, "iter", i, k3=i % 2 == 0, _block=True)
+                expected = "iter{}{}".format(i, i % 2 == 0)
+                res.append((future, expected))
 
-            api2()
-            self.service.value_set.wait()
-            assert self.service.value == "API2"
-            self.service.value_set.clear()
+                future = exc.submit(api2, _block=True)
+                res.append((future, "API2"))
+
+            time.sleep(5)
+            self.service.paused = False
+
+            for future, expected in res:
+                assert future.result() == expected
+            exc.shutdown()
+        client.stop()

@@ -53,7 +53,6 @@ class KeywordParameter(Parameter):
 
 class API(object):
     def __init__(self, name, desc, params):
-        self.id = "api-" + str(uuid4())
         self.name = name
         self.description = desc
         self.args = [x for x in params if x.positional]
@@ -64,10 +63,11 @@ class API(object):
         obj = {
             "type": "object",
             "properties": {
-                "command": {"enum": [self.id]},
+                "command": {"enum": [self.name]},
+                "id": {"type": "string"},
             },
             "additionalProperties": False,
-            "required": ["command"],
+            "required": ["command", "id"],
         }
 
         if self.args:
@@ -92,7 +92,6 @@ class API(object):
     @property
     def info(self):
         return {
-            "id": self.id,
             "name": self.name,
             "description": self.description,
             "args": [x.info for x in self.args],
@@ -100,7 +99,7 @@ class API(object):
         }
 
     def validate_call(self, *args, **kwargs):
-        obj = {"command": self.id}
+        obj = {"command": self.name, "id": "invocation-" + str(uuid4())}
         if args:
             obj["args"] = list(args)
         if kwargs:
@@ -116,7 +115,6 @@ class API(object):
     @staticmethod
     def from_info(info):
         api = API(info["name"], info["description"], [])
-        api.id = info["id"]
         api.args = [ArgParameter.from_info(x) for x in info["args"]]
         api.kwargs = [KeywordParameter.from_info(x) for x in
                       info["kwargs"].values()]
