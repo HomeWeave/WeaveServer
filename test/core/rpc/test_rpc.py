@@ -142,4 +142,6 @@ class TestRPC(object):
         with pytest.raises(RemoteAPIError):
             client["exception"](_block=True)
 
+        client["exception"]()  # Exception is not visible.
+
         client.stop()
