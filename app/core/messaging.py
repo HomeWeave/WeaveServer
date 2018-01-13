@@ -1,6 +1,7 @@
 import json
 import logging
 import socket
+from threading import Lock
 
 
 logger = logging.getLogger(__name__)
@@ -160,6 +161,7 @@ class Sender(object):
         self.queue = queue
         self.host = host
         self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        self.send_lock = Lock()
 
     def start(self):
         self.sock.connect((self.host, self.PORT))
@@ -177,9 +179,10 @@ class Sender(object):
 
         msg.headers["Q"] = self.queue
 
-        write_message(self.wfile, msg)
-        msg = read_message(self.rfile)
-        ensure_ok_message(msg)
+        with self.send_lock:
+            write_message(self.wfile, msg)
+            msg = read_message(self.rfile)
+            ensure_ok_message(msg)
 
     def close(self):
         self.sock.shutdown(socket.SHUT_RDWR)
