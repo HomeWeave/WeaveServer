@@ -251,6 +251,30 @@ class Receiver(object):
         pass
 
 
+class SyncMessenger(object):
+    PORT = 11023
+    READ_BUF_SIZE = -1
+    WRITE_BUF_SIZE = 10240
+
+    def __init__(self, queue, host="localhost"):
+        self.queue = queue
+        self.host = host
+        self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        self.active = False
+
+    def start(self):
+        self.sock.connect((self.host, self.PORT))
+        self.rfile = self.sock.makefile('rb', self.READ_BUF_SIZE)
+        self.wfile = self.sock.makefile('wb', self.WRITE_BUF_SIZE)
+
+    def send(self, obj, headers=None):
+        Sender.send(self, obj, headers)
+        return Receiver.receive(self).task
+
+    def stop(self):
+        Receiver.stop(self)
+
+
 class Creator(object):
     PORT = 11023
     READ_BUF_SIZE = -1
