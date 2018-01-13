@@ -267,8 +267,13 @@ class SyncMessenger(object):
         self.rfile = self.sock.makefile('rb', self.READ_BUF_SIZE)
         self.wfile = self.sock.makefile('wb', self.WRITE_BUF_SIZE)
 
-    def send(self, obj, headers=None):
-        Sender.send(self, obj, headers)
+    def send(self, obj):
+        msg = Message("enqueue", obj)
+        msg.headers["Q"] = self.queue
+
+        write_message(self.wfile, msg)
+        msg = read_message(self.rfile)
+        ensure_ok_message(msg)
         return Receiver.receive(self).task
 
     def stop(self):
