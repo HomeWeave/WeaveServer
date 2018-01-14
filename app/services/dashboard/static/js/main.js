@@ -74,7 +74,34 @@ var MessagingChannel = function(socket) {
     }
 };
 
-var ApplicationManager = function(channel) {
+var RPCChannel = function(socket) {
+    var rpcWaiters = {};
+    socket.register("rpc", function(obj) {
+        callback = rpcWaiters[obj.id]
+        if (callback === undefined) {
+            return;
+        }
+
+        callback(obj);
+    });
+
+    return {
+        invoke: function(obj, callback) {
+            rpcWaiters[obj.id] = function(res) {
+                delete rpcWaiters[obj.id];
+                callback(res);
+            };
+
+            // recreate object instead of blindly sending.
+            socket.send("rpc", {
+                "id": obj.id,
+                "rpc": obj.rpc
+            });
+        }
+    }
+};
+
+var ApplicationManager = function(messaging, rpc) {
     var apps = {};
     var allServices = {};
 
@@ -91,7 +118,7 @@ var ApplicationManager = function(channel) {
 
     var operations = {
         "queue-receive-register": function(app, queueName) {
-            channel.register(queueName, function(obj) {
+            messaging.register(queueName, function(obj) {
                 sendMessage(app, "queue-message", {
                     queue: queueName,
                     data: obj
@@ -99,10 +126,15 @@ var ApplicationManager = function(channel) {
             });
         },
         "queue-receive-unregister": function(app, queueName) {
-            channel.unregister(queueName);
+            messaging.unregister(queueName);
         },
         "queue-send": function(app, obj) {
-            channel.send(obj.queue, obj.message);
+            messaging.send(obj.queue, obj.message);
+        },
+        "rpc": function(app, obj) {
+            rpc.invoke(obj, function(res) {
+                sendMessage(app, 'rpc', res);
+            });
         },
         "app-info": function(app, obj) {
             var service = allServices[getHost(app.url)];
@@ -237,10 +269,10 @@ var DockComponent = function(selector, onClick) {
 
 var Shell = function(selector) {
     var socket = Socket("/shell", {});
-    var channel = MessagingChannel(socket);
+    var messaging = MessagingChannel(socket);
+    var rpc = RPCChannel(socket);
 
-
-    var appManager = ApplicationManager(channel);
+    var appManager = ApplicationManager(messaging, rpc);
     var appUIManager = ApplicationUIManager("#oneperframe", appManager);
     var dock = DockComponent("#dock-contents", function(app) {
         appUIManager.launch(app);

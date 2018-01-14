@@ -3,6 +3,7 @@ import time
 from threading import Thread, RLock
 
 from app.core.messaging import Receiver, Sender
+from app.core.rpc import RPCClient
 
 from .base import BaseComponent
 
@@ -83,8 +84,8 @@ class ShellComponent(BaseComponent):
         self.ws_manager = ws_manager
         self.app_lister = AppLister(self)
 
-        self.senders = {}
-        self.senders_lock = RLock()
+        self.rpcs = {}
+        self.rpcs_lock = RLock()
 
         self.receivers = {}
         self.receivers_lock = RLock()
@@ -94,6 +95,13 @@ class ShellComponent(BaseComponent):
 
     def deactivate(self):
         self.app_lister.stop()
+        with self.receivers_lock:
+            for _, receiver in self.receivers:
+                receiver.stop()
+
+        with self.rpcs_lock:
+            for _, rpc in self.rpcs:
+                rpc.stop()
 
     def on_list_apps(self, msg):
         self.reply('dock_apps', self.app_lister.apps)
@@ -101,16 +109,35 @@ class ShellComponent(BaseComponent):
     def on_messaging(self, obj):
         queue = obj["queue"]
         data = obj["data"]
-        # self.get_sender(uri).send(data)
         sender = Sender(queue)
         sender.start()
         logger.info("Sent Message to %s: %s", queue, str(data))
         sender.send(data)
+        sender.close()
 
     def on_queue_receive(self, obj):
         receiver = self.get_receiver(obj["queue"])
         receiver.register(self.client_id)
         logger.info("Listening on queue: %s", obj["queue"])
+
+    def on_rpc(self, obj):
+        client_id = self.client_id
+        request_id = obj["id"]
+        payload = obj["rpc"]
+
+        def callback(res):
+            self.notify(client_id, 'rpc', {
+                "id": request_id,
+                "result": res
+            })
+
+        uri = payload.get("uri")
+        args = payload.get("args", [])
+        kwargs = payload.get("kwargs", {})
+        func = payload.get("func")
+
+        rpc = self.get_rpc(uri)
+        rpc[func](*args, _callback=callback, **kwargs)
 
     def on_disconnect(self):
         super(ShellComponent, self).on_disconnect()
@@ -128,11 +155,20 @@ class ShellComponent(BaseComponent):
             self.receivers[key].start()
             return self.receivers[key]
 
-    def get_sender(self, queue):
-        with self.senders_lock:
-            if queue in self.senders:
-                return self.senders[queue]
-            sender = Sender(queue)
-            self.senders[queue] = sender
-        sender.start()
-        return sender
+    def get_rpc(self, uri):
+        with self.rpcs_lock:
+            if uri in self.rpcs:
+                return self.rpcs[uri]
+
+            cur_rpc = None
+            for app_info in self.app_lister.apps.values():
+                for rpc in app_info["rpcs"].values():
+                    if rpc["uri"] == uri:
+                        cur_rpc = rpc
+                        break
+
+            rpc = RPCClient(cur_rpc)
+            self.rpcs[uri] = rpc
+            rpc.start()
+            logger.info("Started RPC to: %s", uri)
+        return rpc

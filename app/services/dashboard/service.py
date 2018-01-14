@@ -49,4 +49,5 @@ class DashboardService(BackgroundProcessServiceStart, BaseService):
         return "dashboard"
 
     def on_service_stop(self):
+        self.shell.deactivate()
         os.kill(os.getpid(), signal.SIGKILL)
