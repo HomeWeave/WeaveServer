@@ -1,7 +1,5 @@
 import json
 import logging
-import os
-import signal
 import socket
 import time
 from base64 import b64encode
@@ -167,6 +165,7 @@ class VideoStreamManager(object):
         self.service = service
         self.config = config
         self.exited = Event()
+        self.stopped = Event()
 
         self.cur_bridges = {}
 
@@ -202,10 +201,11 @@ class VideoStreamManager(object):
         for bridge in self.cur_bridges.values():
             bridge.stop()
 
+        self.stopped.set()
+
     def stop(self):
-        self.active = False
         self.exited.set()
-        self.exited.wait()
+        self.stopped.wait()
 
     def start_stream(self, cam_id):
         bridge = self.cur_bridges.get(cam_id)
@@ -255,4 +255,4 @@ class CameraService(BackgroundProcessServiceStart, BaseService):
         self.server.run(self.notify_start)
 
     def on_service_stop(self):
-        os.kill(os.getpid(), signal.SIGKILL)
+        self.server.stop()
