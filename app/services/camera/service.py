@@ -5,7 +5,7 @@ import time
 from base64 import b64encode
 from ipaddress import IPv4Network
 from ipaddress import IPv4Address
-from threading import Event, Thread
+from threading import Event, Thread, RLock
 
 import cv2
 import requests
@@ -168,6 +168,7 @@ class VideoStreamManager(object):
         self.stopped = Event()
 
         self.cur_bridges = {}
+        self.cur_bridges_lock = RLock()
 
     def run(self, success_callback=None):
         success_callback()
@@ -180,26 +181,39 @@ class VideoStreamManager(object):
         ]
 
         while True:
+            new_bridges = {}
             for search in searches:
                 bridges = {x.fingerprint(): x for x in search()}
+                new_bridges.update(bridges)
 
-            old_bridges = set(self.cur_bridges.keys())
-            new_bridges = set(bridges.keys())
+            new_ids = set(bridges.keys())
 
-            logger.info("Found %d new cameras", len(new_bridges - old_bridges))
+            with self.cur_bridges_lock:
+                old_ids = set(self.cur_bridges.keys())
 
-            for bridge in old_bridges - new_bridges:
-                self.cur_bridges[bridge].stop()
+                to_stop = []
+                for dead in old_ids - new_ids:
+                    to_stop.append(self.cur_bridges.pop(dead))
 
-            for bridge in new_bridges - old_bridges:
-                self.cur_bridges[bridge] = bridges[bridge]
-                self.cur_bridges[bridge].start()
+                to_start = []
+                for new in new_ids - old_ids:
+                    self.cur_bridges[new] = new_bridges[new]
+                    to_start.append(new_bridges[new])
+
+            logger.info("Found %d new cameras", len(to_start))
+            for new_bridge in to_start:
+                new_bridge.start()
+
+            for old_bridge in to_stop:
+                old_bridge.stop()
 
             if self.exited.wait(timeout=self.ACTIVE_POLL_TIME):
                 break
 
-        for bridge in self.cur_bridges.values():
-            bridge.stop()
+        with self.cur_bridges_lock:
+            for bridge in self.cur_bridges.values():
+                bridge.stop()
+            self.cur_bridges = {}
 
         self.stopped.set()
 
@@ -222,6 +236,12 @@ class VideoStreamManager(object):
 
         logger.info("Stopping stream: %s", cam_id)
         bridge.stream.stop()
+
+    def list_streams(self):
+        with self.cur_bridges_lock:
+            obj = {x: y.info_message for x, y in self.cur_bridges.items()}
+            logger.info("Listing respomse: " + str(obj))
+            return obj
 
     @property
     def info_message(self):
