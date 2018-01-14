@@ -13,7 +13,7 @@ import cv2
 import requests
 
 import app.core.netutils as netutils
-from app.core.messaging import Sender, Creator
+from app.core.messaging import Sender, Creator, QueueAlreadyExists
 from app.core.rpc import RPCServer, ArgParameter, ServerAPI
 from app.core.services import BaseService, BackgroundProcessServiceStart
 from app.core.services.http import AppHTTPServer
@@ -79,11 +79,14 @@ class DahuaMessagingBridge(object):
     def start(self):
         creator = Creator()
         creator.start()
-        creator.create({
-            "queue_name": self.queue,
-            "queue_type": "sticky",
-            "request_schema": {"type": "string"}
-        })
+        try:
+            creator.create({
+                "queue_name": self.queue,
+                "queue_type": "sticky",
+                "request_schema": {"type": "string"}
+            })
+        except QueueAlreadyExists:
+            pass
 
         self.sender.start()
         self.running = True
