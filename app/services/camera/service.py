@@ -257,10 +257,11 @@ class CameraService(BackgroundProcessServiceStart, BaseService):
             ], self.server.start_stream),
             ServerAPI("stop_stream", "Stops the stream of given camera", [
                 ArgParameter("camera_id", "ID of the camera", str)
-            ], self.server.stop_stream)
+            ], self.server.stop_stream),
+            ServerAPI("list_streams", "Lists all available streams.", [],
+                      self.server.list_streams)
         ], self)
         self.http = AppHTTPServer(self)
-        self.http.add_rule("/cameras", self.handle_cameras_request)
         super().__init__()
 
     def handle_cameras_request(self):
