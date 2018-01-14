@@ -4,32 +4,48 @@
 <style>
 body {
     color: white;
-}
-
-#body-content {
+    height: 100vh;
     display: flex;
     flex-direction: column;
 }
 
-#main-stream-content {
+canvas {
+    background-color: black;
+}
+
+#body-content {
     flex-grow: 1;
+}
+
+#main-stream-content {
+    height: 70%;
 }
 
 #stream-thumbnails {
     height: 30%;
     float: left;
 }
+
+#stream-thumbnails ul {
+    list-style: none;
+}
+
+#stream-thumbnails ul li {
+    padding: 5px;
+    float: left;
+}
 </style>
-<link href="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0-beta.3/css/bootstrap.min.css" rel="stylesheet">
 </head>
 
 <body>
     <script type="text/template" id="cam-template">
-        <div id="{{id}}">
+        <li data-camid="{{id}}">
         <canvas></canvas>
-        </div>
+        </li>
     </script>
-    <h1>Camera Streams</h1>
+    <div id="title-div">
+        <h1>Camera Streams</h1>
+    </div>
     <div id="body-content">
         <div id="main-stream-content">
             <h3 id="stream-name"></h3>
@@ -38,16 +54,18 @@ body {
             <button class="stop-stream">Stop</button>
         </div>
         <div id="stream-thumbnails">
+            <ul>
+            </ul>
         </div>
     </div>
 
     <script src="https://code.jquery.com/jquery-2.2.4.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/handlebars.js/4.0.11/handlebars.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Sly/1.6.1/sly.min.js"></script>
     <script src="/app.js"></script>
 
     <script type="text/javascript">
-        var Camera = function(selector) {
-            var canvas = $(selector + " canvas")[0];
+        var render = function(data, canvas) {
             var ctx = canvas.getContext('2d');
             var img = new Image();
             img.onload = function() {
@@ -63,56 +81,83 @@ body {
                     0, 0, img.width, img.height,
                     centerShift_x, centerShift_y,
                     img.width * ratio, img.height * ratio);
-
             };
 
-            $(selector + " button.start-stream").click(start);
-            $(selector + " button.stop-stream").click(stop);
+            img.src = "data:image/png;base64," + data;
+        };
+
+
+        var ThumbUIManager = function(selector) {
+            var sly = new Sly(selector, {
+                horizontal: 1,
+                itemNav: 'basic',
+                smart: 1,
+                activateMiddle: 1,
+                mouseDragging: 1,
+                touchDragging: 1,
+                releaseSwing: 1,
+                startAt: 0,
+                scrollBy: 1,
+                speed: 300,
+                elasticBounds: 1,
+                easing: 'easeOutExpo',
+                dragHandle: 1,
+                dynamicHandle: 1,
+                clickBar: 1,
+            }).init();
+
+            function findAppElem(appId) {
+                return $(selector + ' [data-camid~="' + appId + '"]')[0];
+            }
+
+            var thumbTemplate = Handlebars.compile($("#cam-template").html());
+
+            $(selector + " ul").html("");
 
             return {
-                render: function(imageStr) {
-                    img.src = "data:image/png;base64," + imageStr;
+                "load": function(cams) {
+                    console.log("loading cams: ", cams);
+                    Object.keys(cams).forEach(function(key) {
+                        var cam = cams[key];
+                        var html = thumbTemplate(cam);
+                        var nodes = $.parseHTML($.trim(html));
+                        sly.add(nodes[0]);
+                        sly.activate(nodes[0]);
+                    });
+                },
+                "canvas": function(id) {
+                    return $(findAppElem(id)).find("canvas")[0];
                 }
-            }
+            };
+        };
+
+        var SetupCameras = function(app, thumbManager) {
+            var rpc = app.rpc("Camera");
+            var startStream = rpc("start_stream");
+            var stopStream = rpc("stop_stream");
+            var listStreams = rpc("list_streams");
+            var curStream = null;
+
+            var thumbnailCameras = {};
+            var curCamera = null;
+
+            listStreams([], {}, function(res) {
+                thumbManager.load(res.result);
+                Object.keys(res.result).forEach(function(key) {
+                    var cam = res.result[key];
+                    app.queue(cam.queue, function(obj) {
+                        render(obj, thumbManager.canvas(cam.id));
+                        stopStream([cam.id]);
+                    });
+                    startStream([cam.id]);
+                })
+            });
         };
 
         $(function() {
+            var thumbManager = ThumbUIManager("#stream-thumbnails");
             App(function(app) {
-                var rpc = app.rpc("Camera");
-                var streamStart = rpc("start_stream");
-                var streamStop = rpc("stop_stream");
-
-                var template = Handlebars.compile($("#cam-template").html());
-
-                function setupCamera(obj) {
-                    Object.keys(obj).forEach(function(key) {
-                        var camInfo = obj[key];
-                        var html = template(camInfo);
-                        $("#stream-thumbnails").append(html);
-
-                        var start = function() {
-                            streamStart([camInfo.id]);
-                        };
-                        var stop = function() {
-                            streamStop([camInfo.id]);
-                        }
-                        var camera = Camera("#" + camInfo.id);
-
-                        app.queue(camInfo.queue, function(obj) {
-                            camera.render(obj);
-                        })
-                    });
-
-                }
-
-                $.ajax({
-                    "url": "/cameras",
-                    "type": "GET"
-                }).done(function(res) {
-                    setupCamera(JSON.parse(res));
-                }).fail(function() {
-                    console.log("Failed to get camera list.");
-                });
+                SetupCameras(app, thumbManager);
             });
         });
     </script>
