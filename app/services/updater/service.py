@@ -102,8 +102,8 @@ class UpdateScanner(object):
 
                 if repo.needs_pull():
                     res.append(repo)
-            except GitError as e:
-                logger.warning("Unable to fetch %s", path, e)
+            except GitError:
+                logger.warning("Unable to fetch %s", path)
 
         if res:
             if self.has_new_updates(res):
