@@ -23,7 +23,7 @@ def configure_flask_logging(app):
 
 
 class AppHTTPServer(object):
-    def __init__(self, service):
+    def __init__(self, service, fa_favicon="cog"):
         self.unique_id = "http-" + service.get_component_name() + str(uuid4())
         module = sys.modules[service.__module__]
         self.core_dir = os.path.dirname(__file__)
@@ -32,6 +32,7 @@ class AppHTTPServer(object):
         self.flask.add_url_rule("/app.js", "sdk-js", self.sdkjs_handler)
         self.flask.add_url_rule("/", "root", self.root_handler)
         self.service = service
+        self.fa_favicon = fa_favicon
         configure_flask_logging(self.flask)
 
     def sdkjs_handler(self):
@@ -73,5 +74,6 @@ class AppHTTPServer(object):
     def info_message(self):
         return {
             "id": self.unique_id,
-            "url": "http://{}:{}".format("localhost", self.port)
+            "url": "http://{}:{}".format("localhost", self.port),
+            "icon": self.fa_favicon
         }

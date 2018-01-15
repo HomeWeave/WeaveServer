@@ -261,7 +261,7 @@ class CameraService(BackgroundProcessServiceStart, BaseService):
             ServerAPI("list_streams", "Lists all available streams.", [],
                       self.server.list_streams)
         ], self)
-        self.http = AppHTTPServer(self)
+        self.http = AppHTTPServer(self, fa_favicon="video-camera")
         super().__init__()
 
     def handle_cameras_request(self):
