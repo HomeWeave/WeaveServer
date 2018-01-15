@@ -109,7 +109,6 @@ class BackgroundProcessServiceStart(object):
                                              stdout=subprocess.PIPE,
                                              stderr=subprocess.STDOUT)
         self.service_pid = self.service_proc.pid
-        logger.info("Launched background process: %s", name)
         for line in iter(self.service_proc.stdout.readline, b''):
             content = line.strip().decode()
             if "SERVICE-STARTED-" + comp_name in content:

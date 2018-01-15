@@ -3,6 +3,7 @@ var App = function(callback) {
     body.style.backgroundColor = "transparent";
 
     var queueReceivers = {};
+    var rpcWaiters = {};
 
     var operations = {
         "queue-message": function(data) {
@@ -17,6 +18,13 @@ var App = function(callback) {
             appInfo.apps = data.apps;
 
             callback(funcs);
+        },
+        'rpc': function (data) {
+            var callback = rpcWaiters[data.id];
+            if (callback === undefined) {
+                return;
+            }
+            callback(data.result);
         }
     };
 
@@ -43,6 +51,10 @@ var App = function(callback) {
     sendMessage("app-info", null);
 
     var funcs = {
+        queue: function(queueName, handler) {
+            queueReceivers[queueName] = handler;
+            sendMessage('queue-receive-register', queueName);
+        },
         rpc: function(name) {
             var rpc = Object.keys(appInfo.rpcs).map(function(key) {
                 return appInfo.rpcs[key];
@@ -64,22 +76,25 @@ var App = function(callback) {
                 if (api === undefined) {
                     return null;
                 }
-                return function(args, kwargs) {
+                return function(args, kwargs, callback) {
                     args = args || [];
                     kwargs = kwargs || {};
 
-                    var data = {command: api.id};
+                    var data = {func: api.name, uri: rpc.uri};
                     if (args.length) {
                         data.args = args;
                     }
                     if (Object.keys(kwargs).length) {
                         data.kwargs = kwargs;
                     }
-                    sendMessage('queue-send', {
-                        absoluteQueue: true,
-                        queue: rpc.uri,
-                        message: data
-                    });
+
+                    var id = "random-" + Math.random();
+                    var obj = {
+                        "id": id,
+                        "rpc": data
+                    };
+                    rpcWaiters[id] = callback;
+                    sendMessage('rpc', obj);
                 }
             }
         }

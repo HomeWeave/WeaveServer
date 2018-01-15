@@ -63,6 +63,7 @@ var MessagingChannel = function(socket) {
     return {
         register: function(queue, handler) {
             receivers[queue] = handler;
+            socket.send("queue_receive", {queue: queue})
         },
         unregister: function(queue) {
             delete receivers[queue];
@@ -73,74 +74,34 @@ var MessagingChannel = function(socket) {
     }
 };
 
-var RPC = function(channel, apis) {
-    var fixedApis = Object.keys(apis).map(function(apiId) {
-        var api = apis[apiId];
-        api.args = api.args || [];
-        api.kwargs = api.kwargs || {};
-        return api;
-    });
-    var apisByName = fixedApis.reduce(function(state, cur) {
-        state[cur.name] = cur;
-        return state;
-    });
-    var getApiFunc = function(name) {
-        var api = apisByName[apiName];
-        return function(args, kwargs) {
-            channel.send(api.uri, {args: args, kwargs: kwargs});
+var RPCChannel = function(socket) {
+    var rpcWaiters = {};
+    socket.register("rpc", function(obj) {
+        callback = rpcWaiters[obj.id]
+        if (callback === undefined) {
+            return;
         }
-    }
 
-    return getApiFunc;
-};
-
-var ApplicationRPC = function() {
-    var rpcTemplate = Handlebars.compile($("#rpc-template").html());
-
-    function buildRPCContent(socket, appInfo, $node) {
-        var html = rpcTemplate(appInfo);
-        $node.append(html).on('click', 'form [type=submit]', function() {
-            var $form = $(this).closest('form');
-            var api = appInfo.apis[$form.data("api-id")];
-            var args = (api.args || []).map(function(arg) {
-                if (arg.type == "toggle") {
-                    return $("[name=" + arg.name + "]").is(":checked");
-                } else if (arg.type == "number") {
-                    return parseInt($("[name=" + arg.name + "]").val());
-                }
-                return $("[name=" + arg.name + "]").val();
-            });
-            var kwargsParams = Object.keys(api.kwargs || {});
-            var kwargs = kwargsParams.reduce(function(state, cur) {
-                if (api.kwargs[cur].type == "toggle") {
-                    state[cur] = $("[name=" + cur + "]").is(":checked");
-                } else if (api.kwargs[cur].type == "number") {
-                    state[cur] = parseInt($("[name=" + cur + "]").val());
-                } else {
-                    state[cur] = $("[name=" + cur + "]").val();
-                }
-                return state;
-            }, {});
-
-            var data = {command: api.id};
-            if (args.length) {
-                data.args = args;
-            }
-            if (Object.keys(kwargs).length) {
-                data.kwargs = kwargs;
-            }
-            socket.send("messaging", {data: data, uri: $form.data("uri")});
-            console.log("Sent to uri: ", $form.data("uri"), ", data: ", data);
-            return false;
-        });
-    };
+        callback(obj);
+    });
 
     return {
-        build: buildRPCContent,
-    }
-}
+        invoke: function(obj, callback) {
+            rpcWaiters[obj.id] = function(res) {
+                delete rpcWaiters[obj.id];
+                callback(res);
+            };
 
-var ApplicationManager = function(channel) {
+            // recreate object instead of blindly sending.
+            socket.send("rpc", {
+                "id": obj.id,
+                "rpc": obj.rpc
+            });
+        }
+    }
+};
+
+var ApplicationManager = function(messaging, rpc) {
     var apps = {};
     var allServices = {};
 
@@ -157,9 +118,7 @@ var ApplicationManager = function(channel) {
 
     var operations = {
         "queue-receive-register": function(app, queueName) {
-            queueName = app.service_queue_prefix + queueName;
-
-            channel.register(queueName, function(obj) {
+            messaging.register(queueName, function(obj) {
                 sendMessage(app, "queue-message", {
                     queue: queueName,
                     data: obj
@@ -167,14 +126,15 @@ var ApplicationManager = function(channel) {
             });
         },
         "queue-receive-unregister": function(app, queueName) {
-            queueName = app.service_queue_prefix + queueName;
-            channel.unregister(queueName);
+            messaging.unregister(queueName);
         },
         "queue-send": function(app, obj) {
-            if (!obj.absoluteQueue) {
-                obj.queue = app.service_queue_prefix + obj.queue;
-            }
-            channel.send(obj.queue, obj.message);
+            messaging.send(obj.queue, obj.message);
+        },
+        "rpc": function(app, obj) {
+            rpc.invoke(obj, function(res) {
+                sendMessage(app, 'rpc', res);
+            });
         },
         "app-info": function(app, obj) {
             var service = allServices[getHost(app.url)];
@@ -309,10 +269,10 @@ var DockComponent = function(selector, onClick) {
 
 var Shell = function(selector) {
     var socket = Socket("/shell", {});
-    var channel = MessagingChannel(socket);
+    var messaging = MessagingChannel(socket);
+    var rpc = RPCChannel(socket);
 
-
-    var appManager = ApplicationManager(channel);
+    var appManager = ApplicationManager(messaging, rpc);
     var appUIManager = ApplicationUIManager("#oneperframe", appManager);
     var dock = DockComponent("#dock-contents", function(app) {
         appUIManager.launch(app);
