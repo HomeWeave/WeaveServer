@@ -13,6 +13,15 @@ from flask import Flask, redirect
 logger = logging.getLogger(__name__)
 
 
+def configure_flask_logging(app):
+    for handler in logging.getLogger().handlers:
+        app.logger.addHandler(handler)
+
+    logging.getLogger('socketio').setLevel(logging.ERROR)
+    logging.getLogger('engineio').setLevel(logging.ERROR)
+    logging.getLogger('werkzeug').setLevel(logging.ERROR)
+
+
 class AppHTTPServer(object):
     def __init__(self, service):
         self.unique_id = "http-" + str(uuid4())
@@ -23,6 +32,7 @@ class AppHTTPServer(object):
         self.flask.add_url_rule("/app.js", "sdk-js", self.sdkjs_handler)
         self.flask.add_url_rule("/", "root", self.root_handler)
         self.service = service
+        configure_flask_logging(self.flask)
 
     def sdkjs_handler(self):
         with open(os.path.join(self.core_dir, "sdk.js")) as js_file:
