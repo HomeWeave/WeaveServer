@@ -15,10 +15,20 @@ canvas {
 
 #body-content {
     flex-grow: 1;
+    display: flex;
+    flex-direction: column;
 }
 
 #main-stream-content {
     height: 70%;
+    flex-grow: 1;
+    text-align: center;
+}
+
+#main-stream-content canvas {
+    height: 80%;
+    width: 80%;
+    display: block;
 }
 
 #stream-thumbnails {
@@ -48,7 +58,6 @@ canvas {
     </div>
     <div id="body-content">
         <div id="main-stream-content">
-            <h3 id="stream-name"></h3>
             <canvas></canvas>
             <button class="start-stream">Start</button>
             <button class="stop-stream">Stop</button>
@@ -138,17 +147,46 @@ canvas {
             var listStreams = rpc("list_streams");
             var curStream = null;
 
+            var mainCanvas = $("#main-stream-content canvas")[0];
+
             var thumbnailCameras = {};
             var curCamera = null;
 
+            $("button.start-stream").click(function() {
+                startStream([curCamera]);
+            });
+
+            $("button.stop-stream").click(function() {
+                stopStream([curCamera]);
+            });
+
             listStreams([], {}, function(res) {
                 thumbManager.load(res.result);
+                if (Object.keys(res.result).length) {
+                    curCamera = Object.keys(res.result)[0];
+                }
                 Object.keys(res.result).forEach(function(key) {
                     var cam = res.result[key];
+                    thumbnailCameras[cam.id] = {}
+
                     app.queue(cam.queue, function(obj) {
+                        thumbnailCameras[cam.id].content = obj;
                         render(obj, thumbManager.canvas(cam.id));
-                        stopStream([cam.id]);
+
+                        if (!thumbnailCameras[cam.id].initDone) {
+                            thumbnailCameras[cam.id].initDone = true;
+                            stopStream([cam.id]);
+                        }
+
+                        if (curCamera == cam.id) {
+                            render(obj, mainCanvas);
+                        }
                     });
+
+                    $(thumbManager.canvas(cam.id)).click(function() {
+                        curCamera = cam.id;
+                        render(thumbnailCameras[cam.id].content, mainCanvas);
+                    })
                     startStream([cam.id]);
                 })
             });
