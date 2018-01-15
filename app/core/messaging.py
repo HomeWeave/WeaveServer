@@ -1,6 +1,7 @@
 import json
 import logging
 import socket
+from threading import Lock
 
 
 logger = logging.getLogger(__name__)
@@ -160,6 +161,7 @@ class Sender(object):
         self.queue = queue
         self.host = host
         self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        self.send_lock = Lock()
 
     def start(self):
         self.sock.connect((self.host, self.PORT))
@@ -177,9 +179,10 @@ class Sender(object):
 
         msg.headers["Q"] = self.queue
 
-        write_message(self.wfile, msg)
-        msg = read_message(self.rfile)
-        ensure_ok_message(msg)
+        with self.send_lock:
+            write_message(self.wfile, msg)
+            msg = read_message(self.rfile)
+            ensure_ok_message(msg)
 
     def close(self):
         self.sock.shutdown(socket.SHUT_RDWR)
@@ -199,6 +202,8 @@ class Receiver(object):
 
     def start(self):
         self.sock.connect((self.host, self.PORT))
+        self.sock.settimeout(None)
+
         self.rfile = self.sock.makefile('rb', self.READ_BUF_SIZE)
         self.wfile = self.sock.makefile('wb', self.WRITE_BUF_SIZE)
 
@@ -236,12 +241,43 @@ class Receiver(object):
     def stop(self):
         self.active = False
         self.sock.shutdown(socket.SHUT_RDWR)
-        self.rfile.close()
-        self.wfile.close()
-        self.sock.close()
+        for item in (self.rfile, self.wfile, self.sock):
+            try:
+                item.close()
+            except ConnectionError:
+                pass
 
     def on_message(self, msg):
         pass
+
+
+class SyncMessenger(object):
+    PORT = 11023
+    READ_BUF_SIZE = -1
+    WRITE_BUF_SIZE = 10240
+
+    def __init__(self, queue, host="localhost"):
+        self.queue = queue
+        self.host = host
+        self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        self.active = False
+
+    def start(self):
+        self.sock.connect((self.host, self.PORT))
+        self.rfile = self.sock.makefile('rb', self.READ_BUF_SIZE)
+        self.wfile = self.sock.makefile('wb', self.WRITE_BUF_SIZE)
+
+    def send(self, obj):
+        msg = Message("enqueue", obj)
+        msg.headers["Q"] = self.queue
+
+        write_message(self.wfile, msg)
+        msg = read_message(self.rfile)
+        ensure_ok_message(msg)
+        return Receiver.receive(self).task
+
+    def stop(self):
+        Receiver.stop(self)
 
 
 class Creator(object):

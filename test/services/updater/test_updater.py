@@ -1,5 +1,6 @@
 import os
 import logging
+import time
 from threading import Semaphore, Thread, Event
 from unittest.mock import patch, Mock
 
@@ -8,6 +9,7 @@ import git
 from app.core.logger import configure_logging
 from app.core.messaging import Receiver, Sender
 from app.core.services import ServiceManager
+from app.core.rpc import RPCClient
 from app.services.updater.service import UpdaterService, UpdateScanner
 from app.services.updater.service import Updater
 
@@ -52,31 +54,20 @@ class TestUpdateScanner(object):
 
         started.wait()
 
-        status = Receiver("/services/updater/status")
-        status.start()
+        while service.get_status() != "No updates available.":
+            time.sleep(1)
 
-        r0 = Receiver("/services/updater/events")
-        r0.start()
-        queue_name = list(r0.receive().task.values())[0].pop("queue")
-        r0.stop()
-
-        obj1 = {}
-        sem1 = Semaphore(0)
-        r1 = Receiver(queue_name)
-        r1.on_message = make_receiver(1, obj1, sem1, r1)
-        r1.start()
-        Thread(target=r1.run).start()
-
-        assert not sem1.acquire(timeout=6)
         mock_repo.asssert_called_with("dir")
 
         mock_repo.needs_pull = Mock(return_value=True)
-        assert sem1.acquire(timeout=8)
-        assert obj1["msg"] == {}
-        assert status.receive().task == "Updates available."
+        time.sleep(8)
+        assert service.get_status() == "Updates available."
+
         service.on_service_stop()
 
     def test_trigger_update_when_no_update(self):
+        UpdateScanner.UPDATE_CHECK_FREQ = 1000
+
         mock_repo = Mock()
         mock_repo.needs_pull = Mock(return_value=False)
         UpdateScanner.list_repos = lambda x, y: ["dir"]
@@ -89,18 +80,13 @@ class TestUpdateScanner(object):
 
         started.wait()
 
-        r0 = Receiver("/services/updater/capabilities")
-        r0.start()
-        queue_name = list(r0.receive().task.values())[0].pop("queue")
-        r0.stop()
+        service.update_status("dummy")
 
-        sender = Sender(queue_name)
-        sender.start()
-        sender.send({})
+        rpc = RPCClient(service.rpc.info_message)
+        rpc.start()
 
-        status = Receiver("/services/updater/status")
-        status.start()
+        print("RPC:", rpc["perform_upgrade"](_block=True))
 
-        assert status.receive().task == "No updates available."
+        assert service.get_status() == "No updates available."
 
         service.on_service_stop()

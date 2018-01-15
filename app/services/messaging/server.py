@@ -140,7 +140,8 @@ class KeyedStickyQueue(BaseQueue):
     def __init__(self, queue_info, *args, **kwargs):
         super().__init__(queue_info)
         self.sticky_map = {}
-        self.requestor_map = defaultdict(set)
+        self.sticky_map_version = 1
+        self.requestor_map = defaultdict(int)
         self.condition = Condition()
 
     def enqueue(self, task, headers):
@@ -152,21 +153,16 @@ class KeyedStickyQueue(BaseQueue):
         self.validate_schema(task)
         with self.condition:
             self.sticky_map[key] = task
+            self.sticky_map_version += 1
             self.condition.notify_all()
 
     def dequeue(self, requestor_id):
         def can_dequeue():
-            # If a new requestor, always send something, including empty {}
-            if requestor_id not in self.requestor_map:
-                return True
-            sent_keys = self.requestor_map[requestor_id]
-            new_keys = set(self.sticky_map.keys())
-            keys_to_send = new_keys - sent_keys
-            return keys_to_send
+            return self.sticky_map_version != self.requestor_map[requestor_id]
 
         with self.condition:
             self.condition.wait_for(can_dequeue)
-            self.requestor_map[requestor_id] |= self.sticky_map.keys()
+            self.requestor_map[requestor_id] = self.sticky_map_version
             return self.sticky_map
 
 

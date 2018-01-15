@@ -1,10 +1,24 @@
 {
     "custom_queues": [
         {
-            "queue_name": "/root/services",
+            "queue_name": "/_system/applications",
             "queue_type": "keyedsticky",
             "request_schema": {
-                "type": "object"
+                "type": "object",
+                "properties": {
+                    "rpc": {
+                        "type": "object",
+                        "properties": {
+                            "name": {"type": "string"},
+                            "description": {"type": "string"},
+                            "uri": {"type": "string"},
+                            "apis": {"type": "object"}
+                        }
+                    },
+                    "apps": {
+                        "type": "object"
+                    }
+                }
             }
         }
     ]

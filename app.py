@@ -3,6 +3,7 @@ eventlet.monkey_patch()  # NOLINT
 
 
 import importlib
+import os
 import sys
 from app.main import create_app
 from app.core.logger import configure_logging
@@ -20,6 +21,12 @@ def handle_launch(name):
     signal.signal(signal.SIGTERM, lambda x, y: app.on_service_stop())
     signal.signal(signal.SIGINT, lambda x, y: app.on_service_stop())
     app.on_service_start()
+
+
+def handle_quit(app):
+    import signal
+    app.on_service_stop()
+    os.kill(os.getpid(), signal.SIGKILL)
 
 
 if __name__ == '__main__':

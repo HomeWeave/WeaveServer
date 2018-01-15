@@ -14,6 +14,8 @@ from contextlib import suppress
 
 import psutil
 
+from .application import Application
+
 
 logger = logging.getLogger(__name__)
 
@@ -23,6 +25,7 @@ class BaseService(object):
     def __init__(self, target_args=None, target_kwargs=None):
         self.target_args = () if target_args is None else target_args
         self.target_kwargs = {} if target_kwargs is None else target_kwargs
+        self.app = Application(self)
 
     def service_start(self):
         self.before_service_start(*self.target_args, **self.target_kwargs)
@@ -106,7 +109,6 @@ class BackgroundProcessServiceStart(object):
                                              stdout=subprocess.PIPE,
                                              stderr=subprocess.STDOUT)
         self.service_pid = self.service_proc.pid
-        logger.info("Launched background process: %s", name)
         for line in iter(self.service_proc.stdout.readline, b''):
             content = line.strip().decode()
             if "SERVICE-STARTED-" + comp_name in content:

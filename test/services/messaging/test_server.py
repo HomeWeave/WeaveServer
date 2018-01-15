@@ -267,7 +267,7 @@ class TestMessagingService(object):
         r1 = Receiver("/x.keyedsticky")
         r2 = Receiver("/x.keyedsticky")
 
-        r1.on_message = make_receiver(3, obj1, sem1, r1)
+        r1.on_message = make_receiver(4, obj1, sem1, r1)
         r1.start()
         Thread(target=r1.run).start()
 
@@ -279,7 +279,7 @@ class TestMessagingService(object):
         assert sem1.acquire(timeout=10)  # Must not timeout.
         assert obj1 == {"1": {"foo": "bar"}}
 
-        r2.on_message = make_receiver(2, obj2, sem2, r2)
+        r2.on_message = make_receiver(3, obj2, sem2, r2)
         r2.start()
         Thread(target=r2.run).start()
 
@@ -292,6 +292,12 @@ class TestMessagingService(object):
         assert sem2.acquire(timeout=10)
         assert obj1 == {"1": {"foo": "bar"}, "2": {"baz": "grr"}}
         assert obj2 == {"1": {"foo": "bar"}, "2": {"baz": "grr"}}
+
+        s2.send({"foo": "hello"}, headers={"KEY": "1"})
+        assert sem1.acquire(timeout=10)
+        assert sem2.acquire(timeout=10)
+        assert obj1 == {"1": {"foo": "hello"}, "2": {"baz": "grr"}}
+        assert obj2 == {"1": {"foo": "hello"}, "2": {"baz": "grr"}}
 
     def test_create_queue_with_no_payload(self):
         with pytest.raises(RequiredFieldsMissing):
