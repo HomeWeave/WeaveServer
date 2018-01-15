@@ -52,7 +52,7 @@ class AppHTTPServer(object):
         while True:
             self.port = randrange(40000, 50000)
             try:
-                self.flask.run(port=self.port)
+                self.flask.run(port=self.port, debug=False, use_reloader=False)
             except Exception:
                 pass
 
@@ -68,7 +68,6 @@ class AppHTTPServer(object):
                 sock.close()
         logger.info("App Server registered: %s", self.unique_id)
         self.service.app.register_application_server(self)
-        logger.info("app info: %s", str(self.service.app.info_message))
 
     @property
     def info_message(self):
