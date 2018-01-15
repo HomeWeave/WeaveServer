@@ -52,7 +52,6 @@ class Repository(object):
         """Does git fetch, and checks whether local tip of master is same as
         that of upstream master."""
         for remote in self.repo.remotes:
-            logger.info("Pulling remote for repo: %s", self.repo_name)
             remote.fetch()
 
         for _ in self.repo.iter_commits('master..origin/master'):
@@ -87,9 +86,11 @@ class UpdateScanner(object):
         self.thread.join()
 
     def run(self):
-        while not self.cancel_event.is_set():
+        while True:
+            logger.info("Checking for Git repos for updates.")
             self.check_updates()
-            self.cancel_event.wait(self.UPDATE_CHECK_FREQ)
+            if self.cancel_event.wait(self.UPDATE_CHECK_FREQ):
+                break
 
     def check_updates(self):
         res = []
@@ -144,7 +145,6 @@ class Updater(object):
 
     def perform_upgrade(self):
         repos = self.scanner.get_repos_to_update()
-        print("repos to UPDATE: ", repos)
         if not repos:
             self.update_status("No updates available.")
             return
