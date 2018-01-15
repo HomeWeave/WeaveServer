@@ -3,12 +3,14 @@ import os
 import socket
 import sys
 import time
+from ipaddress import IPv4Network
 from random import randrange
 from threading import Thread
 from uuid import uuid4
 
 from flask import Flask, redirect
 
+import app.core.netutils as netutils
 
 logger = logging.getLogger(__name__)
 
@@ -20,6 +22,15 @@ def configure_flask_logging(app):
     logging.getLogger('socketio').setLevel(logging.ERROR)
     logging.getLogger('engineio').setLevel(logging.ERROR)
     logging.getLogger('werkzeug').setLevel(logging.ERROR)
+
+
+def get_server_address():
+    for ip_obj in netutils.iter_ipv4_addresses():
+        net = IPv4Network(ip_obj["addr"] + "/" + ip_obj["netmask"],
+                          strict=False)
+        if not net.is_loopback:
+            return ip_obj["addr"]
+    return None
 
 
 class AppHTTPServer(object):
@@ -53,7 +64,8 @@ class AppHTTPServer(object):
         while True:
             self.port = randrange(40000, 50000)
             try:
-                self.flask.run(port=self.port, debug=False, use_reloader=False)
+                self.flask.run(host="0.0.0.0", port=self.port, debug=False,
+                               use_reloader=False)
             except Exception:
                 pass
 
@@ -74,6 +86,6 @@ class AppHTTPServer(object):
     def info_message(self):
         return {
             "id": self.unique_id,
-            "url": "http://{}:{}".format("localhost", self.port),
+            "url": "http://{}:{}".format(get_server_address(), self.port),
             "icon": self.fa_favicon
         }
