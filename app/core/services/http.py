@@ -24,13 +24,24 @@ def configure_flask_logging(app):
     logging.getLogger('werkzeug').setLevel(logging.ERROR)
 
 
-def get_server_address():
+def get_server_address(port):
     for ip_obj in netutils.iter_ipv4_addresses():
         net = IPv4Network(ip_obj["addr"] + "/" + ip_obj["netmask"],
                           strict=False)
-        if not net.is_loopback:
+        if not net.is_loopback and check_ip(ip_obj["addr"], port):
             return ip_obj["addr"]
-    return None
+    return "localhost"
+
+
+def check_ip(host, port):
+    sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    try:
+        sock.connect(("localhost", port))
+        return True
+    except IOError:
+        return False
+    finally:
+        sock.close()
 
 
 class AppHTTPServer(object):
@@ -71,21 +82,18 @@ class AppHTTPServer(object):
 
     def register_server(self):
         while True:
-            sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-            try:
-                sock.connect(("localhost", self.port))
-                break
-            except IOError:
+            if not check_ip("localhost", self.port):
                 time.sleep(1)
-            finally:
-                sock.close()
-        logger.info("App Server registered: %s", self.unique_id)
+            else:
+                break
         self.service.app.register_application_server(self)
+        logger.info("App Server registered: %s", self.unique_id)
 
     @property
     def info_message(self):
+        url = "http://{}:{}".format(get_server_address(self.port), self.port)
         return {
             "id": self.unique_id,
-            "url": "http://{}:{}".format(get_server_address(), self.port),
+            "url": url,
             "icon": self.fa_favicon
         }
