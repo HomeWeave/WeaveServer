@@ -18,6 +18,7 @@ def configure_flask_logging(app):
 
     logging.getLogger('socketio').setLevel(logging.ERROR)
     logging.getLogger('engineio').setLevel(logging.ERROR)
+    logging.getLogger('werkzeug').setLevel(logging.ERROR)
 
 
 class DashboardService(BackgroundProcessServiceStart, BaseService):
