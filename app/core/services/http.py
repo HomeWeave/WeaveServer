@@ -24,7 +24,7 @@ def configure_flask_logging(app):
 
 class AppHTTPServer(object):
     def __init__(self, service):
-        self.unique_id = "http-" + str(uuid4())
+        self.unique_id = "http-" + service.get_component_name() + str(uuid4())
         module = sys.modules[service.__module__]
         self.core_dir = os.path.dirname(__file__)
         self.module_dir = os.path.dirname(module.__file__)
