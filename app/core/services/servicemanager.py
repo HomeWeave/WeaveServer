@@ -46,7 +46,7 @@ class ServiceManager(object):
     """
     Scans for all service modules within the given module.
     """
-    def __init__(self, registry):
+    def __init__(self):
         unsorted_services = list_modules(app.services)
         self.service_modules = topo_sort_modules(unsorted_services)
         self.module_map = {x.name: x for x in unsorted_services}

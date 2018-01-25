@@ -5,7 +5,6 @@ NavigationChannel, View Manager.
 
 import signal
 
-from .core.registry import Registry
 from .core.services import ServiceManager
 
 
@@ -14,8 +13,7 @@ class Hulk(object):
     Encapsulates the entire server.
     """
     def __init__(self):
-        self.registry = Registry()
-        self.service_manager = ServiceManager(self.registry)
+        self.service_manager = ServiceManager()
 
     def start(self):
         """Starts self.service_manager.start() on a new thread."""
