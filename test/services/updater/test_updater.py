@@ -6,15 +6,11 @@ from unittest.mock import patch, Mock
 
 import git
 
-from app.core.logger import configure_logging
-from app.core.messaging import Receiver, Sender
-from app.core.services import ServiceManager
-from app.core.rpc import RPCClient
-from app.services.updater.service import UpdaterService, UpdateScanner
-from app.services.updater.service import Updater
-
-
-configure_logging()
+from weavelib.messaging import Receiver, Sender
+from weavelib.rpc import RPCClient
+from weaveserver.core.services import ServiceManager
+from weaveserver.services.updater.service import UpdaterService, UpdateScanner
+from weaveserver.services.updater.service import Updater
 
 
 def make_receiver(count, obj, sem, r):
@@ -34,7 +30,7 @@ class TestUpdateScanner(object):
         UpdateScanner.UPDATE_CHECK_FREQ = 5
 
         os.environ["USE_FAKE_REDIS"] = "TRUE"
-        self.service_manager = ServiceManager(None)
+        self.service_manager = ServiceManager()
         self.service_manager.start_services(["messaging"])
 
     def teardown_method(self):

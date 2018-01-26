@@ -14,7 +14,7 @@ setup(
     long_description=open('README.md').read(),
     install_requires=[
         'weavelib',
-        'eventlet',
+        'eventlet!=0.22',
         'flask',
         'requests[security]',
         'flask-socketio',
@@ -27,5 +27,8 @@ setup(
     ],
     tests_require=[
         'pytest'
+    ],
+    setup_requires=[
+        'pytest-runner'
     ]
 )

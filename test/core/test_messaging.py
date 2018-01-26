@@ -1,11 +1,12 @@
 from threading import Event, Thread
 
-import app.core.netutils as netutils
-from app.core.messaging import discover_message_server, Sender, Receiver
-from app.core.messaging import SyncMessenger
-from app.services.discovery import DiscoveryService
-from app.services.discovery.service import DiscoveryServer
-from app.services.messaging import MessageService
+import weavelib.netutils as netutils
+from weavelib.messaging import discover_message_server, Sender
+from weavelib.messaging import Receiver, SyncMessenger
+
+from weaveserver.services.discovery import DiscoveryService
+from weaveserver.services.discovery.service import DiscoveryServer
+from weaveserver.services.messaging import MessageService
 
 
 CONFIG = {
