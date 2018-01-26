@@ -27,5 +27,8 @@ setup(
     ],
     tests_require=[
         'pytest'
+    ],
+    setup_requires=[
+        'pytest-runner'
     ]
 )
