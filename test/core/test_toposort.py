@@ -1,6 +1,7 @@
 import pytest
 
-from app.core.toposort import toposort
+from weaveserver.core.toposort import toposort
+
 
 class TestToposort(object):
     def test_simple(self):

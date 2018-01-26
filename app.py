@@ -5,13 +5,13 @@ eventlet.monkey_patch()  # NOLINT
 import importlib
 import os
 import sys
-from app.main import create_app
-from app.core.logger import configure_logging
+from weaveserver.main import create_app
+from weaveserver.core.logger import configure_logging
 
 
 def handle_launch(name):
     import signal
-    from app.core.config_loader import get_config
+    from weaveserver.core.config_loader import get_config
     module = importlib.import_module(name)
     meta = module.__meta__
 

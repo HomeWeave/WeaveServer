@@ -3,13 +3,14 @@ from copy import deepcopy
 from threading import Thread, Event, Semaphore
 
 import pytest
+from weavelib.messaging import Sender, Receiver, Creator, RequiredFieldsMissing
+from weavelib.messaging import QueueNotFound, SchemaValidationFailed
+from weavelib.messaging import InvalidMessageStructure, BadOperation
+from weavelib.messaging import QueueAlreadyExists
+from weavelib.messaging import read_message
+from weavelib.messaging.messaging import ensure_ok_message
 
-from app.core.messaging import Sender, Receiver, Creator, RequiredFieldsMissing
-from app.core.messaging import QueueNotFound, SchemaValidationFailed
-from app.core.messaging import InvalidMessageStructure, BadOperation
-from app.core.messaging import QueueAlreadyExists
-from app.core.messaging import read_message, ensure_ok_message
-from app.services.messaging import MessageService
+from weaveserver.services.messaging import MessageService
 
 
 CONFIG = {
