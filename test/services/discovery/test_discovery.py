@@ -3,10 +3,10 @@ import socket
 from threading import Event, Thread
 
 import pytest
+import weavelib.netutils as netutils
 
-import app.core.netutils as netutils
-from app.services.discovery import DiscoveryService
-from app.services.discovery.service import DiscoveryServer
+from weaveserver.services.discovery import DiscoveryService
+from weaveserver.services.discovery.service import DiscoveryServer
 
 
 class TestDiscoveryService(object):
