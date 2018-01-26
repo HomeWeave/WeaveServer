@@ -1,4 +1,4 @@
 # HomePiServer
 
-[![Build Status](https://travis-ci.org/supersaiyanmode/HomePiServer.svg?branch=develop)](https://travis-ci.org/supersaiyanmode/HomePiServer)
-[![Coverage Status](https://coveralls.io/repos/github/supersaiyanmode/HomePiServer/badge.svg?branch=develop)](https://coveralls.io/github/supersaiyanmode/HomePiServer?branch=develop)
+[![Build Status](https://travis-ci.org/HomeWeave/WeaveServer.svg?branch=master)](https://travis-ci.org/HomeWeave/WeaveServer)
+[![Coverage Status](https://coveralls.io/repos/github/HomeWeave/WeaveServer/badge.svg?branch=master)](https://coveralls.io/github/HomeWeave/WeaveServer?branch=master)
