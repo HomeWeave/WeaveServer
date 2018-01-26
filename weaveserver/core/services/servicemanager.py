@@ -8,19 +8,20 @@ import os
 import threading
 from collections import namedtuple
 
-import app.services
-from app.core.toposort import toposort
-from app.core.config_loader import get_config
+from weavelib.services import Module
+
+import weaveserver.services
+from weaveserver.core.toposort import toposort
+from weaveserver.core.config_loader import get_config
 
 logger = logging.getLogger(__name__)
-Module = namedtuple('Module', ["name", "deps", "meta"])
 
 
 def list_modules(module):
     res = []
     for name in os.listdir(module.__path__[0]):
         try:
-            module = importlib.import_module("app.services." + name)
+            module = importlib.import_module("weaveserver.services." + name)
             module_meta = module.__meta__
         except ImportError:
             logger.warning("Not a module: services/%s", name)
@@ -47,7 +48,7 @@ class ServiceManager(object):
     Scans for all service modules within the given module.
     """
     def __init__(self):
-        unsorted_services = list_modules(app.services)
+        unsorted_services = list_modules(weaveserver.services)
         self.service_modules = topo_sort_modules(unsorted_services)
         self.module_map = {x.name: x for x in unsorted_services}
         self.services = []
@@ -57,7 +58,7 @@ class ServiceManager(object):
         """ Sequentially starts all the services."""
         error_modules = set()
         for module in self.service_modules:
-            config = get_config(module.meta.get("config", []))
+            config = get_config(module.get_config())
             service = module.meta["class"](config)
 
             if any(x in error_modules for x in module.deps):

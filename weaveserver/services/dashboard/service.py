@@ -5,7 +5,7 @@ import signal
 from flask import Flask
 from flask_socketio import SocketIO
 
-from app.core.services import BaseService, BackgroundProcessServiceStart
+from weavelib.services import BaseService, BackgroundProcessServiceStart
 
 from .controllers import CONTROLLERS
 from .websocket_manager import WebSocketManager
@@ -47,7 +47,7 @@ class DashboardService(BackgroundProcessServiceStart, BaseService):
                      use_reloader=False)
 
     def get_component_name(self):
-        return "dashboard"
+        return "weaveserver.services.dashboard"
 
     def on_service_stop(self):
         self.shell.deactivate()

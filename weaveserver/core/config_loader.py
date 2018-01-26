@@ -21,7 +21,7 @@ class JsonConfig(BaseConfig):
         if obj.get("absolute") is True:
             path = obj["file"]
         else:
-            path = os.path.join("app/configs/", obj["path"])
+            path = os.path.join("weaveserver/configs/", obj["path"])
         with open(path) as inp:
             super().__init__(json.load(inp))
 
@@ -34,12 +34,12 @@ class PyConfig(BaseConfig):
             name = name[:-3]
         else:
             raise ValueError("Not a python file")
-        super().__init__(importlib.import_module("app.configs." + name))
+        super().__init__(importlib.import_module("weaveserver.configs." + name))
 
 
 class PropConfig(BaseConfig):
     def __init__(self, config):
-        path = os.path.join("app/configs/", config["path"])
+        path = os.path.join("weaveserver/configs/", config["path"])
         with open(path) as inp:
             lines = [x.strip().split('=') for x in inp]
         super().__init__({x[0].strip(): x[1].strip() for x in lines})

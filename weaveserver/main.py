@@ -8,7 +8,7 @@ import signal
 from .core.services import ServiceManager
 
 
-class Hulk(object):
+class WeaveApp(object):
     """
     Encapsulates the entire server.
     """
@@ -39,7 +39,7 @@ def setup_signals(app):
 
 
 def create_app():
-    """ Returns a new instance of HomePiServer."""
-    app = Hulk()
+    """ Returns a new instance of WeaveApp."""
+    app = WeaveApp()
     setup_signals(app)
     return app

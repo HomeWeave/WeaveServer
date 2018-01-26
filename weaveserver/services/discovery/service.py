@@ -1,14 +1,12 @@
 import json
 import logging
-import os
-import signal
 import socket
 from threading import Event
 
 from ipaddress import IPv4Network
 
-import app.core.netutils as netutils
-from app.core.services import BaseService, BackgroundProcessServiceStart
+import weavelib.netutils as netutils
+from weavelib.services import BaseService, BackgroundProcessServiceStart
 
 
 logger = logging.getLogger(__name__)
@@ -69,7 +67,7 @@ class DiscoveryService(BackgroundProcessServiceStart, BaseService):
         super().__init__()
 
     def get_component_name(self):
-        return "discovery"
+        return "weaveserver.services.discovery"
 
     def on_service_start(self, *args, **kwargs):
         self.server.run(lambda: self.notify_start())

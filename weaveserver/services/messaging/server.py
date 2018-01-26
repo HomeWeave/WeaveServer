@@ -10,12 +10,12 @@ from uuid import uuid4
 from jsonschema import validate, ValidationError, SchemaError
 from redis import Redis, ConnectionError as RedisConnectionError
 
-from app.core.messaging import read_message, serialize_message, Message
-from app.core.messaging import QueueAlreadyExists
-from app.core.messaging import SchemaValidationFailed, BadOperation
-from app.core.messaging import RequiredFieldsMissing, InternalMessagingError
-from app.core.messaging import MessagingException, QueueNotFound
-from app.core.services import BaseService, BackgroundProcessServiceStart
+from weavelib.messaging import read_message, serialize_message, Message
+from weavelib.messaging import QueueAlreadyExists
+from weavelib.messaging import SchemaValidationFailed, BadOperation
+from weavelib.messaging import RequiredFieldsMissing, InternalMessagingError
+from weavelib.messaging import MessagingException, QueueNotFound
+from weavelib.services import BaseService, BackgroundProcessServiceStart
 
 
 logger = logging.getLogger(__name__)
@@ -328,7 +328,7 @@ class MessageService(BackgroundProcessServiceStart, BaseService):
         super().__init__()
 
     def get_component_name(self):
-        return "messaging"
+        return "weaveserver.services.messaging"
 
     def on_service_start(self, *args, **kwargs):
         self.message_server = MessageServer(self, self.PORT, self.redis_config,

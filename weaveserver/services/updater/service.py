@@ -7,9 +7,9 @@ from git import Repo
 from git.util import RemoteProgress
 from git.exc import GitError
 
-from app.core.rpc import ServerAPI, RPCServer
-from app.core.services import BaseService, BackgroundProcessServiceStart
-from app.core.services.http import AppHTTPServer
+from weavelib.rpc import ServerAPI, RPCServer
+from weavelib.services import BaseService, BackgroundProcessServiceStart
+from weavelib.services.http import AppHTTPServer
 
 
 logger = logging.getLogger(__name__)
@@ -206,7 +206,7 @@ class UpdaterService(BackgroundProcessServiceStart, BaseService):
         super().__init__()
 
     def get_component_name(self):
-        return "updater"
+        return "weaveserver.services.updater"
 
     def on_service_start(self, *args, **kwargs):
         super().on_service_start(*args, **kwargs)

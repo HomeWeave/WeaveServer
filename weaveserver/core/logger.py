@@ -4,7 +4,7 @@ This module helps configure logging app-wide.
 
 import logging.config
 
-from app.core.config_loader import JsonConfig
+from weaveserver.core.config_loader import JsonConfig
 
 
 def configure_logging():

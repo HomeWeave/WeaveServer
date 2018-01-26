@@ -2,8 +2,8 @@ import logging
 import time
 from threading import Thread, RLock
 
-from app.core.messaging import Receiver, Sender
-from app.core.rpc import RPCClient
+from weaveserver.messaging import Receiver, Sender
+from weaveserver.rpc import RPCClient
 
 from .base import BaseComponent
 
