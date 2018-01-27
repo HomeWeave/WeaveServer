@@ -7,12 +7,6 @@ __meta__ = {
     "deps": ["logging"],
     "config": [
         {
-            "name": "queues",
-            "loaders": [
-                {"path": "messaging_queues.json", "type": "json"},
-            ]
-        },
-        {
             "name": "redis_config",
             "loaders": [
                 {"type": "env"},

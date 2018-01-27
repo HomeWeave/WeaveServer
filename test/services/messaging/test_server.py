@@ -6,7 +6,7 @@ import pytest
 from weavelib.messaging import Sender, Receiver, Creator, RequiredFieldsMissing
 from weavelib.messaging import QueueNotFound, SchemaValidationFailed
 from weavelib.messaging import InvalidMessageStructure, BadOperation
-from weavelib.messaging import QueueAlreadyExists
+from weavelib.messaging import QueueAlreadyExists, InternalMessagingError
 from weavelib.messaging import read_message
 from weavelib.messaging.messaging import ensure_ok_message
 
@@ -17,14 +17,6 @@ CONFIG = {
     "redis_config": {
         "USE_FAKE_REDIS": True
     },
-    "queues": {
-        "custom_queues": [
-            {
-                "queue_name": "dummy",
-                "request_schema": {"type": "object"}
-            }
-        ]
-    }
 }
 
 TEST_QUEUES = [
@@ -358,7 +350,13 @@ class TestMessagingServiceWithRealRedis(object):
         service.notify_start = lambda: event.set()
         service_thread = Thread(target=service.on_service_start)
         service_thread.start()
-        assert not event.wait(timeout=10)
+        assert event.wait(timeout=10)
 
+        creator = Creator()
+        creator.start()
+        with pytest.raises(InternalMessagingError):
+            creator.create({"queue_name": "dummy", "request_schema": {}})
+
+        service.on_service_stop()
         service_thread.join()
         service.message_server.server_close()

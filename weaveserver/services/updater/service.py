@@ -9,7 +9,6 @@ from git.exc import GitError
 
 from weavelib.rpc import ServerAPI, RPCServer
 from weavelib.services import BaseService, BackgroundProcessServiceStart
-from weavelib.services.http import AppHTTPServer
 
 
 logger = logging.getLogger(__name__)
@@ -187,7 +186,6 @@ class Updater(object):
 
 
 class UpdaterService(BackgroundProcessServiceStart, BaseService):
-
     def __init__(self, config):
         self.update_scanner = UpdateScanner(self)
         self.updater = Updater(self, self.update_scanner)
@@ -199,8 +197,6 @@ class UpdaterService(BackgroundProcessServiceStart, BaseService):
                       self.updater.perform_upgrade),
         ], self)
 
-        self.http = AppHTTPServer(self)
-        self.http.flask.add_url_rule("/status", self.get_status)
         self.status_lock = RLock()
         self.status = "No updates available."
         super().__init__()
@@ -213,7 +209,6 @@ class UpdaterService(BackgroundProcessServiceStart, BaseService):
         self.rpc.start()
         self.update_scanner.start()
         self.updater.start()
-        self.http.start()
         self.notify_start()
         self.shutdown.wait()
 
