@@ -1,6 +1,6 @@
-{
+LOGGING = {
     "version": 1,
-    "disable_existing_loggers": false,
+    "disable_existing_loggers": False,
     "formatters": {
         "standard": {
             "format": "%(asctime)s [%(levelname)s] %(name)s: %(message)s"
@@ -13,30 +13,30 @@
             "class": "logging.StreamHandler"
         },
         "file": {
-                "class": "logging.handlers.RotatingFileHandler",
-                "level": "DEBUG",
-                "formatter": "standard",
-                "filename": "/tmp/server.log",
-                "mode": "a",
-                "maxBytes": 10485760,
-                "backupCount": 5
+            "class": "logging.handlers.RotatingFileHandler",
+            "level": "DEBUG",
+            "formatter": "standard",
+            "filename": "/tmp/server.log",
+            "mode": "a",
+            "maxBytes": 10485760,
+            "backupCount": 5
         }
     },
     "loggers": {
         "": {
             "handlers": ["default"],
             "level": "INFO",
-            "propagate": true
+            "propagate": True
         },
         "stdout": {
             "handlers": ["default"],
             "level": "INFO",
-            "propagate": true
+            "propagate": True
         },
         "werkzeug": {
             "handlers": ["default"],
             "level": "INFO",
-            "propagate": true
+            "propagate": True
         }
     }
 }

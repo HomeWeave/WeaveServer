@@ -36,6 +36,9 @@ class PyConfig(BaseConfig):
             raise ValueError("Not a python file")
         super().__init__(importlib.import_module("weaveserver.configs." + name))
 
+    def __getitem__(self, name):
+        return getattr(self.get(), name)
+
 
 class PropConfig(BaseConfig):
     def __init__(self, config):
