@@ -1,14 +1,11 @@
-try:
-    from setuptools import setup
-except ImportError:
-    from distutils.core import setup
+from setuptools import setup, find_packages
 
 setup(
     name='weaveserver',
     version='0.8',
     author='Srivatsan Iyer',
     author_email='supersaiyanmode.rox@gmail.com',
-    packages=['weaveserver'],
+    packages=find_packages(),
     license='MIT',
     description='Library to interact with Weave Server',
     long_description=open('README.md').read(),
