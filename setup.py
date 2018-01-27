@@ -18,4 +18,9 @@ setup(
         'psutil',
         'redis',
     ],
+    entry_points={
+        'console_scripts': [
+            'weave-app = app:handle_launch'
+        ]
+    }
 )

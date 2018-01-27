@@ -9,9 +9,12 @@ from weaveserver.main import create_app
 from weaveserver.core.logger import configure_logging
 
 
-def handle_launch(name):
+def handle_launch():
     import signal
     from weaveserver.core.config_loader import get_config
+    configure_logging()
+
+    name = sys.argv[2]
     module = importlib.import_module(name)
     meta = module.__meta__
 
@@ -35,6 +38,6 @@ if __name__ == '__main__':
         main_app = create_app()
         main_app.start()
     elif sys.argv[1] == 'launch-service':
-        handle_launch(sys.argv[2])
+        handle_launch()
     else:
         print("Invalid mode.")
