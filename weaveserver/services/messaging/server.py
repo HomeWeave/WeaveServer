@@ -189,7 +189,7 @@ class MessageServer(ThreadingTCPServer):
     allow_reuse_address = True
     daemon_threads = True
 
-    def __init__(self, service, port, redis_config, queue_config):
+    def __init__(self, service, port, redis_config):
         super().__init__(("", port), MessageHandler)
         self.service = service
         self.sent_start_notification = False
@@ -199,10 +199,6 @@ class MessageServer(ThreadingTCPServer):
         self.sticky_messages = {}
         self.clients = {}
         self.redis_config = redis_config
-
-        for queue_info in queue_config.get("custom_queues", []):
-            queue = self.create_queue(queue_info)
-            self.queue_map[queue_info["queue_name"]] = queue
 
     def create_queue(self, queue_info):
         try:
@@ -324,15 +320,13 @@ class MessageService(BackgroundProcessServiceStart, BaseService):
 
     def __init__(self, config):
         self.redis_config = config["redis_config"]
-        self.queues = config["queues"]
         super().__init__()
 
     def get_component_name(self):
         return "weaveserver.services.messaging"
 
     def on_service_start(self, *args, **kwargs):
-        self.message_server = MessageServer(self, self.PORT, self.redis_config,
-                                            self.queues)
+        self.message_server = MessageServer(self, self.PORT, self.redis_config)
         self.message_server.run()
 
     def on_service_stop(self):
