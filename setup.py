@@ -21,13 +21,4 @@ setup(
         'psutil',
         'redis',
     ],
-    dependency_links=[
-        'https://github.com/HomeWeave/WeaveLib/tarball/master#egg=weavelib-0.8'
-    ],
-    tests_require=[
-        'pytest'
-    ],
-    setup_requires=[
-        'pytest-runner'
-    ]
 )

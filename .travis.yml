@@ -3,14 +3,14 @@ python:
   - "3.6"
 
 install:
-  - python setup.py install
+  - pip install -r requirements.txt
 
 before_script:
   - export PYTHONPATH=$PYTHONPATH:$(pwd)
-  - pip install coveralls
+  - pip install -r dev-requirements.txt
 
 script:
-  - coverage run --source weaveserver setup.py test
+  - coverage run --source weaveserver -m py.test
 
 after_success:
   - coveralls
