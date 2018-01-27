@@ -4,7 +4,7 @@ from .server import MessageService
 __meta__ = {
     "name": "Messaging Server",
     "class": MessageService,
-    "deps": ["logging"],
+    "deps": [],
     "config": [
         {
             "name": "redis_config",
