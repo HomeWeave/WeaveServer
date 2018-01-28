@@ -314,7 +314,10 @@ class MessageServer(ThreadingTCPServer):
         except KeyError:
             raise QueueNotFound(queue_name)
         except ValidationError:
-            raise SchemaValidationFailed()
+            msg = "Schema: {}, on instance: {}, for queue: {}".format(
+                    queue.queue_info["request_schema"], msg.task,
+                    queue)
+            raise SchemaValidationFailed(msg)
         except RedisConnectionError:
             logger.exception("Failed to talk to Redis.")
             raise InternalMessagingError()
