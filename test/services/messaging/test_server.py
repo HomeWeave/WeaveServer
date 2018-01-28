@@ -1,3 +1,4 @@
+import random
 import socket
 from copy import deepcopy
 from threading import Thread, Event, Semaphore
@@ -336,6 +337,97 @@ class TestMessagingService(object):
         creator.start()
         with pytest.raises(SchemaValidationFailed):
             creator.create(queue_info)
+
+    def test_enqueue_sessionized_without_key(self):
+        queue_info = {
+            "queue_name": "/test.sessionized",
+            "queue_type": "sessionized",
+            "request_schema": {"type": "string"}
+        }
+        creator = Creator()
+        creator.start()
+        creator.create(queue_info)
+
+        sender = Sender("/test.sessionized")
+        sender.start()
+        with pytest.raises(RequiredFieldsMissing):
+            sender.send("test")
+
+        receiver = Receiver("/test.sessionized")
+        receiver.start()
+
+        with pytest.raises(RequiredFieldsMissing):
+            receiver.receive()
+
+    def test_simple_sessionized_enqueue_dequeue(self):
+        queue_info = {
+            "queue_name": "/test.sessionized2",
+            "queue_type": "sessionized",
+            "request_schema": {"type": "string"}
+        }
+        creator = Creator()
+        creator.start()
+        creator.create(queue_info)
+
+        sender1 = Sender("/test.sessionized2")
+        sender1.start()
+        sender1.send("test", headers={"COOKIE": "xyz"})
+
+        sender2 = Sender("/test.sessionized2")
+        sender2.start()
+        sender2.send("diff", headers={"COOKIE": "diff"})
+
+        receiver1 = Receiver("/test.sessionized2")
+        receiver1.start()
+        receiver1.receive_headers = lambda: {"COOKIE": "xyz"}
+
+        receiver2 = Receiver("/test.sessionized2")
+        receiver2.start()
+        receiver2.receive_headers = lambda: {"COOKIE": "diff"}
+
+        assert receiver1.receive().task == "test"
+        assert receiver2.receive().task == "diff"
+
+    def test_several_sessionized_queues(self):
+        queue_info = {
+            "queue_name": "/test.sessionized/several",
+            "queue_type": "sessionized",
+            "request_schema": {"type": "string"}
+        }
+        creator = Creator()
+        creator.start()
+        creator.create(queue_info)
+
+        senders = []
+        receivers = []
+        cookies = []
+        texts = []
+
+        for i in range(10):
+            cookie = "c-" + str(i)
+            cookies.append(cookie)
+
+            sender = Sender("/test.sessionized/several")
+            sender.start()
+            senders.append(sender)
+
+            receiver = Receiver("/test.sessionized/several")
+            receiver.start()
+            receiver.receive_headers = (lambda c: lambda: {"COOKIE": c})(cookie)
+            receivers.append(receiver)
+
+            text = "text" + str(i)
+            texts.append(text)
+
+        arr = list(range(10))[::-1]
+        random.shuffle(arr)
+
+        # Send requests in random order
+        for pos in arr:
+            senders[pos].send(texts[pos], headers={"COOKIE": cookies[pos]})
+
+        for i in range(10):
+            assert texts[i] == receivers[i].receive().task
 
 
 class TestMessagingServiceWithRealRedis(object):

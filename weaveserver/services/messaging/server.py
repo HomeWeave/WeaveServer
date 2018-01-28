@@ -1,6 +1,7 @@
 import json
 import logging
 import os
+import time
 from collections import defaultdict
 from queue import Queue
 from socketserver import ThreadingTCPServer, StreamRequestHandler
@@ -79,7 +80,8 @@ class RedisQueue(BaseQueue):
         self.get_connection().lpush(self.redis_queue, json.dumps(task))
         return True
 
-    def dequeue(self, requestor_id, timeout=0):
+    def dequeue(self, headers):
+        timeout = int(headers.get("TIMEOUT", "0"))
         data = self.get_connection().brpop(self.redis_queue, timeout=timeout)
         if data:
             task = json.loads(data[1])
@@ -106,6 +108,56 @@ class RedisQueue(BaseQueue):
         return self.redis
 
 
+class SessionizedQueue(BaseQueue):
+    def __init__(self, queue_info, queue_name, *args):
+        super().__init__(queue_info)
+        self.requestor_version_map = defaultdict(int)
+        self.latest_version = 1
+        self.messages = []
+        self.condition = Condition()
+
+    def enqueue(self, task, headers):
+        try:
+            cookie = headers["COOKIE"]
+        except KeyError:
+            raise RequiredFieldsMissing("No COOKIE for sessionized queue.")
+        self.validate_schema(task)
+
+        obj = {
+            "cookie": cookie,
+            "task": task,
+            "time": time.time()
+        }
+        with self.condition:
+            self.latest_version += 1
+            obj["version"] = self.latest_version
+            self.messages.append(obj)
+            self.condition.notify_all()
+
+    def dequeue(self, headers):
+        try:
+            requestor_id = headers["COOKIE"]
+        except KeyError:
+            raise RequiredFieldsMissing("No COOKIE for sessionized queue.")
+
+        dequeue_result = []
+
+        def test_dequeue():
+            cur_version = self.requestor_version_map[requestor_id]
+            for msg in self.messages:
+                if msg["version"] <= cur_version:
+                    continue
+                if msg["cookie"] == requestor_id:
+                    self.requestor_version_map[requestor_id] = msg["version"]
+                    dequeue_result.append(msg["task"])
+                    return True
+            return False
+
+        with self.condition:
+            self.condition.wait_for(test_dequeue)
+            return dequeue_result[0]
+
+
 class StickyQueue(BaseQueue):
     def __init__(self, queue_info, *args, **kwargs):
         super().__init__(queue_info)
@@ -121,7 +173,9 @@ class StickyQueue(BaseQueue):
             self.requestors = set()
             self.condition.notify_all()
 
-    def dequeue(self, requestor_id):
+    def dequeue(self, headers):
+        requestor_id = headers["SESS"]
+
         def can_dequeue():
             has_msg = self.sticky_message is not None
             new_requestor = requestor_id not in self.requestors
@@ -156,7 +210,9 @@ class KeyedStickyQueue(BaseQueue):
             self.sticky_map_version += 1
             self.condition.notify_all()
 
-    def dequeue(self, requestor_id):
+    def dequeue(self, headers):
+        requestor_id = headers["SESS"]
+
         def can_dequeue():
             return self.sticky_map_version != self.requestor_map[requestor_id]
 
@@ -217,6 +273,7 @@ class MessageServer(ThreadingTCPServer):
             "redis": RedisQueue,
             "sticky": StickyQueue,
             "keyedsticky": KeyedStickyQueue,
+            "sessionized": SessionizedQueue
         }
         queue_name = queue_info["queue_name"]
 
@@ -268,10 +325,9 @@ class MessageServer(ThreadingTCPServer):
         except KeyError:
             raise RequiredFieldsMissing("Field 'Q' is required for dequeue.")
 
-        requestor_id = msg.headers["SESS"]
         try:
             queue = self.queue_map[queue_name]
-            return queue.dequeue(requestor_id)
+            return queue.dequeue(msg.headers)
         except KeyError:
             raise QueueNotFound(queue_name)
         except RedisConnectionError:
