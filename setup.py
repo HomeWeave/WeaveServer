@@ -12,10 +12,7 @@ setup(
     install_requires=[
         'weavelib',
         'eventlet!=0.22',
-        'requests[security]',
-        'flask-socketio',
         'GitPython',
-        'psutil',
         'redis',
     ],
     entry_points={
