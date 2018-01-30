@@ -39,12 +39,6 @@ class BaseQueue(object):
     def __init__(self, queue_info):
         self.queue_info = queue_info
 
-    def enqueue(self, task, headers):
-        pass
-
-    def dequeue(self, requestor_id):
-        pass
-
     def connect(self):
         return True
 
@@ -385,8 +379,7 @@ class MessageService(BackgroundProcessServiceStart, BaseService):
         return "weaveserver.services.messaging"
 
     def before_service_start(self):
-        # Need to override to prevent rpc_client connecting.
-        pass
+        """Need to override to prevent rpc_client connecting."""
 
     def on_service_start(self, *args, **kwargs):
         self.message_server = MessageServer(self, self.PORT, self.redis_config)

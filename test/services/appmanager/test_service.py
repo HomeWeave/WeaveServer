@@ -73,4 +73,4 @@ class TestApplicationService(object):
         assert got == {"obj": "test"}
 
     def test_bad_view(self):
-        assert requests.get("http://localhost:5000/view/blh").status_code == 404
+        assert requests.get("http://localhost:5000/views/ab").status_code == 404

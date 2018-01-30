@@ -123,8 +123,7 @@ class ApplicationService(BackgroundProcessServiceStart, BaseService):
         return "weaveserver.services.appmanager"
 
     def before_service_start(self):
-        # Need to override to prevent rpc_client connecting.
-        pass
+        """Needs to be overridden to prevent rpc_client connecting."""
 
     def on_service_start(self, *args, **kwargs):
         self.rpc.start()

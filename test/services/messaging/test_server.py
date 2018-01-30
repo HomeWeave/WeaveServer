@@ -388,6 +388,18 @@ class TestMessagingService(object):
         assert receiver1.receive().task == "test"
         assert receiver2.receive().task == "diff"
 
+        # Test retrieving items for the second time.
+        event = Event()
+        receiver2.on_message = event.set
+        thread = Thread(target=receiver2.run)
+        thread.start()
+
+        sender1.send("test2", headers={"COOKIE": "xyz"})
+        assert receiver1.receive().task == "test2"
+
+        receiver2.stop()
+        thread.join()
+
     def test_several_sessionized_queues(self):
         queue_info = {
             "queue_name": "/test.sessionized/several",
