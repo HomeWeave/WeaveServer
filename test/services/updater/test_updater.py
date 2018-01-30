@@ -45,6 +45,7 @@ class TestUpdateScanner(object):
 
         started = Event()
         service = UpdaterService(None)
+        service.before_service_start()
         service.notify_start = started.set
         Thread(target=service.on_service_start).start()
 
@@ -71,6 +72,7 @@ class TestUpdateScanner(object):
 
         started = Event()
         service = UpdaterService(None)
+        service.before_service_start()
         service.notify_start = started.set
         Thread(target=service.on_service_start).start()
 

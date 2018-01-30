@@ -1,7 +1,9 @@
+import json
 import logging
-from threading import Event
+from threading import Event, RLock, Thread
 from uuid import uuid4
 
+from bottle import Bottle, abort, response
 from jsonschema import Draft4Validator
 
 from weavelib.messaging import Creator
@@ -35,8 +37,35 @@ class RootRPCServer(RPCServer):
         return dict(request_queue=request_queue, response_queue=response_queue)
 
 
-class ApplicationRPC(object):
+class ApplicationHTTP(Bottle):
     def __init__(self):
+        super().__init__()
+        self.views = {}
+        self.view_lock = RLock()
+
+        self.route("/views/<path>")(self.handle_view)
+
+    def handle_view(self, path):
+        with self.view_lock:
+            obj = self.views.get(path)
+        if not obj:
+            abort(404, "Not found.")
+        response.content_type = "application/json"
+        return obj
+
+    def register_view(self, obj):
+        json_str = json.dumps(obj)
+        unique_id = "app-http-view-" + str(uuid4())
+
+        with self.view_lock:
+            self.views[unique_id] = json_str
+
+        return "/views/" + unique_id
+
+
+class ApplicationRPC(object):
+    def __init__(self, service):
+        self.service = service
         self.rpc = RootRPCServer("app_manager", "Application Manager", [
             ServerAPI("register_rpc", "Register new RPC", [
                 ArgParameter("name", "Name of the RPC", str),
@@ -45,8 +74,12 @@ class ApplicationRPC(object):
                              Draft4Validator.META_SCHEMA),
                 ArgParameter("response_schema", "JSONSchema of response",
                              Draft4Validator.META_SCHEMA),
-            ], self.register_rpc)
-        ])
+            ], self.register_rpc),
+            ServerAPI("register_app_view", "Jasonette view to register.", [
+                ArgParameter("object", "Regular(JSON) Object to register",
+                             {"type": "object"})
+            ], self.register_view)
+        ], None)
         self.queue_creator = Creator()
 
     def start(self):
@@ -55,7 +88,7 @@ class ApplicationRPC(object):
 
     def stop(self):
         self.rpc.stop()
-        self.queue_creator.stop()
+        self.queue_creator.close()
 
     def register_rpc(self, name, description, request_schema, response_schema):
         print("Request to register..")
@@ -75,21 +108,31 @@ class ApplicationRPC(object):
 
         return dict(request_queue=request_queue, response_queue=response_queue)
 
+    def register_view(self, obj):
+        return self.service.http.register_view(obj)
+
 
 class ApplicationService(BackgroundProcessServiceStart, BaseService):
     def __init__(self, config):
-        self.app = ApplicationRPC()
+        self.http = ApplicationHTTP()
+        self.rpc = ApplicationRPC(self)
         self.exited = Event()
         super().__init__()
 
     def get_component_name(self):
         return "weaveserver.services.appmanager"
 
+    def before_service_start(self):
+        # Need to override to prevent rpc_client connecting.
+        pass
+
     def on_service_start(self, *args, **kwargs):
-        self.app.start()
+        self.rpc.start()
+        Thread(target=self.http.run, kwargs={"host": "", "port": 5000},
+               daemon=True).start()
         self.notify_start()
         self.exited.wait()
 
     def on_service_stop(self):
         self.exited.set()
-        self.app.stop()
+        self.rpc.stop()

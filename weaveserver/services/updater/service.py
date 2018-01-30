@@ -195,7 +195,7 @@ class UpdaterService(BackgroundProcessServiceStart, BaseService):
                       self.update_scanner.check_updates),
             ServerAPI("perform_upgrade", "Perform update", [],
                       self.updater.perform_upgrade),
-        ])
+        ], self)
 
         self.status_lock = RLock()
         self.status = "No updates available."

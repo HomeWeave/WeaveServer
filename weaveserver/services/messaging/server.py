@@ -384,6 +384,10 @@ class MessageService(BackgroundProcessServiceStart, BaseService):
     def get_component_name(self):
         return "weaveserver.services.messaging"
 
+    def before_service_start(self):
+        # Need to override to prevent rpc_client connecting.
+        pass
+
     def on_service_start(self, *args, **kwargs):
         self.message_server = MessageServer(self, self.PORT, self.redis_config)
         self.message_server.run()

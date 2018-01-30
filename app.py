@@ -23,6 +23,7 @@ def handle_launch():
 
     signal.signal(signal.SIGTERM, lambda x, y: app.on_service_stop())
     signal.signal(signal.SIGINT, lambda x, y: app.on_service_stop())
+    app.before_service_start()
     app.on_service_start()
 
 
