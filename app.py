@@ -3,7 +3,6 @@ eventlet.monkey_patch()  # NOLINT
 
 
 import importlib
-import os
 import sys
 from weaveserver.main import create_app
 from weaveserver.core.logger import configure_logging
@@ -14,7 +13,7 @@ def handle_launch():
     from weaveserver.core.config_loader import get_config
     configure_logging()
 
-    name = sys.argv[2]
+    name = sys.argv[1]
     module = importlib.import_module(name)
     meta = module.__meta__
 
@@ -27,18 +26,8 @@ def handle_launch():
     app.on_service_start()
 
 
-def handle_quit(app):
-    import signal
-    app.on_service_stop()
-    os.kill(os.getpid(), signal.SIGKILL)
-
-
-if __name__ == '__main__':
+def handle_main():
     configure_logging()
-    if sys.argv[1] == 'main':
-        main_app = create_app()
-        main_app.start()
-    elif sys.argv[1] == 'launch-service':
-        handle_launch()
-    else:
-        print("Invalid mode.")
+
+    main_app = create_app()
+    main_app.start()

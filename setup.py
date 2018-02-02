@@ -18,7 +18,8 @@ setup(
     ],
     entry_points={
         'console_scripts': [
-            'weave-app = app:handle_launch'
+            'weave-launch = app:handle_launch',
+            'weave-main = app:handle_main'
         ]
     }
 )
