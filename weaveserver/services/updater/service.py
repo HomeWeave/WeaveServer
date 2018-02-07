@@ -16,6 +16,15 @@ SCRIPTS_DIR = "/home/rpi/scripts"
 CODE_DIR = os.path.expanduser("~/Code")
 
 
+def reboot(self):
+    logger.info("Rebooting..")
+    reboot_path = os.path.join(SCRIPTS_DIR, "reboot.sh")
+    args = [reboot_path]
+    with subprocess.Popen(args) as proc:
+        proc.wait()
+        return proc.returncode
+
+
 class PercentProgressIndicator(RemoteProgress):
     """Specialization that calls back a function with a percentage indicator"""
     def __init__(self, callback):
@@ -157,16 +166,7 @@ class Updater(object):
 
         self.update_status("Configuration complete. Restarting ..")
 
-        self.reboot()
-
-    def reboot(self):
-        logger.info("Rebooting..")
-        self.update_status("Going down for restart ..")
-        reboot_path = os.path.join(SCRIPTS_DIR, "reboot.sh")
-        args = [reboot_path]
-        with subprocess.Popen(args) as proc:
-            proc.wait()
-            return proc.returncode
+        reboot()
 
     def perform_ansible_update(self):
         logger.info("Running ansible")
@@ -195,6 +195,8 @@ class UpdaterService(BackgroundProcessServiceStart, BaseService):
                       self.update_scanner.check_updates),
             ServerAPI("perform_upgrade", "Perform update", [],
                       self.updater.perform_upgrade),
+            ServerAPI("reboot", "Reboot the system", [], reboot),
+            ServerAPI("status", "Get the current status.", [], self.get_status)
         ], self)
 
         self.status_lock = RLock()
