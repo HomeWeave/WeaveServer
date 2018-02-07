@@ -6,7 +6,6 @@ import importlib
 import logging
 import os
 import threading
-from collections import namedtuple
 
 from weavelib.services import Module
 
@@ -30,7 +29,8 @@ def list_modules(module):
             logger.warning("No __meta__ in services/%s.", name)
             continue
         deps = module_meta["deps"]
-        res.append(Module(name=name, deps=deps, meta=module_meta))
+        res.append(Module(name=name, deps=deps, meta=module_meta,
+                          package_path="weaveserver/services/" + name))
     return res
 
 
