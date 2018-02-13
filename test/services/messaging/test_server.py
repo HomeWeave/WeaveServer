@@ -8,6 +8,7 @@ from weavelib.messaging import Sender, Receiver, Creator, RequiredFieldsMissing
 from weavelib.messaging import QueueNotFound, SchemaValidationFailed
 from weavelib.messaging import InvalidMessageStructure, BadOperation
 from weavelib.messaging import QueueAlreadyExists, InternalMessagingError
+from weavelib.messaging import AuthenticationFailed
 from weavelib.messaging import read_message
 from weavelib.messaging.messaging import ensure_ok_message
 
@@ -18,6 +19,12 @@ CONFIG = {
     "redis_config": {
         "USE_FAKE_REDIS": True
     },
+    "apps": {
+        "auth1": {
+            "appid": "blah",
+            "type": "SYSTEM"
+        },
+    }
 }
 
 TEST_QUEUES = [
@@ -83,7 +90,7 @@ class TestMessagingService(object):
         creator = Creator()
         creator.start()
         for queue_info in TEST_QUEUES:
-            creator.create(queue_info)
+            creator.create(queue_info, headers={"AUTH": "auth1"})
 
     @classmethod
     def teardown_class(cls):
@@ -304,10 +311,10 @@ class TestMessagingService(object):
         }
         creator = Creator()
         creator.start()
-        creator.create(queue_info)
+        creator.create(queue_info, headers={"AUTH": "auth1"})
 
         with pytest.raises(QueueAlreadyExists):
-            creator.create(queue_info)
+            creator.create(queue_info, headers={"AUTH": "auth1"})
 
     def test_create_bad_schema_object(self):
         queue_info = {
@@ -317,7 +324,7 @@ class TestMessagingService(object):
         creator = Creator()
         creator.start()
         with pytest.raises(SchemaValidationFailed):
-            creator.create(queue_info)
+            creator.create(queue_info, headers={"AUTH": "auth1"})
 
     def test_create_incorrect_schema(self):
         queue_info = {
@@ -327,7 +334,7 @@ class TestMessagingService(object):
         creator = Creator()
         creator.start()
         with pytest.raises(SchemaValidationFailed):
-            creator.create(queue_info)
+            creator.create(queue_info, headers={"AUTH": "auth1"})
 
     def test_create_without_request_schema(self):
         queue_info = {
@@ -336,7 +343,7 @@ class TestMessagingService(object):
         creator = Creator()
         creator.start()
         with pytest.raises(SchemaValidationFailed):
-            creator.create(queue_info)
+            creator.create(queue_info, headers={"AUTH": "auth1"})
 
     def test_enqueue_sessionized_without_key(self):
         queue_info = {
@@ -346,7 +353,7 @@ class TestMessagingService(object):
         }
         creator = Creator()
         creator.start()
-        creator.create(queue_info)
+        creator.create(queue_info, headers={"AUTH": "auth1"})
 
         sender = Sender("/test.sessionized")
         sender.start()
@@ -367,7 +374,7 @@ class TestMessagingService(object):
         }
         creator = Creator()
         creator.start()
-        creator.create(queue_info)
+        creator.create(queue_info, headers={"AUTH": "auth1"})
 
         sender1 = Sender("/test.sessionized2")
         sender1.start()
@@ -408,7 +415,7 @@ class TestMessagingService(object):
         }
         creator = Creator()
         creator.start()
-        creator.create(queue_info)
+        creator.create(queue_info, headers={"AUTH": "auth1"})
 
         senders = []
         receivers = []
@@ -441,6 +448,16 @@ class TestMessagingService(object):
         for i in range(10):
             assert texts[i] == receivers[i].receive().task
 
+    def test_no_auth_create(self):
+        queue_info = {
+            "queue_name": "/test.auth/1",
+            "request_schema": {"type": "string"}
+        }
+        creator = Creator()
+        creator.start()
+        with pytest.raises(AuthenticationFailed):
+            creator.create(queue_info)
+
 
 class TestMessagingServiceWithRealRedis(object):
     """ Obviously, we do not have Redis running. Testing for graceful fails."""
@@ -459,7 +476,8 @@ class TestMessagingServiceWithRealRedis(object):
         creator = Creator()
         creator.start()
         with pytest.raises(InternalMessagingError):
-            creator.create({"queue_name": "dummy", "request_schema": {}})
+            creator.create({"queue_name": "dummy", "request_schema": {}},
+                           headers={"AUTH": "auth1"})
 
         service.on_service_stop()
         service_thread.join()

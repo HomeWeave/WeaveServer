@@ -12,11 +12,11 @@ from jsonschema import validate, ValidationError, SchemaError
 from redis import Redis, ConnectionError as RedisConnectionError
 
 from weavelib.messaging import read_message, serialize_message, Message
-from weavelib.messaging import QueueAlreadyExists
+from weavelib.messaging import QueueAlreadyExists, AuthenticationFailed
 from weavelib.messaging import SchemaValidationFailed, BadOperation
 from weavelib.messaging import RequiredFieldsMissing, InternalMessagingError
 from weavelib.messaging import MessagingException, QueueNotFound
-from weavelib.services import BaseService, BackgroundProcessServiceStart
+from weavelib.services import BaseService, BackgroundThreadServiceStart
 
 
 logger = logging.getLogger(__name__)
@@ -216,9 +216,19 @@ class KeyedStickyQueue(BaseQueue):
 class MessageHandler(StreamRequestHandler):
     def handle(self):
         sess = str(uuid4())
+        app_info = None
         while True:
             try:
                 msg = read_message(self.rfile)
+
+                auth_header = msg.headers.get("AUTH")
+                if auth_header:
+                    app_info = self.server.apps_auth.get(auth_header)
+
+                if app_info is None:
+                    app_info = {}
+
+                msg.headers["AUTH"] = app_info
                 msg.headers["SESS"] = sess
                 self.reply(self.server.handle_message(msg))
             except MessagingException as e:
@@ -236,7 +246,7 @@ class MessageServer(ThreadingTCPServer):
     allow_reuse_address = True
     daemon_threads = True
 
-    def __init__(self, service, port, redis_config):
+    def __init__(self, service, port, redis_config, apps_auth):
         super().__init__(("", port), MessageHandler)
         self.service = service
         self.sent_start_notification = False
@@ -246,6 +256,7 @@ class MessageServer(ThreadingTCPServer):
         self.sticky_messages = {}
         self.clients = {}
         self.redis_config = redis_config
+        self.apps_auth = apps_auth
 
     def create_queue(self, queue_info):
         try:
@@ -303,8 +314,7 @@ class MessageServer(ThreadingTCPServer):
             raise QueueNotFound(queue_name)
         except ValidationError:
             msg = "Schema: {}, on instance: {}, for queue: {}".format(
-                    queue.queue_info["request_schema"], msg.task,
-                    queue)
+                    queue.queue_info["request_schema"], msg.task, queue)
             raise SchemaValidationFailed(msg)
         except RedisConnectionError:
             logger.exception("Failed to talk to Redis.")
@@ -325,7 +335,17 @@ class MessageServer(ThreadingTCPServer):
         if msg.task is None:
             raise RequiredFieldsMissing("QueueInfo is required for create.")
 
-        queue_name = os.path.join("/", msg.task["queue_name"].lstrip("/"))
+        app_info = get_required_field(msg.headers, "AUTH")
+        if app_info.get("type") == "SYSTEM":
+            queue_name = os.path.join("/", msg.task["queue_name"].lstrip("/"))
+        elif app_info:
+            queue_name = os.path.join("/plugins",
+                                      app_info["package"].strip("/"),
+                                      app_info["appid"],
+                                      msg.task["queue_name"].lstrip("/"))
+        else:
+            raise AuthenticationFailed("AUTH header required.")
+
         msg.task["queue_name"] = queue_name
         with self.queue_map_lock:
             if queue_name in self.queue_map:
@@ -358,11 +378,12 @@ class MessageServer(ThreadingTCPServer):
         super().server_close()
 
 
-class MessageService(BackgroundProcessServiceStart, BaseService):
+class MessageService(BackgroundThreadServiceStart, BaseService):
     PORT = 11023
 
     def __init__(self, config):
         self.redis_config = config["redis_config"]
+        self.apps_auth = config["apps"]
         super().__init__()
 
     def get_component_name(self):
@@ -372,7 +393,8 @@ class MessageService(BackgroundProcessServiceStart, BaseService):
         """Need to override to prevent rpc_client connecting."""
 
     def on_service_start(self, *args, **kwargs):
-        self.message_server = MessageServer(self, self.PORT, self.redis_config)
+        self.message_server = MessageServer(self, self.PORT, self.redis_config,
+                                            self.apps_auth)
         self.message_server.run()
 
     def on_service_stop(self):
