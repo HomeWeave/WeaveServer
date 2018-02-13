@@ -22,6 +22,12 @@ from weavelib.services import BaseService, BackgroundProcessServiceStart
 logger = logging.getLogger(__name__)
 
 
+def get_required_field(headers, key):
+    if key not in headers:
+        raise RequiredFieldsMissing("'{}' is required.".format(key))
+    return headers[key]
+
+
 class FakeRedis(object):
     """ Fake Redis. Use for testing only. Uses queue.Queue."""
     def __init__(self):
@@ -111,10 +117,7 @@ class SessionizedQueue(BaseQueue):
         self.condition = Condition()
 
     def enqueue(self, task, headers):
-        try:
-            cookie = headers["COOKIE"]
-        except KeyError:
-            raise RequiredFieldsMissing("No COOKIE for sessionized queue.")
+        cookie = get_required_field(headers, "COOKIE")
         self.validate_schema(task)
 
         obj = {
@@ -129,10 +132,7 @@ class SessionizedQueue(BaseQueue):
             self.condition.notify_all()
 
     def dequeue(self, headers):
-        try:
-            requestor_id = headers["COOKIE"]
-        except KeyError:
-            raise RequiredFieldsMissing("No COOKIE for sessionized queue.")
+        requestor_id = get_required_field(headers, "COOKIE")
 
         dequeue_result = []
 
@@ -193,10 +193,7 @@ class KeyedStickyQueue(BaseQueue):
         self.condition = Condition()
 
     def enqueue(self, task, headers):
-        try:
-            key = headers["KEY"]
-        except KeyError:
-            raise RequiredFieldsMissing("Field 'KEY' is required.")
+        key = get_required_field(headers, "KEY")
 
         self.validate_schema(task)
         with self.condition:
@@ -297,11 +294,8 @@ class MessageServer(ThreadingTCPServer):
     def handle_enqueue(self, msg):
         if msg.task is None:
             raise RequiredFieldsMissing("Task is required for enqueue.")
-        try:
-            queue_name = msg.headers["Q"]
-        except KeyError:
-            raise RequiredFieldsMissing("Field 'Q' is required for enqueue.")
 
+        queue_name = get_required_field(msg.headers, "Q")
         try:
             queue = self.queue_map[queue_name]
             queue.enqueue(msg.task, msg.headers)
@@ -317,11 +311,7 @@ class MessageServer(ThreadingTCPServer):
             raise InternalMessagingError()
 
     def handle_dequeue(self, msg):
-        try:
-            queue_name = msg.headers["Q"]
-        except KeyError:
-            raise RequiredFieldsMissing("Field 'Q' is required for dequeue.")
-
+        queue_name = get_required_field(msg.headers, "Q")
         try:
             queue = self.queue_map[queue_name]
             return queue.dequeue(msg.headers)
