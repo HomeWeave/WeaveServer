@@ -69,7 +69,7 @@ class ServiceManager(object):
         self.start_service(messaging_module, error_modules, apps=self.apps)
 
         for module in self.service_modules:
-            self.start_service(module, error_modules)
+            self.start_service(module, error_modules, apps=self.apps)
 
         total_services = len(self.service_modules)
         started_services = total_services - len(error_modules)
