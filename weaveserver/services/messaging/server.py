@@ -378,7 +378,7 @@ class MessageServer(ThreadingTCPServer):
 
         self.queue_map[msg.task["queue_name"]] = queue
 
-        print("Connected: %s", queue)
+        logger.info("Connected: %s", queue)
 
         return queue_name
 
