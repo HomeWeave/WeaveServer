@@ -44,6 +44,7 @@ class FakeRedis(object):
 class BaseQueue(object):
     def __init__(self, queue_info):
         self.queue_info = queue_info
+        self.auth_forced = False
 
     def connect(self):
         return True
@@ -58,6 +59,23 @@ class BaseQueue(object):
         return (self.__class__.__name__ +
                 "({})".format(self.queue_info["queue_name"]))
 
+    @property
+    def force_auth(self):
+        return self.auth_forced
+
+    @force_auth.setter
+    def force_auth(self, val):
+        self.auth_forced = val
+
+    def pack_message(self, task, headers):
+        reqd_headers = {"AUTH"}
+        return {
+            "task": task,
+            "headers": {x: headers[x] for x in reqd_headers if x in headers}
+        }
+
+    def unpack_message(self, obj):
+        return obj["task"], obj["headers"]
 
 class RedisQueue(BaseQueue):
     REDIS_PORT = 6379
@@ -77,15 +95,16 @@ class RedisQueue(BaseQueue):
 
     def enqueue(self, task, headers):
         self.validate_schema(task)
-        self.get_connection().lpush(self.redis_queue, json.dumps(task))
+        obj = self.pack_message(task, headers)
+        self.get_connection().lpush(self.redis_queue, json.dumps(obj))
         return True
 
     def dequeue(self, headers):
         timeout = int(headers.get("TIMEOUT", "0"))
         data = self.get_connection().brpop(self.redis_queue, timeout=timeout)
         if data:
-            task = json.loads(data[1])
-            return task
+            obj = json.loads(data[1])
+            return self.unpack_message(obj)
         logger.warning("Redis dequeue returned nothing: %s", data)
         return None
 
@@ -120,11 +139,10 @@ class SessionizedQueue(BaseQueue):
         cookie = get_required_field(headers, "COOKIE")
         self.validate_schema(task)
 
-        obj = {
-            "cookie": cookie,
-            "task": task,
-            "time": time.time()
-        }
+        obj = self.pack_message(task, headers)
+        obj["cookie"] = cookie
+        obj["time"] = time.time()
+
         with self.condition:
             self.latest_version += 1
             obj["version"] = self.latest_version
@@ -143,7 +161,7 @@ class SessionizedQueue(BaseQueue):
                     continue
                 if msg["cookie"] == requestor_id:
                     self.requestor_version_map[requestor_id] = msg["version"]
-                    dequeue_result.append(msg["task"])
+                    dequeue_result.append(self.unpack_message(msg))
                     return True
             return False
 
@@ -163,7 +181,7 @@ class StickyQueue(BaseQueue):
     def enqueue(self, task, headers):
         self.validate_schema(task)
         with self.condition:
-            self.sticky_message = task
+            self.sticky_message = self.pack_message(task, headers)
             self.requestors = set()
             self.condition.notify_all()
 
@@ -178,10 +196,7 @@ class StickyQueue(BaseQueue):
         with self.condition:
             self.condition.wait_for(can_dequeue)
             self.requestors.add(requestor_id)
-            return self.sticky_message
-
-    def connect(self):
-        return True
+            return self.unpack_message(self.sticky_message)
 
 
 class KeyedStickyQueue(BaseQueue):
@@ -193,6 +208,7 @@ class KeyedStickyQueue(BaseQueue):
         self.condition = Condition()
 
     def enqueue(self, task, headers):
+        # Sticky Map doesn't support AUTH.
         key = get_required_field(headers, "KEY")
 
         self.validate_schema(task)
@@ -202,6 +218,7 @@ class KeyedStickyQueue(BaseQueue):
             self.condition.notify_all()
 
     def dequeue(self, headers):
+        # Sticky Map doesn't support AUTH.
         requestor_id = headers["SESS"]
 
         def can_dequeue():
@@ -210,7 +227,7 @@ class KeyedStickyQueue(BaseQueue):
         with self.condition:
             self.condition.wait_for(can_dequeue)
             self.requestor_map[requestor_id] = self.sticky_map_version
-            return self.sticky_map
+            return self.sticky_map, {}
 
 
 class MessageHandler(StreamRequestHandler):
@@ -220,15 +237,6 @@ class MessageHandler(StreamRequestHandler):
         while True:
             try:
                 msg = read_message(self.rfile)
-
-                auth_header = msg.headers.get("AUTH")
-                if auth_header:
-                    app_info = self.server.apps_auth.get(auth_header)
-
-                if app_info is None:
-                    app_info = {}
-
-                msg.headers["AUTH"] = app_info
                 msg.headers["SESS"] = sess
                 self.reply(self.server.handle_message(msg))
             except MessagingException as e:
@@ -281,23 +289,27 @@ class MessageServer(ThreadingTCPServer):
 
         cls = queue_types[queue_info.get("queue_type", "redis")]
         queue = cls(queue_info, queue_name, self.redis_config)
+        queue.force_auth = queue_info.get("force_auth", False)
         self.queue_map[queue_name] = queue
         logger.info("Connecting to %s", queue)
         return queue
 
     def handle_message(self, msg):
         if msg.operation == "dequeue":
-            item = self.handle_dequeue(msg)
-            return serialize_message(Message("inform", item))
+            task, headers = self.handle_dequeue(msg)
+            msg = Message("inform", task)
+            msg.headers.update(headers)
+            return serialize_message(msg)
         elif msg.operation == "enqueue":
             self.handle_enqueue(msg)
             msg = Message("result")
             msg.headers["RES"] = "OK"
             return serialize_message(msg)
         elif msg.operation == "create":
-            self.handle_create(msg)
+            queue_name = self.handle_create(msg)
             msg = Message("result")
             msg.headers["RES"] = "OK"
+            msg.headers["Q"] = queue_name
             return serialize_message(msg)
         else:
             raise BadOperation(msg.operation)
@@ -309,6 +321,7 @@ class MessageServer(ThreadingTCPServer):
         queue_name = get_required_field(msg.headers, "Q")
         try:
             queue = self.queue_map[queue_name]
+            self.preprocess(msg)
             queue.enqueue(msg.task, msg.headers)
         except KeyError:
             raise QueueNotFound(queue_name)
@@ -335,18 +348,26 @@ class MessageServer(ThreadingTCPServer):
         if msg.task is None:
             raise RequiredFieldsMissing("QueueInfo is required for create.")
 
+        self.preprocess(msg)
+
         app_info = get_required_field(msg.headers, "AUTH")
+        if app_info is None:
+            raise AuthenticationFailed("AUTH header missing/invalid.")
+
         if app_info.get("type") == "SYSTEM":
             queue_name = os.path.join("/", msg.task["queue_name"].lstrip("/"))
-        elif app_info:
+        else:
             queue_name = os.path.join("/plugins",
                                       app_info["package"].strip("/"),
                                       app_info["appid"],
                                       msg.task["queue_name"].lstrip("/"))
-        else:
-            raise AuthenticationFailed("AUTH header required.")
 
         msg.task["queue_name"] = queue_name
+
+        if msg.task.get("queue_type") == "keyedsticky" and \
+                msg.task.get("force_auth"):
+            raise BadOperation("KeyedSticky can not force AUTH.")
+
         with self.queue_map_lock:
             if queue_name in self.queue_map:
                 raise QueueAlreadyExists(queue_name)
@@ -357,7 +378,13 @@ class MessageServer(ThreadingTCPServer):
 
         self.queue_map[msg.task["queue_name"]] = queue
 
-        logger.info("Connected: %s", queue)
+        print("Connected: %s", queue)
+
+        return queue_name
+
+    def preprocess(self, msg):
+        if "AUTH" in msg.headers:
+            msg.headers["AUTH"] = self.apps_auth.get(msg.headers["AUTH"])
 
     def run(self):
         for queue in self.queue_map.values():

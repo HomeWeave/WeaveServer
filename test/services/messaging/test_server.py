@@ -24,6 +24,9 @@ CONFIG = {
             "appid": "blah",
             "type": "SYSTEM"
         },
+        "auth2": {
+            "appid": "plugin"
+        }
     }
 }
 
@@ -455,8 +458,11 @@ class TestMessagingService(object):
         }
         creator = Creator()
         creator.start()
-        with pytest.raises(AuthenticationFailed):
+        with pytest.raises(RequiredFieldsMissing):
             creator.create(queue_info)
+
+        with pytest.raises(AuthenticationFailed):
+            creator.create(queue_info, headers={"AUTH": "hello"})
 
 
 class TestMessagingServiceWithRealRedis(object):
