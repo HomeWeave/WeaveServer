@@ -91,7 +91,7 @@ class ApplicationRPC(object):
         self.queue_creator.close()
 
     def register_rpc(self, name, description, request_schema, response_schema):
-        print("Request to register..")
+
         base_queue = "/components/{}/rpcs/{}".format(str(uuid4()), name)
         request_queue = base_queue + "/request"
         response_queue = base_queue + "/response"
@@ -99,6 +99,7 @@ class ApplicationRPC(object):
         self.queue_creator.create({
             "queue_name": request_queue,
             "request_schema": request_schema,
+            "force_auth": True,
         })
 
         self.queue_creator.create({
@@ -114,6 +115,7 @@ class ApplicationRPC(object):
 
 class ApplicationService(BackgroundProcessServiceStart, BaseService):
     def __init__(self, config):
+        self.apps = config["apps"]
         self.http = ApplicationHTTP()
         self.rpc = ApplicationRPC(self)
         self.exited = Event()
