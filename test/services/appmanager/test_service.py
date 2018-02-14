@@ -11,6 +11,17 @@ from weaveserver.core.services import ServiceManager
 from weaveserver.services.appmanager import ApplicationService
 
 
+AUTH = {
+    "auth1": {
+        "type": "SYSTEM",
+        "appid": "auth1"
+    },
+    "auth2": {
+        "appid": "appid2"
+    }
+}
+
+
 class DummyService(BaseService):
     def __init__(self):
         self.rpc_server = RPCServer("name", "desc", [
@@ -33,8 +44,9 @@ class TestApplicationService(object):
     def setup_class(cls):
         os.environ["USE_FAKE_REDIS"] = "TRUE"
         cls.service_manager = ServiceManager()
+        cls.service_manager.apps = AUTH
         cls.service_manager.start_services(["messaging"])
-        cls.appmgr = ApplicationService(None)
+        cls.appmgr = ApplicationService({"apps": AUTH})
         cls.appmgr.exited.set()
         cls.appmgr.on_service_start()
 
