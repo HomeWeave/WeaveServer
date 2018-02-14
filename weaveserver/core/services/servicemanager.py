@@ -6,6 +6,7 @@ import importlib
 import logging
 import os
 import threading
+from uuid import uuid4
 
 from weavelib.services import Module
 
@@ -54,31 +55,56 @@ class ServiceManager(object):
         self.services = []
         self.active = threading.Event()
 
+        self.apps = {}  # Unique tokens given to services for authenticate.
+
     def run(self):
         """ Sequentially starts all the services."""
+
+        messaging_module = self.module_map["messaging"]
+        if messaging_module in self.service_modules:
+            self.service_modules.remove(messaging_module)
+
         error_modules = set()
+
+        self.start_service(messaging_module, error_modules, apps=self.apps)
+
         for module in self.service_modules:
-            config = get_config(module.get_config())
-            service = module.meta["class"](config)
+            self.start_service(module, error_modules)
 
-            if any(x in error_modules for x in module.deps):
-                logger.warning("Not starting %s", module.name)
-                error_modules.add(module.name)
-                continue
-
-            service.service_start()
-            if not service.wait_for_start(config.get("start_timeout", 10)):
-                service.service_stop()
-                error_modules.add(module.name)
-                logger.info("Failed to start service: %s", module.name)
-                continue
-            self.services.append(service)
-            logger.info("Started service: %s", module.name)
         total_services = len(self.service_modules)
         started_services = total_services - len(error_modules)
         logger.info("Started %d out of %d services.",
                     started_services, total_services)
         return started_services, total_services
+
+    def start_service(self, module, error_modules, **kwargs):
+        if any(x in error_modules for x in module.deps):
+            logger.warning("Not starting %s", module.name)
+            error_modules.add(module.name)
+            return False
+
+        app_token = "app-token-" + str(uuid4())
+        config = get_config(module.get_config())
+        config.update(kwargs)
+
+        self.apps[app_token] = {
+            "type": "SYSTEM",
+            "appid": "app-id-" + str(uuid4()),
+            "package": module.package_path,
+        }
+
+        service = module.meta["class"](config)
+        service.service_start()
+
+        if not service.wait_for_start(config.get("start_timeout", 10)):
+            service.service_stop()
+            error_modules.add(module.name)
+            logger.info("Failed to start service: %s", module.name)
+            return False
+
+        self.services.append(service)
+        logger.info("Started service: %s", module.name)
+        return True
 
     def wait(self):
         self.active.wait()
