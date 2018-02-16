@@ -85,7 +85,7 @@ class TestMessagingService(object):
     @classmethod
     def setup_class(cls):
         event = Event()
-        cls.service = MessageService(CONFIG)
+        cls.service = MessageService(None, CONFIG)
         cls.service.notify_start = lambda: event.set()
         cls.service_thread = Thread(target=cls.service.on_service_start)
         cls.service_thread.start()
@@ -159,7 +159,7 @@ class TestMessagingService(object):
         r = Receiver("/a.b.c")
         s.start()
         r.start()
-        r.on_message = lambda msg: msgs.append(msg) or r.stop()
+        r.on_message = lambda msg, hdrs: msgs.append(msg) or r.stop()
 
         s.send({"foo": "bar"})
         thread = Thread(target=r.run)
@@ -181,7 +181,7 @@ class TestMessagingService(object):
 
         expected_message_count = 10
 
-        def on_message(msg):
+        def on_message(msg, headers):
             assert msg == obj
             nonlocal expected_message_count
             if expected_message_count == 1:
@@ -196,7 +196,7 @@ class TestMessagingService(object):
 
     def test_sticky_simple_enqueue_dequeue(self):
         def make_receiver(count, msgs, sem, r):
-            def on_message(msg):
+            def on_message(msg, headers):
                 msgs.append(msg)
                 sem.release()
                 nonlocal count
@@ -253,7 +253,7 @@ class TestMessagingService(object):
 
     def test_keyed_sticky(self):
         def make_receiver(count, obj, sem, r):
-            def on_message(msg):
+            def on_message(msg, headers):
                 obj.update(msg)
                 sem.release()
                 nonlocal count
@@ -387,20 +387,18 @@ class TestMessagingService(object):
         sender2.start()
         sender2.send("diff", headers={"COOKIE": "diff"})
 
-        receiver1 = Receiver("/test.sessionized2")
+        receiver1 = Receiver("/test.sessionized2", cookie="xyz")
         receiver1.start()
-        receiver1.receive_headers = lambda: {"COOKIE": "xyz"}
 
-        receiver2 = Receiver("/test.sessionized2")
+        receiver2 = Receiver("/test.sessionized2", cookie="diff")
         receiver2.start()
-        receiver2.receive_headers = lambda: {"COOKIE": "diff"}
 
         assert receiver1.receive().task == "test"
         assert receiver2.receive().task == "diff"
 
         # Test retrieving items for the second time.
         event = Event()
-        receiver2.on_message = event.set
+        receiver2.on_message = lambda x, y: event.set()
         thread = Thread(target=receiver2.run)
         thread.start()
 
@@ -433,9 +431,8 @@ class TestMessagingService(object):
             sender.start()
             senders.append(sender)
 
-            receiver = Receiver("/test.sessionized/several")
+            receiver = Receiver("/test.sessionized/several", cookie=cookie)
             receiver.start()
-            receiver.receive_headers = (lambda c: lambda: {"COOKIE": c})(cookie)
             receivers.append(receiver)
 
             text = "text" + str(i)
@@ -473,7 +470,7 @@ class TestMessagingServiceWithRealRedis(object):
         config = deepcopy(CONFIG)
         config["redis_config"]["USE_FAKE_REDIS"] = False
 
-        service = MessageService(config)
+        service = MessageService("token", config)
         service.notify_start = lambda: event.set()
         service_thread = Thread(target=service.on_service_start)
         service_thread.start()

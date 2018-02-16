@@ -44,7 +44,6 @@ class FakeRedis(object):
 class BaseQueue(object):
     def __init__(self, queue_info):
         self.queue_info = queue_info
-        self.auth_forced = False
 
     def connect(self):
         return True
@@ -55,17 +54,18 @@ class BaseQueue(object):
     def validate_schema(self, msg):
         validate(msg, self.queue_info["request_schema"])
 
-    def __repr__(self):
-        return (self.__class__.__name__ +
-                "({})".format(self.queue_info["queue_name"]))
+    def check_auth(self, task, headers):
+        if not self.queue_info.get("force_auth"):
+            return
 
-    @property
-    def force_auth(self):
-        return self.auth_forced
+        if not headers.get("AUTH"):
+            raise AuthenticationFailed
 
-    @force_auth.setter
-    def force_auth(self, val):
-        self.auth_forced = val
+        if headers["AUTH"]["type"] == "SYSTEM":
+            return
+
+        if headers["AUTH"]["appid"] not in self.queue_info["auth_whitelist"]:
+            raise AuthenticationFailed
 
     def pack_message(self, task, headers):
         reqd_headers = {"AUTH"}
@@ -76,6 +76,11 @@ class BaseQueue(object):
 
     def unpack_message(self, obj):
         return obj["task"], obj["headers"]
+
+    def __repr__(self):
+        return (self.__class__.__name__ +
+                "({})".format(self.queue_info["queue_name"]))
+
 
 class RedisQueue(BaseQueue):
     REDIS_PORT = 6379
@@ -95,11 +100,13 @@ class RedisQueue(BaseQueue):
 
     def enqueue(self, task, headers):
         self.validate_schema(task)
+        self.check_auth(task, headers)
         obj = self.pack_message(task, headers)
         self.get_connection().lpush(self.redis_queue, json.dumps(obj))
         return True
 
     def dequeue(self, headers):
+        self.check_auth(None, headers)
         timeout = int(headers.get("TIMEOUT", "0"))
         data = self.get_connection().brpop(self.redis_queue, timeout=timeout)
         if data:
@@ -138,6 +145,7 @@ class SessionizedQueue(BaseQueue):
     def enqueue(self, task, headers):
         cookie = get_required_field(headers, "COOKIE")
         self.validate_schema(task)
+        self.check_auth(task, headers)
 
         obj = self.pack_message(task, headers)
         obj["cookie"] = cookie
@@ -151,6 +159,7 @@ class SessionizedQueue(BaseQueue):
 
     def dequeue(self, headers):
         requestor_id = get_required_field(headers, "COOKIE")
+        self.check_auth(None, headers)
 
         dequeue_result = []
 
@@ -180,6 +189,7 @@ class StickyQueue(BaseQueue):
 
     def enqueue(self, task, headers):
         self.validate_schema(task)
+        self.check_auth(task, headers)
         with self.condition:
             self.sticky_message = self.pack_message(task, headers)
             self.requestors = set()
@@ -187,6 +197,7 @@ class StickyQueue(BaseQueue):
 
     def dequeue(self, headers):
         requestor_id = headers["SESS"]
+        self.check_auth(None, headers)
 
         def can_dequeue():
             has_msg = self.sticky_message is not None
@@ -266,7 +277,7 @@ class MessageServer(ThreadingTCPServer):
         self.redis_config = redis_config
         self.apps_auth = apps_auth
 
-    def create_queue(self, queue_info):
+    def create_queue(self, queue_info, headers):
         try:
             schema = queue_info["request_schema"]
             if not isinstance(schema, dict):
@@ -288,8 +299,8 @@ class MessageServer(ThreadingTCPServer):
         queue_name = queue_info["queue_name"]
 
         cls = queue_types[queue_info.get("queue_type", "redis")]
+        queue_info.get("auth_whitelist", set()).add(headers["AUTH"]["appid"])
         queue = cls(queue_info, queue_name, self.redis_config)
-        queue.force_auth = queue_info.get("force_auth", False)
         self.queue_map[queue_name] = queue
         logger.info("Connecting to %s", queue)
         return queue
@@ -371,7 +382,7 @@ class MessageServer(ThreadingTCPServer):
         with self.queue_map_lock:
             if queue_name in self.queue_map:
                 raise QueueAlreadyExists(queue_name)
-            queue = self.create_queue(msg.task)
+            queue = self.create_queue(msg.task, msg.headers)
 
         if not queue.connect():
             raise InternalMessagingError("Cant connect: " + queue_name)
@@ -408,10 +419,10 @@ class MessageServer(ThreadingTCPServer):
 class MessageService(BackgroundThreadServiceStart, BaseService):
     PORT = 11023
 
-    def __init__(self, config):
+    def __init__(self, token, config):
+        super().__init__(token)
         self.redis_config = config["redis_config"]
         self.apps_auth = config["apps"]
-        super().__init__()
 
     def get_component_name(self):
         return "weaveserver.services.messaging"
