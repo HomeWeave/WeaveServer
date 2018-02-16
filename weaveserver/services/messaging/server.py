@@ -61,7 +61,7 @@ class BaseQueue(object):
         if not headers.get("AUTH"):
             raise AuthenticationFailed
 
-        if headers["AUTH"]["type"] == "SYSTEM":
+        if headers["AUTH"].get("type") == "SYSTEM":
             return
 
         if headers["AUTH"]["appid"] not in self.queue_info["auth_whitelist"]:
@@ -298,14 +298,17 @@ class MessageServer(ThreadingTCPServer):
         }
         queue_name = queue_info["queue_name"]
 
+        creator_id = headers["AUTH"]["appid"]
+        queue_info.setdefault("auth_whitelist", set()).add(creator_id)
+
         cls = queue_types[queue_info.get("queue_type", "redis")]
-        queue_info.get("auth_whitelist", set()).add(headers["AUTH"]["appid"])
         queue = cls(queue_info, queue_name, self.redis_config)
         self.queue_map[queue_name] = queue
         logger.info("Connecting to %s", queue)
         return queue
 
     def handle_message(self, msg):
+        self.preprocess(msg)
         if msg.operation == "dequeue":
             task, headers = self.handle_dequeue(msg)
             msg = Message("inform", task)
@@ -328,11 +331,9 @@ class MessageServer(ThreadingTCPServer):
     def handle_enqueue(self, msg):
         if msg.task is None:
             raise RequiredFieldsMissing("Task is required for enqueue.")
-
         queue_name = get_required_field(msg.headers, "Q")
         try:
             queue = self.queue_map[queue_name]
-            self.preprocess(msg)
             queue.enqueue(msg.task, msg.headers)
         except KeyError:
             raise QueueNotFound(queue_name)
@@ -358,8 +359,6 @@ class MessageServer(ThreadingTCPServer):
     def handle_create(self, msg):
         if msg.task is None:
             raise RequiredFieldsMissing("QueueInfo is required for create.")
-
-        self.preprocess(msg)
 
         app_info = get_required_field(msg.headers, "AUTH")
         if app_info is None:

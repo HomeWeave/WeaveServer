@@ -25,7 +25,16 @@ CONFIG = {
             "type": "SYSTEM"
         },
         "auth2": {
-            "appid": "plugin"
+            "appid": "plugin",
+            "package": "com.plugin"
+        },
+        "auth3": {
+            "appid": "blah1",
+            "type": "SYSTEM"
+        },
+        "auth4": {
+            "appid": "plugin2",
+            "package": "com.plugin2"
         }
     }
 }
@@ -348,6 +357,22 @@ class TestMessagingService(object):
         with pytest.raises(SchemaValidationFailed):
             creator.create(queue_info, headers={"AUTH": "auth1"})
 
+    def test_system_app_queue_create(self):
+        queue = "/system/app/queue/create"
+        queue_info = {"queue_name": queue, "request_schema": {"type": "string"}}
+        creator = Creator()
+        creator.start()
+        assert creator.create(queue_info, headers={"AUTH": "auth1"}) == queue
+
+    def test_plugin_queue_create(self):
+        queue = "/app/queue/create"
+        queue_info = {"queue_name": queue, "request_schema": {"type": "string"}}
+        creator = Creator()
+        creator.start()
+
+        res = "/plugins/com.plugin/plugin/app/queue/create"
+        assert creator.create(queue_info, headers={"AUTH": "auth2"}) == res
+
     def test_enqueue_sessionized_without_key(self):
         queue_info = {
             "queue_name": "/test.sessionized",
@@ -460,6 +485,57 @@ class TestMessagingService(object):
 
         with pytest.raises(AuthenticationFailed):
             creator.create(queue_info, headers={"AUTH": "hello"})
+
+    def test_queue_access(self):
+        sys_queue = "/system/queue"
+        queue_postfix = "/test_plugin"
+
+        sys_creator = Creator(auth="auth1")
+        sys_creator.start()
+
+        plugin_creator = Creator(auth="auth2")
+        plugin_creator.start()
+
+        plugin_queue = plugin_creator.create({
+            "queue_name": queue_postfix,
+            "request_schema": {},
+            "force_auth": True
+        })
+        assert sys_queue == sys_creator.create({
+            "queue_name": sys_queue,
+            "request_schema": {},
+            "force_auth": True
+        })
+
+        senders = []
+        receivers = []
+        for i in range(1, 5):
+            senders.append(Sender(sys_queue, auth="auth" + str(i)))
+            senders[-1].start()
+
+            senders.append(Sender(plugin_queue, auth="auth" + str(i)))
+            senders[-1].start()
+
+            receivers.append(Receiver(sys_queue, auth="auth" + str(i)))
+            receivers[-1].start()
+
+            receivers.append(Receiver(plugin_queue, auth="auth" + str(i)))
+            receivers[-1].start()
+
+        success_indices = {0, 1, 3, 4, 5}
+        fail_indices = set(range(8)) - success_indices
+
+        for idx in success_indices:
+            senders[idx].send("test")
+            receivers[idx].receive().task == "test"
+
+        for idx in fail_indices:
+            with pytest.raises(AuthenticationFailed):
+                senders[idx].send("test")
+
+            with pytest.raises(AuthenticationFailed):
+                receivers[idx].receive()
+
 
 
 class TestMessagingServiceWithRealRedis(object):
