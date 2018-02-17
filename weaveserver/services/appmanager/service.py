@@ -100,7 +100,6 @@ class ApplicationRPC(object):
         self.queue_creator.create({
             "queue_name": request_queue,
             "request_schema": request_schema,
-            "force_auth": True,
         })
 
         self.queue_creator.create({
