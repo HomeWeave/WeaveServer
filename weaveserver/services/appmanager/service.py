@@ -21,11 +21,12 @@ class RootRPCServer(RPCServer):
         request_queue = "/_system/root_rpc/request"
         response_queue = "/_system/root_rpc/response"
 
-        creator = Creator()
+        creator = Creator(auth=self.service.auth_token)
         creator.start()
         creator.create({
             "queue_name": request_queue,
-            "request_schema": Draft4Validator.META_SCHEMA
+            "request_schema": Draft4Validator.META_SCHEMA,
+            "force_auth": True
         })
 
         creator.create({
@@ -79,8 +80,8 @@ class ApplicationRPC(object):
                 ArgParameter("object", "Regular(JSON) Object to register",
                              {"type": "object"})
             ], self.register_view)
-        ], None)
-        self.queue_creator = Creator()
+        ], service)
+        self.queue_creator = Creator(auth=service.auth_token)
 
     def start(self):
         self.rpc.start()
@@ -114,12 +115,11 @@ class ApplicationRPC(object):
 
 
 class ApplicationService(BackgroundProcessServiceStart, BaseService):
-    def __init__(self, config):
-        self.apps = config["apps"]
+    def __init__(self, token, config):
+        super().__init__(token)
         self.http = ApplicationHTTP()
         self.rpc = ApplicationRPC(self)
         self.exited = Event()
-        super().__init__()
 
     def get_component_name(self):
         return "weaveserver.services.appmanager"
