@@ -93,7 +93,7 @@ class ServiceManager(object):
             "package": module.package_path,
         }
 
-        service = module.meta["class"](config)
+        service = module.meta["class"](app_token, config)
         service.service_start()
 
         if not service.wait_for_start(config.get("start_timeout", 10)):
