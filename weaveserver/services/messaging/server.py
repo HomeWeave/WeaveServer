@@ -337,9 +337,10 @@ class MessageServer(ThreadingTCPServer):
         queue_name = get_required_field(msg.headers, "Q")
         try:
             queue = self.queue_map[queue_name]
-            queue.enqueue(msg.task, msg.headers)
         except KeyError:
             raise QueueNotFound(queue_name)
+        try:
+            queue.enqueue(msg.task, msg.headers)
         except ValidationError:
             msg = "Schema: {}, on instance: {}, for queue: {}".format(
                     queue.queue_info["request_schema"], msg.task, queue)
@@ -352,9 +353,10 @@ class MessageServer(ThreadingTCPServer):
         queue_name = get_required_field(msg.headers, "Q")
         try:
             queue = self.queue_map[queue_name]
-            return queue.dequeue(msg.headers)
         except KeyError:
             raise QueueNotFound(queue_name)
+        try:
+            return queue.dequeue(msg.headers)
         except RedisConnectionError:
             logger.exception("failed to talk to Redis.")
             raise InternalMessagingError
