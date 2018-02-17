@@ -13,15 +13,18 @@ def handle_launch():
     from weaveserver.core.config_loader import get_config
     configure_logging()
 
+    token = sys.stdin.readline().strip()
+
     name = sys.argv[1]
     module = importlib.import_module(name)
     meta = module.__meta__
 
     config = get_config(meta.get("config"))
-    app = meta["class"](config)
+    app = meta["class"](token, config)
 
     signal.signal(signal.SIGTERM, lambda x, y: app.on_service_stop())
     signal.signal(signal.SIGINT, lambda x, y: app.on_service_stop())
+
     app.before_service_start()
     app.on_service_start()
 
