@@ -59,13 +59,16 @@ class BaseQueue(object):
             return
 
         if not headers.get("AUTH"):
-            raise AuthenticationFailed
+            raise AuthenticationFailed("Invalid AUTH header.")
 
         if headers["AUTH"].get("type") == "SYSTEM":
             return
 
-        if headers["AUTH"]["appid"] not in self.queue_info["auth_whitelist"]:
-            raise AuthenticationFailed
+        appid = headers["AUTH"]["appid"]
+
+        if self.queue_info.get("authorization") and\
+                appid not in self.queue_info["auth_whitelist"]:
+            raise AuthenticationFailed("Unauthorized.")
 
     def pack_message(self, task, headers):
         reqd_headers = {"AUTH"}
