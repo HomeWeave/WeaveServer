@@ -14,7 +14,7 @@ from weaveserver.services.appmanager import ApplicationService
 AUTH = {
     "auth1": {
         "type": "SYSTEM",
-        "appid": "auth1"
+        "appid": "appmgr"
     },
     "auth2": {
         "appid": "appid2"
@@ -23,12 +23,12 @@ AUTH = {
 
 
 class DummyService(BaseService):
-    def __init__(self):
+    def __init__(self, token):
+        super(DummyService, self).__init__(token)
         self.rpc_server = RPCServer("name", "desc", [
             ServerAPI("api1", "desc2", [], self.api1),
         ], self)
         self.http = AppHTTPServer(self, None)
-        super(DummyService, self).__init__()
 
     def api1(self):
         return "OK"
@@ -46,7 +46,7 @@ class TestApplicationService(object):
         cls.service_manager = ServiceManager()
         cls.service_manager.apps = AUTH
         cls.service_manager.start_services(["messaging"])
-        cls.appmgr = ApplicationService({"apps": AUTH})
+        cls.appmgr = ApplicationService("auth1", {"apps": AUTH})
         cls.appmgr.exited.set()
         cls.appmgr.on_service_start()
 
@@ -55,10 +55,9 @@ class TestApplicationService(object):
         while True:
             try:
                 receiver.start()
+                break
             except:
                 time.sleep(1)
-                pass
-            break
 
     def teardown_class(cls):
         del os.environ["USE_FAKE_REDIS"]
@@ -66,7 +65,7 @@ class TestApplicationService(object):
         cls.appmgr.on_service_stop()
 
     def setup_method(self):
-        self.dummy_service = DummyService()
+        self.dummy_service = DummyService("auth2")
         self.dummy_service.service_start()
 
     def teardown_method(self):
