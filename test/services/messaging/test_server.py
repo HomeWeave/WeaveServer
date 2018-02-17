@@ -536,6 +536,8 @@ class TestMessagingService(object):
             with pytest.raises(AuthenticationFailed):
                 receivers[idx].receive()
 
+    def test_queue_authorization(self):
+        pass
 
 
 class TestMessagingServiceWithRealRedis(object):
