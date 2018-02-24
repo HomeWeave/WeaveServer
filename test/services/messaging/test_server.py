@@ -90,6 +90,17 @@ def send_raw(msg):
     ensure_ok_message(msg)
 
 
+def make_receiver(count, obj, sem, r):
+    def on_message(msg, headers):
+        obj.append(msg)
+        sem.release()
+        nonlocal count
+        count -= 1
+        if not count:
+            r.stop()
+    return on_message
+
+
 class TestMessagingService(object):
     @classmethod
     def setup_class(cls):
@@ -204,16 +215,6 @@ class TestMessagingService(object):
         thread.join()
 
     def test_sticky_simple_enqueue_dequeue(self):
-        def make_receiver(count, msgs, sem, r):
-            def on_message(msg, headers):
-                msgs.append(msg)
-                sem.release()
-                nonlocal count
-                count -= 1
-                if not count:
-                    r.stop()
-            return on_message
-
         sem1 = Semaphore(0)
         sem2 = Semaphore(0)
         msgs1 = []
@@ -261,16 +262,6 @@ class TestMessagingService(object):
             s.send({"foo": "bar"})
 
     def test_keyed_sticky(self):
-        def make_receiver(count, obj, sem, r):
-            def on_message(msg, headers):
-                obj.update(msg)
-                sem.release()
-                nonlocal count
-                count -= 1
-                if not count:
-                    r.stop()
-            return on_message
-
         s1 = Sender("/x.keyedsticky")
         s2 = Sender("/x.keyedsticky")
         obj1 = {}
