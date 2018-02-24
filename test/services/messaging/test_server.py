@@ -264,8 +264,8 @@ class TestMessagingService(object):
     def test_keyed_sticky(self):
         s1 = Sender("/x.keyedsticky")
         s2 = Sender("/x.keyedsticky")
-        obj1 = {}
-        obj2 = {}
+        obj1 = []
+        obj2 = []
         sem1 = Semaphore(0)
         sem2 = Semaphore(0)
         r1 = Receiver("/x.keyedsticky")
@@ -276,32 +276,32 @@ class TestMessagingService(object):
         Thread(target=r1.run).start()
 
         assert sem1.acquire(timeout=10)  # Won't timeout for the first message.
-        assert obj1 == {}
+        assert obj1[-1] == {}
 
         s1.start()
         s1.send({"foo": "bar"}, headers={"KEY": "1"})
         assert sem1.acquire(timeout=10)  # Must not timeout.
-        assert obj1 == {"1": {"foo": "bar"}}
+        assert obj1[-1] == {"1": {"foo": "bar"}}
 
         r2.on_message = make_receiver(3, obj2, sem2, r2)
         r2.start()
         Thread(target=r2.run).start()
 
         assert sem2.acquire(timeout=10)  # Must not timeout.
-        assert obj2 == {"1": {"foo": "bar"}}
+        assert obj2[-1] == {"1": {"foo": "bar"}}
 
         s2.start()
         s2.send({"baz": "grr"}, headers={"KEY": "2"})
         assert sem1.acquire(timeout=10)
         assert sem2.acquire(timeout=10)
-        assert obj1 == {"1": {"foo": "bar"}, "2": {"baz": "grr"}}
-        assert obj2 == {"1": {"foo": "bar"}, "2": {"baz": "grr"}}
+        assert obj1[-1] == {"1": {"foo": "bar"}, "2": {"baz": "grr"}}
+        assert obj2[-1] == {"1": {"foo": "bar"}, "2": {"baz": "grr"}}
 
         s2.send({"foo": "hello"}, headers={"KEY": "1"})
         assert sem1.acquire(timeout=10)
         assert sem2.acquire(timeout=10)
-        assert obj1 == {"1": {"foo": "hello"}, "2": {"baz": "grr"}}
-        assert obj2 == {"1": {"foo": "hello"}, "2": {"baz": "grr"}}
+        assert obj1[-1] == {"1": {"foo": "hello"}, "2": {"baz": "grr"}}
+        assert obj2[-1] == {"1": {"foo": "hello"}, "2": {"baz": "grr"}}
 
     def test_create_queue_with_no_payload(self):
         with pytest.raises(RequiredFieldsMissing):
