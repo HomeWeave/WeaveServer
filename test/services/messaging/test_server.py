@@ -8,7 +8,7 @@ from weavelib.messaging import Sender, Receiver, Creator, RequiredFieldsMissing
 from weavelib.messaging import QueueNotFound, SchemaValidationFailed
 from weavelib.messaging import InvalidMessageStructure, BadOperation
 from weavelib.messaging import QueueAlreadyExists, InternalMessagingError
-from weavelib.messaging import AuthenticationFailed
+from weavelib.messaging import AuthenticationFailed, QueueClosed
 from weavelib.messaging import read_message
 from weavelib.messaging.messaging import ensure_ok_message
 
@@ -583,3 +583,63 @@ class TestMessagingService(object):
 
     def test_queue_authorization(self):
         pass
+
+
+class TestMessageServiceClosure(object):
+    @pytest.mark.parametrize("queue_type,cookie",
+                             [("fifo", (x for x in ("a", "b"))),
+                              ("sticky", (x for x in ("a", "b"))),
+                              ("keyedsticky", (x for x in ("a", "b"))),
+                              ("sessionized", (x for x in ("a", "b")))])
+    def test_queue_closure(self, queue_type, cookie):
+        event = Event()
+        service = MessageService(None, CONFIG)
+        service.notify_start = event.set
+        thread = Thread(target=service.on_service_start)
+        thread.start()
+        event.wait()
+
+        creator = Creator(auth="auth1")
+        creator.start()
+        creator.create({
+            "queue_name": "/fifo-closure",
+            "request_schema": {},
+            "queue_type": queue_type
+        })
+
+        def patch_receive(receiver, event):
+            original = receiver.receive
+            def receive():
+                event.set()
+                original()
+            receiver.receive = receive
+
+        def wrap_run(receiver):
+            def run():
+                try:
+                    receiver.run()
+                except QueueClosed:
+                    pass
+            return run
+
+        e1 = Event()
+        r1 = Receiver("/fifo-closure", cookie=next(cookie))
+        r1.start()
+        patch_receive(r1, e1)
+        t1 = Thread(target=wrap_run(r1))
+        t1.start()
+
+        e2 = Event()
+        r2 = Receiver("/fifo-closure", cookie=next(cookie))
+        r2.start()
+        patch_receive(r2, e2)
+        t2 = Thread(target=wrap_run(r2))
+        t2.start()
+
+        e1.wait()
+        e2.wait()
+
+        service.on_service_stop()
+        thread.join()
+        t1.join()
+        t2.join()
