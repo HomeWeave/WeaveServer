@@ -583,28 +583,3 @@ class TestMessagingService(object):
 
     def test_queue_authorization(self):
         pass
-
-
-class TestMessagingServiceWithRealRedis(object):
-    """ Obviously, we do not have Redis running. Testing for graceful fails."""
-
-    def test_connect_fail(self):
-        event = Event()
-        config = deepcopy(CONFIG)
-        config["redis_config"]["USE_FAKE_REDIS"] = False
-
-        service = MessageService("token", config)
-        service.notify_start = lambda: event.set()
-        service_thread = Thread(target=service.on_service_start)
-        service_thread.start()
-        assert event.wait(timeout=10)
-
-        creator = Creator()
-        creator.start()
-        with pytest.raises(InternalMessagingError):
-            creator.create({"queue_name": "dummy", "request_schema": {}},
-                           headers={"AUTH": "auth1"})
-
-        service.on_service_stop()
-        service_thread.join()
-        service.message_server.server_close()

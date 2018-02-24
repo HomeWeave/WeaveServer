@@ -15,7 +15,7 @@ from weavelib.messaging import read_message, serialize_message, Message
 from weavelib.messaging import QueueAlreadyExists, AuthenticationFailed
 from weavelib.messaging import SchemaValidationFailed, BadOperation
 from weavelib.messaging import RequiredFieldsMissing, InternalMessagingError
-from weavelib.messaging import MessagingException, QueueNotFound
+from weavelib.messaging import MessagingException, QueueNotFound, QueueClosed
 from weavelib.services import BaseService, BackgroundThreadServiceStart
 
 
@@ -26,19 +26,6 @@ def get_required_field(headers, key):
     if key not in headers:
         raise RequiredFieldsMissing("'{}' is required.".format(key))
     return headers[key]
-
-
-class FakeRedis(object):
-    """ Fake Redis. Use for testing only. Uses queue.Queue."""
-    def __init__(self):
-        self.queue_map = defaultdict(Queue)
-
-    def lpush(self, queue, obj):
-        self.queue_map[queue].put(obj)
-
-    def brpop(self, queue, timeout=0):
-        timeout = timeout if timeout else None
-        return queue, self.queue_map[queue].get(timeout=timeout)
 
 
 class BaseQueue(object):
@@ -85,171 +72,148 @@ class BaseQueue(object):
                 "({})".format(self.queue_info["queue_name"]))
 
 
-class RedisQueue(BaseQueue):
-    REDIS_PORT = 6379
+class SynchronousQueue(BaseQueue):
+    REQUESTOR_ID_FIELD = "SESS"
 
-    def __init__(self, queue_info, queue_name, redis_config):
+    def __init__(self, queue_info):
         super().__init__(queue_info)
-        self.queue_name = queue_name
-        self.redis_queue = "queue-" + queue_name
-        self.redis_config = {
-            "host": redis_config.get("REDIS_HOST") or "localhost",
-            "port": int(redis_config.get("REDIS_PORT") or self.REDIS_PORT),
-            "db": int(redis_config.get("REDIS_DB") or 0),
-            "password": redis_config.get("REDIS_PASSWD")
-        }
-        self.use_fake = redis_config.get("USE_FAKE_REDIS", None)
-        self.redis = None
+        self.condition = Condition()
+        self.active = False
+
+    def connect(self):
+        self.active = True
+        return True
+
+    def disconnect(self):
+        self.active = False
+        with self.condition:
+            self.condition.notify_all()
+
+    def pack_attributes(self, task, headers):
+        return {}
 
     def enqueue(self, task, headers):
         self.validate_schema(task)
         self.check_auth(task, headers)
-        obj = self.pack_message(task, headers)
-        self.get_connection().lpush(self.redis_queue, json.dumps(obj))
-        return True
+
+        msg = self.pack_message(task, headers)
+        msg.update(self.pack_attributes(task, headers))
+
+        with self.condition:
+            self.on_enqueue(msg)
+            self.condition.notify_all()
+
+    def before_dequeue(self, requestor_id):
+        pass
 
     def dequeue(self, headers):
+        requestor_id = get_required_field(headers, self.REQUESTOR_ID_FIELD)
         self.check_auth(None, headers)
-        timeout = int(headers.get("TIMEOUT", "0"))
-        data = self.get_connection().brpop(self.redis_queue, timeout=timeout)
-        if data:
-            obj = json.loads(data[1])
-            return self.unpack_message(obj)
-        logger.warning("Redis dequeue returned nothing: %s", data)
-        return None
 
-    def connect(self):
-        if self.use_fake:
-            self.redis = FakeRedis()
-            return True
+        def condition():
+            if not self.active:
+                return True
 
-        try:
-            self.redis = Redis(**self.redis_config)
-            self.redis.info()
-        except RedisConnectionError:
-            logger.exception("Unable to connect to real Redis.")
-            return False
-        return True
+            return self.dequeue_condition(requestor_id)
 
-    def get_connection(self):
-        if self.redis is None:
-            raise RedisConnectionError()
-        return self.redis
+        self.before_dequeue(requestor_id)
+
+        with self.condition:
+            while True:
+                if not self.active:
+                    raise QueueClosed(self)
+
+                condition_value = self.dequeue_condition(requestor_id)
+                if not condition_value:
+                    self.condition.wait()
+                else:
+                    msg = self.on_dequeue(requestor_id, condition_value)
+                    return self.unpack_message(msg)
+            self.condition.wait_for(condition)
+
+            if not self.active:
+                raise QueueClosed(self)
+
+            msg = self.on_dequeue(requestor_id)
+            return self.unpack_message(msg)
 
 
-class SessionizedQueue(BaseQueue):
-    def __init__(self, queue_info, queue_name, *args):
+class SessionizedQueue(SynchronousQueue):
+    REQUESTOR_ID_FIELD = "COOKIE"
+
+    def __init__(self, queue_info):
         super().__init__(queue_info)
         self.requestor_version_map = defaultdict(int)
         self.latest_version = 1
         self.messages = []
-        self.condition = Condition()
 
-    def enqueue(self, task, headers):
-        cookie = get_required_field(headers, "COOKIE")
-        self.validate_schema(task)
-        self.check_auth(task, headers)
+    def pack_attributes(self,  task, headers):
+        return {
+            "cookie": get_required_field(headers, "COOKIE"),
+            "time": time.time()
+        }
 
-        obj = self.pack_message(task, headers)
-        obj["cookie"] = cookie
-        obj["time"] = time.time()
+    def on_enqueue(self, obj):
+        self.latest_version += 1
+        obj["version"] = self.latest_version
+        self.messages.append(obj)
 
-        with self.condition:
-            self.latest_version += 1
-            obj["version"] = self.latest_version
-            self.messages.append(obj)
-            self.condition.notify_all()
+    def dequeue_condition(self, requestor_id):
+        cur_version = self.requestor_version_map[requestor_id]
+        for msg in self.messages:
+            if msg["version"] <= cur_version:
+                continue
+            if msg["cookie"] == requestor_id:
+                return msg
+        return None
 
-    def dequeue(self, headers):
-        requestor_id = get_required_field(headers, "COOKIE")
-        self.check_auth(None, headers)
-
-        dequeue_result = []
-
-        def test_dequeue():
-            cur_version = self.requestor_version_map[requestor_id]
-            for msg in self.messages:
-                if msg["version"] <= cur_version:
-                    continue
-                if msg["cookie"] == requestor_id:
-                    self.requestor_version_map[requestor_id] = msg["version"]
-                    dequeue_result.append(self.unpack_message(msg))
-                    return True
-            return False
-
-        with self.condition:
-            self.condition.wait_for(test_dequeue)
-            return dequeue_result[0]
+    def on_dequeue(self, requestor_id, condition_value):
+        self.requestor_version_map[requestor_id] = condition_value["version"]
+        return condition_value
 
 
-class FIFOQueue(BaseQueue):
-    def __init__(self, queue_info, *args, **kwargs):
+class FIFOQueue(SynchronousQueue):
+    def __init__(self, queue_info):
         super().__init__(queue_info)
         self.queue = []
-        self.condition = Condition()
         self.requestors = []
 
-    def enqueue(self, task, headers):
-        self.validate_schema(task)
-        self.check_auth(task, headers)
+    def on_enqueue(self, obj):
+        self.queue.append(obj)
 
-        with self.condition:
-            self.queue.append(self.pack_message(task, headers))
-            self.condition.notify_all()
+    def dequeue_condition(self, requestor_id):
+        return self.queue and self.requestors[0] == requestor_id
 
-    def dequeue(self, headers):
-        self.check_auth(None, headers)
-        requestor_id = headers["SESS"]
-
+    def before_dequeue(self, requestor_id):
         self.requestors.append(requestor_id)
 
-        def can_dequeue():
-            if not self.queue:
-                return False
-
-            if self.requestors[0] == requestor_id:
-                return True
-            return False
-
-        with self.condition:
-            self.condition.wait_for(can_dequeue)
-            self.requestors.pop(0)
-            return self.unpack_message(self.queue.pop(0))
+    def on_dequeue(self, requestor_id, condition_value):
+        self.requestors.pop(0)
+        return self.queue.pop(0)
 
 
-class StickyQueue(BaseQueue):
-    def __init__(self, queue_info, *args, **kwargs):
+class StickyQueue(SynchronousQueue):
+    def __init__(self, queue_info):
         super().__init__(queue_info)
         self.sticky_message = None
         self.requestors = set()
-        self.requestor_lock = RLock()
-        self.condition = Condition(self.requestor_lock)
 
-    def enqueue(self, task, headers):
-        self.validate_schema(task)
-        self.check_auth(task, headers)
-        with self.condition:
-            self.sticky_message = self.pack_message(task, headers)
-            self.requestors = set()
-            self.condition.notify_all()
+    def on_enqueue(self, msg):
+        self.sticky_message = msg
+        self.requestors = set()
 
-    def dequeue(self, headers):
-        requestor_id = headers["SESS"]
-        self.check_auth(None, headers)
+    def dequeue_condition(self, requestor_id):
+        has_msg = self.sticky_message is not None
+        new_requestor = requestor_id not in self.requestors
+        return has_msg and new_requestor
 
-        def can_dequeue():
-            has_msg = self.sticky_message is not None
-            new_requestor = requestor_id not in self.requestors
-            return has_msg and new_requestor
-
-        with self.condition:
-            self.condition.wait_for(can_dequeue)
-            self.requestors.add(requestor_id)
-            return self.unpack_message(self.sticky_message)
+    def on_dequeue(self, requestor_id, condition_value):
+        self.requestors.add(requestor_id)
+        return self.sticky_message
 
 
 class KeyedStickyQueue(BaseQueue):
-    def __init__(self, queue_info, *args, **kwargs):
+    def __init__(self, queue_info):
         super().__init__(queue_info)
         self.sticky_map = {}
         self.sticky_map_version = 1
@@ -312,7 +276,6 @@ class MessageServer(ThreadingTCPServer):
         self.listener_map = {}
         self.sticky_messages = {}
         self.clients = {}
-        self.redis_config = redis_config
         self.apps_auth = apps_auth
 
     def create_queue(self, queue_info, headers):
@@ -329,7 +292,6 @@ class MessageServer(ThreadingTCPServer):
             pass
 
         queue_types = {
-            "redis": RedisQueue,
             "fifo": FIFOQueue,
             "sticky": StickyQueue,
             "keyedsticky": KeyedStickyQueue,
@@ -340,8 +302,8 @@ class MessageServer(ThreadingTCPServer):
         creator_id = headers["AUTH"]["appid"]
         queue_info.setdefault("auth_whitelist", set()).add(creator_id)
 
-        cls = queue_types[queue_info.get("queue_type", "redis")]
-        queue = cls(queue_info, queue_name, self.redis_config)
+        cls = queue_types[queue_info.get("queue_type", "fifo")]
+        queue = cls(queue_info)
         self.queue_map[queue_name] = queue
         logger.info("Connecting to %s", queue)
         return queue
