@@ -3,13 +3,11 @@ import logging
 import os
 import time
 from collections import defaultdict
-from queue import Queue
 from socketserver import ThreadingTCPServer, StreamRequestHandler
 from threading import Condition, RLock
 from uuid import uuid4
 
 from jsonschema import validate, ValidationError, SchemaError
-from redis import Redis, ConnectionError as RedisConnectionError
 
 from weavelib.messaging import read_message, serialize_message, Message
 from weavelib.messaging import QueueAlreadyExists, AuthenticationFailed
@@ -110,12 +108,6 @@ class SynchronousQueue(BaseQueue):
         requestor_id = get_required_field(headers, self.REQUESTOR_ID_FIELD)
         self.check_auth(None, headers)
 
-        def condition():
-            if not self.active:
-                return True
-
-            return self.dequeue_condition(requestor_id)
-
         self.before_dequeue(requestor_id)
 
         with self.condition:
@@ -129,13 +121,6 @@ class SynchronousQueue(BaseQueue):
                 else:
                     msg = self.on_dequeue(requestor_id, condition_value)
                     return self.unpack_message(msg)
-            self.condition.wait_for(condition)
-
-            if not self.active:
-                raise QueueClosed(self)
-
-            msg = self.on_dequeue(requestor_id)
-            return self.unpack_message(msg)
 
 
 class SessionizedQueue(SynchronousQueue):
@@ -343,9 +328,6 @@ class MessageServer(ThreadingTCPServer):
             msg = "Schema: {}, on instance: {}, for queue: {}".format(
                     queue.queue_info["request_schema"], msg.task, queue)
             raise SchemaValidationFailed(msg)
-        except RedisConnectionError:
-            logger.exception("Failed to talk to Redis.")
-            raise InternalMessagingError()
 
     def handle_dequeue(self, msg):
         queue_name = get_required_field(msg.headers, "Q")
@@ -353,11 +335,7 @@ class MessageServer(ThreadingTCPServer):
             queue = self.queue_map[queue_name]
         except KeyError:
             raise QueueNotFound(queue_name)
-        try:
-            return queue.dequeue(msg.headers)
-        except RedisConnectionError:
-            logger.exception("failed to talk to Redis.")
-            raise InternalMessagingError
+        return queue.dequeue(msg.headers)
 
     def handle_create(self, msg):
         if msg.task is None:
