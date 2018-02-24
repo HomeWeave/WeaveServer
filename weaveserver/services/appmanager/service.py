@@ -120,9 +120,6 @@ class ApplicationService(BackgroundProcessServiceStart, BaseService):
         self.rpc = ApplicationRPC(self)
         self.exited = Event()
 
-    def get_component_name(self):
-        return "weaveserver.services.appmanager"
-
     def before_service_start(self):
         """Needs to be overridden to prevent rpc_client connecting."""
 

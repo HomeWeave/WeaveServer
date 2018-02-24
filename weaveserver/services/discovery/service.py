@@ -66,9 +66,6 @@ class DiscoveryService(BackgroundProcessServiceStart, BaseService):
         super().__init__(token)
         self.server = DiscoveryServer()
 
-    def get_component_name(self):
-        return "weaveserver.services.discovery"
-
     def on_service_start(self, *args, **kwargs):
         self.server.run(lambda: self.notify_start())
 

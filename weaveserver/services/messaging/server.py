@@ -404,9 +404,6 @@ class MessageService(BackgroundThreadServiceStart, BaseService):
         self.redis_config = config["redis_config"]
         self.apps_auth = config["apps"]
 
-    def get_component_name(self):
-        return "weaveserver.services.messaging"
-
     def before_service_start(self):
         """Need to override to prevent rpc_client connecting."""
 

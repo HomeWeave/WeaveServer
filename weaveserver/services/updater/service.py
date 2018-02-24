@@ -203,9 +203,6 @@ class UpdaterService(BackgroundProcessServiceStart, BaseService):
         self.status_lock = RLock()
         self.status = "No updates available."
 
-    def get_component_name(self):
-        return "weaveserver.services.updater"
-
     def on_service_start(self, *args, **kwargs):
         super().on_service_start(*args, **kwargs)
         self.rpc.start()
