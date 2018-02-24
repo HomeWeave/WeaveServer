@@ -52,7 +52,7 @@ class BaseQueue(object):
         appid = headers["AUTH"]["appid"]
 
         if self.queue_info.get("authorization") and\
-                appid not in self.queue_info["auth_whitelist"]:
+                appid not in self.queue_info["authorization"]["auth_whitelist"]:
             raise AuthenticationFailed("Unauthorized.")
 
     def pack_message(self, task, headers):
