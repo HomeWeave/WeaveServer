@@ -13,7 +13,7 @@ class TestDiscoveryService(object):
     @classmethod
     def setup_class(cls):
         DiscoveryServer.ACTIVE_POLL_TIME = 1
-        cls.service = DiscoveryService(None)
+        cls.service = DiscoveryService("abc", None)
         event = Event()
         cls.service.notify_start = event.set
         Thread(target=cls.service.on_service_start).start()

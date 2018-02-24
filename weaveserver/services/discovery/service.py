@@ -62,9 +62,9 @@ class DiscoveryServer(object):
 
 
 class DiscoveryService(BackgroundProcessServiceStart, BaseService):
-    def __init__(self, config):
+    def __init__(self, token, config):
+        super().__init__(token)
         self.server = DiscoveryServer()
-        super().__init__()
 
     def get_component_name(self):
         return "weaveserver.services.discovery"
