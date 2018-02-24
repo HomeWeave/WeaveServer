@@ -500,7 +500,9 @@ class TestMessagingService(object):
 
         senders = []
         receivers = []
-        for i in range(1, 5):
+
+        # auth5 doesn't exist (last iteration).
+        for i in range(1, 6):
             senders.append(Sender(sys_queue, auth="auth" + str(i)))
             senders[-1].start()
 
@@ -513,8 +515,8 @@ class TestMessagingService(object):
             receivers.append(Receiver(plugin_queue, auth="auth" + str(i)))
             receivers[-1].start()
 
-        success_indices = {0, 1, 3, 4, 5}
-        fail_indices = set(range(8)) - success_indices
+        success_indices = set(range(8))
+        fail_indices = {8, 9}
 
         for idx in success_indices:
             senders[idx].send("test")
