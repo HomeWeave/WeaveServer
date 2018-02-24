@@ -464,6 +464,58 @@ class TestMessagingService(object):
         for i in range(10):
             assert texts[i] == receivers[i].receive().task
 
+    def test_fifo_enqueue_dequeue(self):
+        queue_info = {
+            "queue_name": "/test.fifo/simple",
+            "queue_type": "fifo",
+            "request_schema": {"type": "string"}
+        }
+        creator = Creator()
+        creator.start()
+        creator.create(queue_info, headers={"AUTH": "auth1"})
+
+        msgs1 = []
+        sem1 = Semaphore(0)
+        receiver1 = Receiver("/test.fifo/simple")
+        receiver1.on_message = make_receiver(2, msgs1, sem1, receiver1)
+        receiver1.start()
+        Thread(target=receiver1.run).start()
+
+        msgs2 = []
+        sem2 = Semaphore(0)
+        receiver2 = Receiver("/test.fifo/simple")
+        receiver2.on_message = make_receiver(2, msgs2, sem2, receiver2)
+        receiver2.start()
+        Thread(target=receiver2.run).start()
+
+        sender1 = Sender("/test.fifo/simple")
+        sender1.start()
+
+        sender1.send("test")
+
+        assert sem1.acquire(timeout=10)
+        assert msgs1[-1] == "test"
+        assert not sem2.acquire(timeout=2)
+
+        sender1.send("test2")
+
+        assert sem2.acquire(timeout=10)
+        assert msgs2[-1] == "test2"
+        assert not sem1.acquire(timeout=2)
+
+        sender1.send("test3")
+
+        assert sem1.acquire(timeout=10)
+        assert msgs1[-1] == "test3"
+        assert not sem2.acquire(timeout=2)
+
+        sender1.send("test4")
+
+        assert sem2.acquire(timeout=10)
+        assert msgs2[-1] == "test4"
+        assert not sem1.acquire(timeout=2)
+
+
     def test_no_auth_create(self):
         queue_info = {
             "queue_name": "/test.auth/1",

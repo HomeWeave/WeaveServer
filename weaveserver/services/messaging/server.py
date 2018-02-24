@@ -182,6 +182,41 @@ class SessionizedQueue(BaseQueue):
             return dequeue_result[0]
 
 
+class FIFOQueue(BaseQueue):
+    def __init__(self, queue_info, *args, **kwargs):
+        super().__init__(queue_info)
+        self.queue = []
+        self.condition = Condition()
+        self.requestors = []
+
+    def enqueue(self, task, headers):
+        self.validate_schema(task)
+        self.check_auth(task, headers)
+
+        with self.condition:
+            self.queue.append(self.pack_message(task, headers))
+            self.condition.notify_all()
+
+    def dequeue(self, headers):
+        self.check_auth(None, headers)
+        requestor_id = headers["SESS"]
+
+        self.requestors.append(requestor_id)
+
+        def can_dequeue():
+            if not self.queue:
+                return False
+
+            if self.requestors[0] == requestor_id:
+                return True
+            return False
+
+        with self.condition:
+            self.condition.wait_for(can_dequeue)
+            self.requestors.pop(0)
+            return self.unpack_message(self.queue.pop(0))
+
+
 class StickyQueue(BaseQueue):
     def __init__(self, queue_info, *args, **kwargs):
         super().__init__(queue_info)
@@ -295,6 +330,7 @@ class MessageServer(ThreadingTCPServer):
 
         queue_types = {
             "redis": RedisQueue,
+            "fifo": FIFOQueue,
             "sticky": StickyQueue,
             "keyedsticky": KeyedStickyQueue,
             "sessionized": SessionizedQueue
