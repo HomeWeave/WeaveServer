@@ -186,7 +186,8 @@ class Updater(object):
 
 
 class UpdaterService(BackgroundProcessServiceStart, BaseService):
-    def __init__(self, config):
+    def __init__(self, token, config):
+        super().__init__(token)
         self.update_scanner = UpdateScanner(self)
         self.updater = Updater(self, self.update_scanner)
         self.shutdown = Event()
@@ -201,7 +202,6 @@ class UpdaterService(BackgroundProcessServiceStart, BaseService):
 
         self.status_lock = RLock()
         self.status = "No updates available."
-        super().__init__()
 
     def get_component_name(self):
         return "weaveserver.services.updater"

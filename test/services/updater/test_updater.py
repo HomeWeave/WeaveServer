@@ -13,15 +13,15 @@ from weaveserver.services.updater.service import UpdaterService, UpdateScanner
 from weaveserver.services.updater.service import Updater
 
 
-def make_receiver(count, obj, sem, r):
-    def on_message(msg):
-        obj["msg"] = msg
-        sem.release()
-        nonlocal count
-        count -= 1
-        if not count:
-            r.stop()
-    return on_message
+AUTH = {
+    "auth1": {
+        "type": "SYSTEM",
+        "appid": "appmgr"
+    },
+    "auth2": {
+        "appid": "appid2"
+    }
+}
 
 
 class TestUpdateScanner(object):
@@ -31,6 +31,7 @@ class TestUpdateScanner(object):
 
         os.environ["USE_FAKE_REDIS"] = "TRUE"
         self.service_manager = ServiceManager()
+        self.service_manager.apps = AUTH
         self.service_manager.start_services(["messaging", "appmanager"])
 
     def teardown_method(self):
@@ -44,7 +45,7 @@ class TestUpdateScanner(object):
         UpdateScanner.get_repo = lambda x, y: mock_repo
 
         started = Event()
-        service = UpdaterService(None)
+        service = UpdaterService("auth1", None)
         service.before_service_start()
         service.notify_start = started.set
         Thread(target=service.on_service_start).start()
@@ -71,7 +72,7 @@ class TestUpdateScanner(object):
         UpdateScanner.get_repo = lambda x, y: mock_repo
 
         started = Event()
-        service = UpdaterService(None)
+        service = UpdaterService("auth1", None)
         service.before_service_start()
         service.notify_start = started.set
         Thread(target=service.on_service_start).start()
