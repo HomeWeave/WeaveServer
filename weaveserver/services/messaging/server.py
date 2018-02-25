@@ -56,10 +56,11 @@ class BaseQueue(object):
             raise AuthenticationFailed("Unauthorized.")
 
     def pack_message(self, task, headers):
-        reqd_headers = {"AUTH"}
+        reqd = {"AUTH": json.dumps}
+        headers = {x: f(headers[x]) for x, f in reqd.items() if x in headers}
         return {
             "task": task,
-            "headers": {x: headers[x] for x in reqd_headers if x in headers}
+            "headers": headers
         }
 
     def unpack_message(self, obj):
