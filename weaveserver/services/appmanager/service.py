@@ -92,7 +92,6 @@ class ApplicationRPC(object):
         self.queue_creator.close()
 
     def register_rpc(self, name, description, request_schema, response_schema):
-
         base_queue = "/components/{}/rpcs/{}".format(str(uuid4()), name)
         request_queue = base_queue + "/request"
         response_queue = base_queue + "/response"
