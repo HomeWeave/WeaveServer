@@ -41,4 +41,4 @@ class ModuleProcessor(object):
 
     def insert_module_ui(self, template, module_id):
         sections = template["$jason"]["head"]["templates"]["body"]["sections"]
-        sections.append(self.modules[module_id]["ui"])
+        sections.append(self.modules[module_id]["view"])

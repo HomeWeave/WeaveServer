@@ -89,12 +89,12 @@ class TestModuleProcessor(object):
             "_settings": {
                 "id": "_settings",
                 "name": "Settings",
-                "ui": {"test": "blah"}
+                "view": {"test": "blah"}
             },
             "_dashboard": {
                 "id": "_dashboard",
                 "name": "Dashboard",
-                "ui": {"hello": "world"}
+                "view": {"hello": "world"}
             }
         })
 
@@ -106,13 +106,13 @@ class TestModuleProcessor(object):
                             {
                                 "name": "Dashboard",
                                 "id": "_dashboard",
-                                "ui": {"hello": "world"},
+                                "view": {"hello": "world"},
                                 "active": False
                             },
                             {
                                 "name": "Settings",
                                 "id": "_settings",
-                                "ui": {"test": "blah"},
+                                "view": {"test": "blah"},
                                 "active": True
                             },
                         ]
