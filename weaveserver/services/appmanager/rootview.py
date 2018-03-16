@@ -1,3 +1,28 @@
+def chain_event(chain, obj):
+    if "success" in chain:
+        if chain["success"]["type"] == "$render":
+            chain["success"] = obj
+            obj["success"] = {"type": "$render"}
+            obj["error"] = {
+                "type": "$util.banner",
+                "options": {
+                    "title": "Error",
+                    "description": "Uh oh, something went wrong."
+                }
+            }
+        else:
+            chain_event(chain["success"], obj)
+    else:
+        chain.update(obj)
+        chain["success"] = {"type": "$render"}
+        chain["error"] = {
+            "type": "$util.banner",
+            "options": {
+                "title": "Error",
+                "description": "Uh oh, something went wrong."
+            }
+        }
+
 class ModuleProcessor(object):
     def __init__(self, modules):
         self.modules = modules
