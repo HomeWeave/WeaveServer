@@ -1,6 +1,7 @@
 from copy import deepcopy
 
 from weaveserver.services.appmanager.rootview import ModuleProcessor, RootView
+from weaveserver.services.appmanager.rootview import RPCProcessor
 from weaveserver.services.appmanager.rootview import chain_event
 
 
@@ -142,3 +143,50 @@ class TestModuleProcessor(object):
         mod.process(cur, {"module_id": "_dashboard"})
 
         assert cur == expected
+
+
+class TestRPCProcessor(object):
+    def test_process(self):
+        rpcs = {
+            "name1": {
+                "name": "name1",
+                "request_schema": "request_schema",
+                "response_schema": "response_schema",
+                "request_queue": "request_queue",
+                "response_queue": "response_queue",
+            }
+        }
+
+        rpc_proc = RPCProcessor(rpcs)
+
+        template = {
+            "$jason": {
+                "head": {
+                    "actions": {}
+                }
+            }
+        }
+
+        rpc_proc.process(template, None)
+
+        method = "com.srivatsaniyer.weaveremote.jasonette.Messaging.rpc"
+        expected = {
+            "$jason": {
+                "head": {
+                    "actions": {
+                        "rpc-name1": {
+                            "type": "$external.invoke",
+                            "method": method,
+                            "data": {
+                                "request_schema": "request_schema",
+                                "response_schema": "response_schema",
+                                "request_queue": "request_queue",
+                                "response_queue": "response_queue",
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        assert expected == template

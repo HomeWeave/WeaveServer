@@ -42,3 +42,23 @@ class ModuleProcessor(object):
     def insert_module_ui(self, template, module_id):
         sections = template["$jason"]["head"]["templates"]["body"]["sections"]
         sections.append(self.modules[module_id]["view"])
+
+
+class RPCProcessor(object):
+    def __init__(self, rpcs):
+        self.rpcs = rpcs
+
+    def process(self, template, params):
+        method = "com.srivatsaniyer.weaveremote.jasonette.Messaging.rpc"
+        actions = template["$jason"]["head"]["actions"]
+        for rpc_obj in self.rpcs.values():
+            actions["rpc-" + rpc_obj["name"]] = {
+                "type": "$external.invoke",
+                "method": method,
+                "data": {
+                    "request_schema": rpc_obj["request_schema"],
+                    "response_schema": rpc_obj["response_schema"],
+                    "request_queue": rpc_obj["request_queue"],
+                    "response_queue": rpc_obj["response_queue"],
+                }
+            }
