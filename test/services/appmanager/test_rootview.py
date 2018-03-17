@@ -27,10 +27,20 @@ class TestChainEvent(object):
             }
         }
 
-    def test_chain_first_level(self):
+    def test_chain_second_level(self):
         obj = {
             "type": "type1",
-            "success": {"type": "$render"},
+            "success": {
+                "type": "type2",
+                "success": {"type": "$render"},
+                "error": {
+                    "type": "$util.banner",
+                    "options": {
+                        "title": "Error",
+                        "description": "Uh oh, something went wrong."
+                    }
+                }
+            },
             "error": {
                 "type": "$util.banner",
                 "options": {
@@ -39,7 +49,7 @@ class TestChainEvent(object):
                 }
             }
         }
-        new_event = {"type": "type2"}
+        new_event = {"type": "type3"}
 
         chain_event(obj, new_event)
 
@@ -47,7 +57,17 @@ class TestChainEvent(object):
             "type": "type1",
             "success": {
                 "type": "type2",
-                "success": {"type": "$render"},
+                "success": {
+                    "type": "type3",
+                    "success": {"type": "$render"},
+                    "error": {
+                        "type": "$util.banner",
+                        "options": {
+                            "title": "Error",
+                            "description": "Uh oh, something went wrong."
+                        }
+                    }
+                },
                 "error": {
                     "type": "$util.banner",
                     "options": {
