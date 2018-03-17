@@ -1,3 +1,6 @@
+import json
+import os
+import tempfile
 from copy import deepcopy
 
 from weaveserver.services.appmanager.rootview import ModuleProcessor, RootView
@@ -190,3 +193,86 @@ class TestRPCProcessor(object):
         }
 
         assert expected == template
+
+
+class TestRootView(object):
+    def setup_method(self):
+        obj = {
+            "$jason": {
+                "head": {
+                    "actions": {},
+                    "data": {},
+                    "templates": {
+                        "body": {
+                            "sections": []
+                        }
+                    }
+                }
+            }
+        }
+        _, self.path = tempfile.mkstemp()
+        with open(self.path, 'w') as out:
+            json.dump(obj, out)
+
+    def teardown_method(self):
+        os.remove(self.path)
+
+    def test_data(self):
+        content = {
+            "modules": {
+                "_settings": {
+                    "id": "_settings",
+                    "name": "Settings",
+                    "view": {"test": "blah"}
+                },
+            },
+            "rpcs": {
+                "name1": {
+                    "name": "name1",
+                    "request_schema": "request_schema",
+                    "response_schema": "response_schema",
+                    "request_queue": "request_queue",
+                    "response_queue": "response_queue",
+                }
+            }
+        }
+        root_view = RootView(self.path, content)
+        data = root_view.data({"module_id": "_settings"})
+
+
+        method = "com.srivatsaniyer.weaveremote.jasonette.Messaging.rpc"
+        assert data == {
+            "$jason": {
+                "head": {
+                    "actions": {
+                        "rpc-name1": {
+                            "type": "$external.invoke",
+                            "method": method,
+                            "data": {
+                                "request_schema": "request_schema",
+                                "response_schema": "response_schema",
+                                "request_queue": "request_queue",
+                                "response_queue": "response_queue",
+                            }
+                        }
+                    },
+                    "data": {
+                        "posts": [
+                            {
+                                "name": "Settings",
+                                "id": "_settings",
+                                "view": {"test": "blah"},
+                                "active": True
+                            },
+                        ]
+                    },
+                    "templates": {
+                        "body": {
+                            "sections": [
+                                {"test": "blah"}
+                            ]
+                        }
+                    }
+                }
+            }
+        }

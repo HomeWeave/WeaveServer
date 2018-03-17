@@ -1,3 +1,7 @@
+import json
+from copy import deepcopy
+
+
 def chain_event(chain, obj):
     if "success" in chain:
         if chain["success"]["type"] == "$render":
@@ -62,3 +66,21 @@ class RPCProcessor(object):
                     "response_queue": rpc_obj["response_queue"],
                 }
             }
+
+
+class RootView(object):
+    def __init__(self, path, content):
+        with open(path) as f:
+            self.template = json.load(f)
+        self.processors = [
+            ModuleProcessor(content["modules"]),
+            RPCProcessor(content["rpcs"])
+        ]
+
+    def data(self, params):
+        result = deepcopy(self.template)
+
+        for processor in self.processors:
+            processor.process(result, params)
+
+        return result
