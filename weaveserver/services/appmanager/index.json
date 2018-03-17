@@ -1,0 +1,125 @@
+{
+  "$jason": {
+    "head": {
+      "actions": {},
+      "data": {
+        "posts": [
+          {
+            "avatar": "http://moziru.com/images/setting-clipart-logo-png-5.png",
+            "name": "Text",
+            "location": "Somewhere",
+            "active": true,
+            "content": "http://moziru.com/images/setting-clipart-logo-png-5.png"
+          }
+          {
+            "avatar": "http://moziru.com/images/setting-clipart-logo-png-5.png",
+            "name": "Text2",
+            "location": "Somewhere",
+            "active": false,
+            "content": "http://moziru.com/images/setting-clipart-logo-png-5.png"
+          }
+        ]
+      },
+      "templates": {
+        "body": {
+          "style": {
+            "background": "green"
+          },
+          "header": {
+            "style": {
+              "shy": "true"
+            },
+            "title": {
+              "type": "image",
+              "style": {
+                "width": "94",
+                "height": "27"
+              },
+              "url": "https://raw.githubusercontent.com/Jasonette/Instagram-UI-example/master/images/logo.png"
+            },
+            "menu": {
+              "image": "https://raw.githubusercontent.com/Jasonette/Instagram-UI-example/master/images/box.png"
+            }
+          },
+          "sections": [
+            {
+              "type": "horizontal",
+              "items": {
+                "{{#each posts}}": {
+                  "type": "vertical",
+                  "style": {
+                    "background": [
+                      {
+                        "{{#if (active)}}": "red"
+                      },
+                      {
+                        "{{#else}}": "transparent"
+                      }
+                    ],
+                    "padding": "5",
+                    "spacing": "13",
+                    "align": "center",
+                    "distribution": "equalspacing",
+                    "height": "120"
+                  },
+                  "components": [
+                    {
+                      "type": "image",
+                      "url": "{{avatar}}",
+                      "style": {
+                        "width": "76",
+                        "height": "76",
+                        "corner_radius": "5"
+                      }
+                    },
+                    {
+                      "type": "label",
+                      "text": "{{name}}",
+                      "style": {
+                        "size": "12"
+                      }
+                    }
+                  ]
+                }
+              }
+            },
+            {
+              "type": "vertical",
+              "items": {
+                "{{#each posts}}": {
+                  "type": "horizontal",
+                  "style": {
+                    "background": "#fafafa",
+                    "padding": "9",
+                    "spacing": "13",
+                    "align": "center",
+                    "distribution": "equalspacing",
+                    "height": "120"
+                  },
+                  "components": [
+                    {
+                      "type": "image",
+                      "url": "{{avatar}}",
+                      "style": {
+                        "height": "76",
+                        "corner_radius": "5"
+                      }
+                    },
+                    {
+                      "type": "label",
+                      "text": "{{name}}",
+                      "style": {
+                        "size": "12"
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          ]
+        }
+      }
+    }
+  }
+}
+
