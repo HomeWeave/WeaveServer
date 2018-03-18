@@ -95,7 +95,7 @@ class ApplicationRPC(object):
                 ArgParameter("description", "Description of RPC", str),
                 ArgParameter("apis", "Maps of all APIs", self.APIS_SCHEMA),
             ], self.register_rpc),
-            ServerAPI("register_app_view", "Jasonette view to register.", [
+            ServerAPI("register_view", "Jasonette view to register.", [
                 ArgParameter("object", "Regular(JSON) Object to register",
                              {"type": "object"})
             ], self.register_view)
