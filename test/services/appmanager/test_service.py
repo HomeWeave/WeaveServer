@@ -2,7 +2,6 @@ import os
 import time
 
 import requests
-from weavelib.http.apphttp import AppHTTPServer
 from weavelib.messaging import Receiver
 from weavelib.rpc import RPCServer, ServerAPI, RPCClient
 from weavelib.services import BaseService
@@ -28,7 +27,6 @@ class DummyService(BaseService):
         self.rpc_server = RPCServer("name", "desc", [
             ServerAPI("api1", "desc2", [], self.api1),
         ], self)
-        self.http = AppHTTPServer(self, None)
 
     def api1(self):
         return "OK"
@@ -76,12 +74,3 @@ class TestApplicationService(object):
         rpc.start()
         assert "OK" == rpc["api1"](_block=True)
         rpc.stop()
-
-    def test_http_simple_rule(self):
-        main_url = self.dummy_service.http.add_url({"obj": "test"})
-
-        got = requests.get("http://localhost:5000" + main_url).json()
-        assert got == {"obj": "test"}
-
-    def test_bad_view(self):
-        assert requests.get("http://localhost:5000/views/ab").status_code == 404
