@@ -84,6 +84,8 @@ class ApplicationRPC(object):
         ], service)
         self.queue_creator = Creator(auth=service.auth_token)
 
+        self.all_rpcs = {}
+
     def start(self):
         self.rpc.start()
         self.queue_creator.start()
@@ -120,6 +122,17 @@ class ApplicationRPC(object):
             "queue_name": response_queue,
             "request_schema": response_schema
         })
+
+        self.all_rpcs[base_queue] = {
+            "app_id": caller_app_id,
+            "name": name,
+            "description": description,
+            "apis": apis,
+            "request_queue": request_queue,
+            "response_queue": response_queue,
+            "request_schema": request_schema,
+            "response_schema": response_schema
+        }
 
         return dict(request_queue=request_queue, response_queue=response_queue)
 
