@@ -65,16 +65,17 @@ class ApplicationHTTP(Bottle):
 
 
 class ApplicationRPC(object):
+    APIS_SCHEMA = {
+        "type": "object",
+    }
+
     def __init__(self, service):
         self.service = service
         self.rpc = RootRPCServer("app_manager", "Application Manager", [
             ServerAPI("register_rpc", "Register new RPC", [
                 ArgParameter("name", "Name of the RPC", str),
                 ArgParameter("description", "Description of RPC", str),
-                ArgParameter("request_schema", "JSONSchema of request",
-                             Draft4Validator.META_SCHEMA),
-                ArgParameter("response_schema", "JSONSchema of response",
-                             Draft4Validator.META_SCHEMA),
+                ArgParameter("apis", "Maps of all APIs", self.APIS_SCHEMA),
             ], self.register_rpc),
             ServerAPI("register_app_view", "Jasonette view to register.", [
                 ArgParameter("object", "Regular(JSON) Object to register",
@@ -91,10 +92,24 @@ class ApplicationRPC(object):
         self.rpc.stop()
         self.queue_creator.close()
 
-    def register_rpc(self, name, description, request_schema, response_schema):
-        base_queue = "/components/{}/rpcs/{}".format(str(uuid4()), name)
+    def register_rpc(self, name, description, apis):
+        caller_app_id = get_rpc_caller()["appid"]
+
+        base_queue = "/components/{}/rpcs/{}".format(caller_app_id,
+                                                     str(uuid4()))
         request_queue = base_queue + "/request"
         response_queue = base_queue + "/response"
+
+        get_schema = lambda x: ServerAPI.from_info(x).schema
+        request_schema = {
+            "type": "object",
+            "properties": {
+                "invocation": {
+                    "anyOf": [get_schema(x) for x in apis.values()]
+                }
+            }
+        }
+        response_schema = {"type": "object"}
 
         self.queue_creator.create({
             "queue_name": request_queue,
