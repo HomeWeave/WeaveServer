@@ -1,5 +1,6 @@
 import json
 import logging
+import os
 from threading import Event, RLock, Thread
 from uuid import uuid4
 
@@ -7,8 +8,10 @@ from bottle import Bottle, abort, response
 from jsonschema import Draft4Validator
 
 from weavelib.messaging import Creator
-from weavelib.rpc import RPCServer, ServerAPI, ArgParameter
+from weavelib.rpc import RPCServer, ServerAPI, ArgParameter, get_rpc_caller
 from weavelib.services import BaseService, BackgroundProcessServiceStart
+
+from .rootview import RootView
 
 
 logger = logging.getLogger(__name__)
@@ -39,12 +42,21 @@ class RootRPCServer(RPCServer):
 
 
 class ApplicationHTTP(Bottle):
-    def __init__(self):
+    def __init__(self, service):
         super().__init__()
+        self.service = service
         self.views = {}
         self.view_lock = RLock()
 
+        content = {
+            "modules": self.views,
+            "rpcs": service.rpc.all_rpcs
+        }
+        index_path = os.path.join(os.path.dirname(__file__), "index.json")
+        self.root_view = RootView(index_path, content)
+
         self.route("/views/<path>")(self.handle_view)
+        self.route("/root.json")(self.handle_root)
 
     def handle_view(self, path):
         with self.view_lock:
@@ -54,12 +66,18 @@ class ApplicationHTTP(Bottle):
         response.content_type = "application/json"
         return obj
 
+    def handle_root(self):
+        return self.root_view.data({"module_id": "_dashboard"})
+
     def register_view(self, obj):
-        json_str = json.dumps(obj)
         unique_id = "app-http-view-" + str(uuid4())
 
         with self.view_lock:
-            self.views[unique_id] = json_str
+            self.views[unique_id] = {
+                "app_id": get_rpc_caller(),
+                "name": "Name",
+                "view": obj
+            }
 
         return "/views/" + unique_id
 
@@ -143,8 +161,8 @@ class ApplicationRPC(object):
 class ApplicationService(BackgroundProcessServiceStart, BaseService):
     def __init__(self, token, config):
         super().__init__(token)
-        self.http = ApplicationHTTP()
         self.rpc = ApplicationRPC(self)
+        self.http = ApplicationHTTP(self)
         self.exited = Event()
 
     def before_service_start(self):
