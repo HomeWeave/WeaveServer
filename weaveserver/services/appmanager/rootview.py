@@ -27,6 +27,7 @@ def chain_event(chain, obj):
             }
         }
 
+
 class ModuleProcessor(object):
     def __init__(self, modules):
         self.modules = modules
@@ -58,12 +59,13 @@ class RPCProcessor(object):
         for rpc_obj in self.rpcs.values():
             actions["rpc-" + rpc_obj["name"]] = {
                 "type": "$external.invoke",
-                "method": method,
-                "data": {
-                    "request_schema": rpc_obj["request_schema"],
-                    "response_schema": rpc_obj["response_schema"],
-                    "request_queue": rpc_obj["request_queue"],
-                    "response_queue": rpc_obj["response_queue"],
+                "options": {
+                    "method": method,
+                    "data": {
+                        "request_queue": rpc_obj["request_queue"],
+                        "response_queue": rpc_obj["response_queue"],
+                        "apis": rpc_obj["apis"],
+                    }
                 }
             }
 
