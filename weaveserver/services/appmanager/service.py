@@ -67,7 +67,8 @@ class ApplicationHTTP(Bottle):
         return json.dumps(obj["view"])
 
     def handle_root(self):
-        return self.root_view.data({"module_id": "_dashboard"})
+        module_id = next(x for x in self.views.keys())
+        return self.root_view.data({"module_id": module_id})
 
     def register_view(self, obj):
         unique_id = "app-http-view-" + str(uuid4())
