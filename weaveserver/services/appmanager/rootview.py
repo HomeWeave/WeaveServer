@@ -41,7 +41,7 @@ class ModuleProcessor(object):
     def insert_module_data(self, template, module_id):
         res = sorted(self.modules.values(), key=lambda x: x["name"])
         for mod in res:
-            mod["active"] = mod["id"] == module_id
+            mod["active"] = mod["app_id"] == module_id
         template["$jason"]["head"]["data"]["posts"] = res
 
     def insert_module_ui(self, template, module_id):

@@ -241,7 +241,7 @@ class TestRootView(object):
         content = {
             "modules": {
                 "_settings": {
-                    "id": "_settings",
+                    "app_id": "_settings",
                     "name": "Settings",
                     "view": {"test": "blah"}
                 },
