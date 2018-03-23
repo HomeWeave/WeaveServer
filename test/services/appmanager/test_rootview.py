@@ -85,6 +85,7 @@ class TestChainEvent(object):
             }
         }
 
+
 class TestModuleProcessor(object):
     def test_bad_module_id(self):
         mod = ModuleProcessor({})
@@ -111,12 +112,12 @@ class TestModuleProcessor(object):
 
         mod = ModuleProcessor({
             "_settings": {
-                "id": "_settings",
+                "app_id": "_settings",
                 "name": "Settings",
                 "view": {"test": "blah"}
             },
             "_dashboard": {
-                "id": "_dashboard",
+                "app_id": "_dashboard",
                 "name": "Dashboard",
                 "view": {"hello": "world"}
             }
@@ -129,13 +130,13 @@ class TestModuleProcessor(object):
                         "posts": [
                             {
                                 "name": "Dashboard",
-                                "id": "_dashboard",
+                                "app_id": "_dashboard",
                                 "view": {"hello": "world"},
                                 "active": False
                             },
                             {
                                 "name": "Settings",
-                                "id": "_settings",
+                                "app_id": "_settings",
                                 "view": {"test": "blah"},
                                 "active": True
                             },
@@ -177,6 +178,7 @@ class TestRPCProcessor(object):
                 "response_schema": "response_schema",
                 "request_queue": "request_queue",
                 "response_queue": "response_queue",
+                "apis": {"apis": "apis"}
             }
         }
 
@@ -199,12 +201,13 @@ class TestRPCProcessor(object):
                     "actions": {
                         "rpc-name1": {
                             "type": "$external.invoke",
-                            "method": method,
-                            "data": {
-                                "request_schema": "request_schema",
-                                "response_schema": "response_schema",
-                                "request_queue": "request_queue",
-                                "response_queue": "response_queue",
+                            "options": {
+                                "method": method,
+                                "data": {
+                                    "request_queue": "request_queue",
+                                    "response_queue": "response_queue",
+                                    "apis": {"apis": "apis"}
+                                }
                             }
                         }
                     }
@@ -253,12 +256,12 @@ class TestRootView(object):
                     "response_schema": "response_schema",
                     "request_queue": "request_queue",
                     "response_queue": "response_queue",
+                    "apis": {"apis": "apis"}
                 }
             }
         }
         root_view = RootView(self.path, content)
         data = root_view.data({"module_id": "_settings"})
-
 
         method = "com.srivatsaniyer.weaveremote.jasonette.Messaging.rpc"
         assert data == {
@@ -267,12 +270,13 @@ class TestRootView(object):
                     "actions": {
                         "rpc-name1": {
                             "type": "$external.invoke",
-                            "method": method,
-                            "data": {
-                                "request_schema": "request_schema",
-                                "response_schema": "response_schema",
-                                "request_queue": "request_queue",
-                                "response_queue": "response_queue",
+                            "options": {
+                                "method": method,
+                                "data": {
+                                    "request_queue": "request_queue",
+                                    "response_queue": "response_queue",
+                                    "apis": {"apis": "apis"}
+                                }
                             }
                         }
                     },
@@ -280,7 +284,7 @@ class TestRootView(object):
                         "posts": [
                             {
                                 "name": "Settings",
-                                "id": "_settings",
+                                "app_id": "_settings",
                                 "view": {"test": "blah"},
                                 "active": True
                             },
