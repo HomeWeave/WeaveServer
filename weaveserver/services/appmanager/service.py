@@ -64,7 +64,7 @@ class ApplicationHTTP(Bottle):
         if not obj:
             abort(404, "Not found.")
         response.content_type = "application/json"
-        return obj
+        return json.dumps(obj["view"])
 
     def handle_root(self):
         return self.root_view.data({"module_id": "_dashboard"})
