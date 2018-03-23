@@ -81,3 +81,6 @@ class TestApplicationService(object):
     def test_http_simple_request(self):
         url = "http://localhost:5000" + self.dummy_service.relative_url
         assert requests.get(url).json() == {"hello": "world"}
+
+    def test_http_root(self):
+        assert requests.get("http://localhost:5000/root.json").json() != {}
