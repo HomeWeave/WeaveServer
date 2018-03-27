@@ -1,3 +1,4 @@
+import base64
 import json
 import logging
 import os
@@ -55,7 +56,7 @@ class ApplicationHTTP(Bottle):
         index_path = os.path.join(os.path.dirname(__file__), "index.json")
         self.root_view = RootView(index_path, content)
 
-        self.route("/views/<path>")(self.handle_view)
+        self.route("/views/<path:path>")(self.handle_view)
         self.route("/root.json")(self.handle_root)
 
     def handle_view(self, path):
@@ -63,24 +64,23 @@ class ApplicationHTTP(Bottle):
             obj = self.views.get(path)
         if not obj:
             abort(404, "Not found.")
-        response.content_type = "application/json"
-        return json.dumps(obj["view"])
+        response.content_type = obj["mime"]
+        return obj["view"]
 
     def handle_root(self):
         module_id = next(x for x in self.views.keys())
         return self.root_view.data({"module_id": module_id})
 
-    def register_view(self, obj):
-        unique_id = "app-http-view-" + str(uuid4())
-
+    def register_view(self, app_info, url, obj, mimetype):
+        url = app_info["appid"] + "/" + url.lstrip("/")
         with self.view_lock:
-            self.views[unique_id] = {
-                "app_id": get_rpc_caller(),
+            self.views[url] = {
+                "app_id": app_info["appid"],
                 "name": "Name",
+                "mime": mimetype,
                 "view": obj
             }
-
-        return "/views/" + unique_id
+        return "/views/" + url
 
 
 class ApplicationRPC(object):
@@ -96,9 +96,10 @@ class ApplicationRPC(object):
                 ArgParameter("description", "Description of RPC", str),
                 ArgParameter("apis", "Maps of all APIs", self.APIS_SCHEMA),
             ], self.register_rpc),
-            ServerAPI("register_view", "Jasonette view to register.", [
-                ArgParameter("object", "Regular(JSON) Object to register",
-                             {"type": "object"})
+            ServerAPI("register_view", "Register resources to HTTP server", [
+                ArgParameter("url", "URL to register to.", {"type": "string"}),
+                ArgParameter("content", "Resource content", {"type": "string"}),
+                ArgParameter("mimetype", "Resource MIME", {"type": "string"}),
             ], self.register_view)
         ], service)
         self.queue_creator = Creator(auth=service.auth_token)
@@ -155,8 +156,10 @@ class ApplicationRPC(object):
 
         return dict(request_queue=request_queue, response_queue=response_queue)
 
-    def register_view(self, obj):
-        return self.service.http.register_view(obj)
+    def register_view(self, url, content, mimetype):
+        decoded = base64.b64decode(content)
+        app = get_rpc_caller()
+        return self.service.http.register_view(app, url, decoded, mimetype)
 
 
 class ApplicationService(BackgroundProcessServiceStart, BaseService):
