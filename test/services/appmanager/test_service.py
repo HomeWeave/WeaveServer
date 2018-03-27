@@ -35,7 +35,7 @@ class DummyService(BaseService):
 
     def on_service_start(self):
         self.rpc_server.start()
-        self.relative_url = self.http.add_url("test.json")
+        self.relative_url = self.http.register_folder("test_dir")
 
     def on_service_stop(self):
         self.rpc_server.stop()
@@ -79,8 +79,17 @@ class TestApplicationService(object):
         rpc.stop()
 
     def test_http_simple_request(self):
-        url = "http://localhost:5000" + self.dummy_service.relative_url
-        assert requests.get(url).json() == {"hello": "world"}
+        base_url = "http://localhost:5000" + self.dummy_service.relative_url
+
+        url = base_url + "/test.json"
+        resp = requests.get(url)
+        assert resp.json() == {"hello": "world"}
+        assert resp.headers["Content-Type"] == "application/json"
+
+        url = base_url + "/test.csv"
+        resp = requests.get(url)
+        assert resp.text == "a,b,c\n"
+        assert resp.headers["Content-Type"] == "text/csv"
 
     def test_http_root(self):
         assert requests.get("http://localhost:5000/root.json").json() != {}
