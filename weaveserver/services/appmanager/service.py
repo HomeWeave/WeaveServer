@@ -68,7 +68,7 @@ class ApplicationHTTP(Bottle):
         return obj["view"]
 
     def handle_root(self):
-        module_id = next(x for x in self.views.keys())
+        module_id = next(k for k, v in self.views.items() if "weave" in v["mime"])
         return self.root_view.data({"module_id": module_id})
 
     def register_view(self, app_info, url, obj, mimetype):
