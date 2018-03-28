@@ -78,9 +78,14 @@ class ApplicationHTTP(Bottle):
                 "app_id": app_info["appid"],
                 "name": "Name",
                 "mime": mimetype,
-                "view": obj
+                "view": self.postprocess_resource(obj, mimetype)
             }
         return "/views/" + url
+
+    def postprocess_resource(self, obj, mime):
+        if mime == "application/vnd.weaveview+json":
+            return obj.decode('ascii')
+        return obj
 
 
 class ApplicationRPC(object):
