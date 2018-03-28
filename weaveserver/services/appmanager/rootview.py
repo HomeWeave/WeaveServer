@@ -39,7 +39,18 @@ class ModuleProcessor(object):
             self.insert_module_ui(template, module_id)
 
     def insert_module_data(self, template, module_id):
-        res = sorted(self.modules.values(), key=lambda x: x["name"])
+        def transform(view):
+            return {
+                "name": view["name"],
+                "app_id": view["app_id"],
+                "view": view["view"]
+            }
+
+        view_mime = "application/vnd.weaveview+json"
+
+        views = [x for x in self.modules.values() if x["mime"] == view_mime]
+        views = [transform(x) for x in views]
+        res = sorted(views, key=lambda x: x["name"])
         for mod in res:
             mod["active"] = mod["app_id"] == module_id
         template["$jason"]["head"]["data"]["posts"] = res
