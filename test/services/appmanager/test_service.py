@@ -81,10 +81,10 @@ class TestApplicationService(object):
     def test_http_simple_request(self):
         base_url = "http://localhost:5000" + self.dummy_service.relative_url
 
-        url = base_url + "/test.json"
+        url = base_url + "/index.json"
         resp = requests.get(url)
         assert resp.json() == {"hello": "world"}
-        assert resp.headers["Content-Type"] == "application/json"
+        assert resp.headers["Content-Type"] == "application/vnd.weaveview+json"
 
         url = base_url + "/test.csv"
         resp = requests.get(url)

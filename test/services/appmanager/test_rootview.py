@@ -114,11 +114,13 @@ class TestModuleProcessor(object):
             "_settings": {
                 "app_id": "_settings",
                 "name": "Settings",
-                "view": {"test": "blah"}
+                "mime": "application/vnd.weaveview+json",
+            "view": {"test": "blah"}
             },
             "_dashboard": {
                 "app_id": "_dashboard",
                 "name": "Dashboard",
+                "mime": "application/vnd.weaveview+json",
                 "view": {"hello": "world"}
             }
         })
@@ -246,6 +248,7 @@ class TestRootView(object):
                 "_settings": {
                     "app_id": "_settings",
                     "name": "Settings",
+                    "mime": "application/vnd.weaveview+json",
                     "view": {"test": "blah"}
                 },
             },
