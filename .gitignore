@@ -103,3 +103,5 @@ ENV/
 # Vim
 *.sw?
 
+# Pytest cache
+.pytest_cache/
