@@ -12,10 +12,16 @@ from weavelib.messaging import Creator
 from weavelib.rpc import RPCServer, ServerAPI, ArgParameter, get_rpc_caller
 from weavelib.services import BaseService, BackgroundProcessServiceStart
 
+from .resourceprocessors import ASCIIDecoder, JSONDecoder, RegexReplacer
+from .resourceprocessors import JSONEncoder
 from .rootview import RootView
 
 
 logger = logging.getLogger(__name__)
+
+
+def view_replacement_url(obj, app_info):
+    return "http://localhost:5000/views/" + app_info["appid"] + "/"
 
 
 class RootRPCServer(RPCServer):
@@ -59,6 +65,15 @@ class ApplicationHTTP(Bottle):
         self.route("/views/<path:path>")(self.handle_view)
         self.route("/root.json")(self.handle_root)
 
+        self.resource_processors = {
+            "application/vnd.weaveview+json": [
+                ASCIIDecoder(),
+                JSONDecoder(),
+                RegexReplacer("^\$APP_ROOT/", view_replacement_url),
+                JSONEncoder(),
+            ]
+        }
+
     def handle_view(self, path):
         with self.view_lock:
             obj = self.views.get(path)
@@ -78,15 +93,15 @@ class ApplicationHTTP(Bottle):
                 "app_id": app_info["appid"],
                 "name": "Name",
                 "mime": mimetype,
-                "view": self.postprocess_resource(obj, mimetype)
+                "view": self.postprocess_resource(obj, mimetype, app_info)
             }
         return "/views/" + url
 
-    def postprocess_resource(self, obj, mime):
-        if mime == "application/vnd.weaveview+json":
-            return obj.decode('ascii')
-        return obj
+    def postprocess_resource(self, obj, mime, app_info):
+        for processor in self.resource_processors.get(mime, []):
+            obj = processor.preprocess(obj, app_info)
 
+        return obj
 
 class ApplicationRPC(object):
     APIS_SCHEMA = {

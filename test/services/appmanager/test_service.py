@@ -83,8 +83,11 @@ class TestApplicationService(object):
 
         url = base_url + "/index.json"
         resp = requests.get(url)
-        assert resp.json() == {"hello": "world"}
         assert resp.headers["Content-Type"] == "application/vnd.weaveview+json"
+        assert resp.json() == {
+            "hello": "world",
+            "url": "http://localhost:5000/views/appid2/x"
+        }
 
         url = base_url + "/test.csv"
         resp = requests.get(url)
