@@ -7,6 +7,7 @@ from git import Repo
 from git.util import RemoteProgress
 from git.exc import GitError
 
+from weavelib.http import AppHTTPServer
 from weavelib.rpc import ServerAPI, RPCServer
 from weavelib.services import BaseService, BackgroundProcessServiceStart
 
@@ -199,6 +200,7 @@ class UpdaterService(BackgroundProcessServiceStart, BaseService):
             ServerAPI("reboot", "Reboot the system", [], reboot),
             ServerAPI("status", "Get the current status.", [], self.get_status)
         ], self)
+        self.http = AppHTTPServer(self)
 
         self.status_lock = RLock()
         self.status = "No updates available."
@@ -206,6 +208,7 @@ class UpdaterService(BackgroundProcessServiceStart, BaseService):
     def on_service_start(self, *args, **kwargs):
         super().on_service_start(*args, **kwargs)
         self.rpc.start()
+        self.http.register_folder("jasonette")
         self.update_scanner.start()
         self.updater.start()
         self.notify_start()
