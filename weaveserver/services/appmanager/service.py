@@ -69,6 +69,10 @@ class ApplicationHTTP(Bottle):
                 ASCIIDecoder(),
                 JSONDecoder(),
                 RegexReplacer("^\$APP_ROOT/", view_replacement_url),
+            ]
+        }
+        self.response_processors = {
+            "application/vnd.weaveview+json": [
                 JSONEncoder(),
             ]
         }
@@ -79,7 +83,11 @@ class ApplicationHTTP(Bottle):
         if not obj:
             abort(404, "Not found.")
         response.content_type = obj["mime"]
-        return obj["view"]
+
+        res = obj["view"]
+        for processor in self.response_processors.get(obj["mime"], []):
+            res = processor.preprocess(res, None)
+        return res
 
     def handle_root(self):
         module_id = next(k for k, v in self.views.items() if "weave" in v["mime"])
