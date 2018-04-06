@@ -13,13 +13,9 @@ logger = logging.getLogger(__name__)
 
 
 def get_message_server_address(request_addr):
-    for ip_obj in netutils.iter_ipv4_addresses():
-        ours = IPv4Network(ip_obj["addr"] + "/" + ip_obj["netmask"],
-                           strict=False)
-        theirs = IPv4Network(request_addr + "/" + ip_obj["netmask"],
-                             strict=False)
-        if ours == theirs:
-            return {"host": ip_obj["addr"], "port": 11023}
+    addr = netutils.relevant_ipv4_address(request_addr)
+    if addr is not None:
+        return {"host": addr, "port": 11023}
     return None
 
 
