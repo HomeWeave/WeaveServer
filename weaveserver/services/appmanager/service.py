@@ -2,9 +2,10 @@ import base64
 import logging
 import os
 from threading import Event, RLock, Thread
+from urllib.parse import urlparse, urlunparse
 from uuid import uuid4
 
-from bottle import Bottle, abort, response
+from bottle import Bottle, abort, response, request
 from jsonschema import Draft4Validator
 
 from weavelib.messaging import Creator
@@ -20,7 +21,17 @@ logger = logging.getLogger(__name__)
 
 
 def view_replacement_url(obj, app_info):
-    return "http://localhost:5000/views/" + app_info["appid"] + "/"
+    server_host = request.headers.get("host")
+
+    if not server_host:
+        return ""
+
+    if not server_host.startswith("http://"):
+        server_host = "http://" + server_host
+
+    components = list(urlparse(server_host))
+    components[2] = "/views/{}/".format(app_info["app_id"])
+    return urlunparse(components)
 
 
 class RootRPCServer(RPCServer):
