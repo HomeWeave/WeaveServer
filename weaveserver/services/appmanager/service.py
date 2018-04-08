@@ -79,11 +79,11 @@ class ApplicationHTTP(Bottle):
             "application/vnd.weaveview+json": [
                 ASCIIDecoder(),
                 JSONDecoder(),
-                RegexReplacer("^\$APP_ROOT/", view_replacement_url),
             ]
         }
         self.response_processors = {
             "application/vnd.weaveview+json": [
+                RegexReplacer(r"^\$APP_ROOT/", view_replacement_url),
                 JSONEncoder(),
             ]
         }
@@ -93,16 +93,33 @@ class ApplicationHTTP(Bottle):
             obj = self.views.get(path)
         if not obj:
             abort(404, "Not found.")
-        response.content_type = obj["mime"]
+            return
+        return self.send_view(obj)
 
-        res = obj["view"]
-        for processor in self.response_processors.get(obj["mime"], []):
-            res = processor.preprocess(res, None)
-        return res
 
     def handle_root(self):
-        module_id = next(k for k, v in self.views.items() if "weave" in v["mime"])
-        return self.root_view.data({"module_id": module_id})
+        view_url, app_info = None, None
+        for url, info in self.views.items():
+            if "weave" in info["mime"]:
+                view_url = url
+                app_info = info
+
+        if view_url is None:
+            abort(500, "No view registered.")
+            return
+
+        return self.send_view({
+            "app_id": app_info["app_id"],
+            "mime": "application/vnd.weaveview+json",
+            "view": self.root_view.data({"module_id": view_url})
+        })
+
+    def send_view(self, obj):
+        response.content_type = obj["mime"]
+        res = obj["view"]
+        for processor in self.response_processors.get(obj["mime"], []):
+            res = processor.preprocess(res, obj)
+        return res
 
     def register_view(self, app_info, url, obj, mimetype):
         url = app_info["appid"] + "/" + url.lstrip("/")
