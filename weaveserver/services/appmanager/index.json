@@ -2,24 +2,7 @@
   "$jason": {
     "head": {
       "actions": {},
-      "data": {
-        "posts": [
-          {
-            "avatar": "http://moziru.com/images/setting-clipart-logo-png-5.png",
-            "name": "Text",
-            "location": "Somewhere",
-            "active": true,
-            "content": "http://moziru.com/images/setting-clipart-logo-png-5.png"
-          },
-          {
-            "avatar": "http://moziru.com/images/setting-clipart-logo-png-5.png",
-            "name": "Text2",
-            "location": "Somewhere",
-            "active": false,
-            "content": "http://moziru.com/images/setting-clipart-logo-png-5.png"
-          }
-        ]
-      },
+      "data": {},
       "templates": {
         "body": {
           "style": {
@@ -45,7 +28,7 @@
             {
               "type": "horizontal",
               "items": {
-                "{{#each posts}}": {
+                "{{#each views}}": {
                   "type": "vertical",
                   "style": {
                     "background": [
@@ -68,39 +51,6 @@
                       "url": "{{avatar}}",
                       "style": {
                         "width": "76",
-                        "height": "76",
-                        "corner_radius": "5"
-                      }
-                    },
-                    {
-                      "type": "label",
-                      "text": "{{name}}",
-                      "style": {
-                        "size": "12"
-                      }
-                    }
-                  ]
-                }
-              }
-            },
-            {
-              "type": "vertical",
-              "items": {
-                "{{#each posts}}": {
-                  "type": "horizontal",
-                  "style": {
-                    "background": "#fafafa",
-                    "padding": "9",
-                    "spacing": "13",
-                    "align": "center",
-                    "distribution": "equalspacing",
-                    "height": "120"
-                  },
-                  "components": [
-                    {
-                      "type": "image",
-                      "url": "{{avatar}}",
-                      "style": {
                         "height": "76",
                         "corner_radius": "5"
                       }

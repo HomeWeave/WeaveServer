@@ -129,7 +129,7 @@ class TestModuleProcessor(object):
             "$jason": {
                 "head": {
                     "data": {
-                        "posts": [
+                        "views": [
                             {
                                 "name": "Dashboard",
                                 "app_id": "_dashboard",
@@ -160,8 +160,8 @@ class TestModuleProcessor(object):
 
         assert cur == expected
 
-        expected["$jason"]["head"]["data"]["posts"][0]["active"] = True
-        expected["$jason"]["head"]["data"]["posts"][1]["active"] = False
+        expected["$jason"]["head"]["data"]["views"][0]["active"] = True
+        expected["$jason"]["head"]["data"]["views"][1]["active"] = False
         expected["$jason"]["head"]["templates"]["body"]["sections"][1] =\
             {"hello": "world"}
 
@@ -284,7 +284,7 @@ class TestRootView(object):
                         }
                     },
                     "data": {
-                        "posts": [
+                        "views": [
                             {
                                 "name": "Settings",
                                 "app_id": "_settings",
