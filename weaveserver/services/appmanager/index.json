@@ -48,7 +48,7 @@
                   "components": [
                     {
                       "type": "image",
-                      "url": "{{avatar}}",
+                      "url": "$APP_ROOT/favicon.png",
                       "style": {
                         "width": "76",
                         "height": "76",
