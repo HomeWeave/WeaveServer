@@ -1,6 +1,4 @@
-import json
 import os
-import re
 import time
 
 import requests
@@ -85,32 +83,9 @@ class TestApplicationService(object):
 
         url = base_url + "/index.json"
         resp = requests.get(url, headers={"host": "http://localhost:1234/"})
-        assert resp.headers["Content-Type"] == "application/vnd.weaveview+json"
-        assert resp.json() == {
-            "hello": "world",
-            "url": "http://localhost:1234/views/appid2/x"
-        }
+        assert resp.json()["hello"] == "world"
 
         url = base_url + "/test.csv"
         resp = requests.get(url)
         assert resp.text == "a,b,c\n"
-        assert resp.headers["Content-Type"] == "text/csv"
-
-    def test_http_root(self):
-        resp = requests.get("http://localhost:5000/root.json",
-                            headers={"host": "http://localhost:1234/"})
-
-        assert resp.headers["Content-Type"] == "application/vnd.weaveview+json"
-        got = resp.text
-
-        base_url = "http://localhost:5000" + self.dummy_service.relative_url
-        url = base_url + "/expected.json"
-        resp = requests.get(url, headers={"host": "http://localhost:1234/"})
-        expected = resp.text
-
-        remove_uuid = re.compile('[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-' +
-                                 '[a-f0-9]{4}-[a-f0-9]{12}')
-        got = json.loads(remove_uuid.sub('', got))
-        expected = json.loads(remove_uuid.sub('', expected))
-
-        assert got == expected
+        assert resp.headers["Content-Type"] == "text/csv; charset=UTF-8"

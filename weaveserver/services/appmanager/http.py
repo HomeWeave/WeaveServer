@@ -17,7 +17,7 @@ class HTTPServer(Bottle):
 
         self.route("/static/<path:path>")(self.handle_static)
         self.route("/")(self.handle_root)
-        self.route("apps/<path:path>")(self.handle_apps)
+        self.route("/apps/<path:path>")(self.handle_apps)
 
         logger.info("Temp Dir for HTTP: %s", plugin_path)
 

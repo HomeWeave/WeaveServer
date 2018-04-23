@@ -116,10 +116,15 @@ class ApplicationRPC(object):
     def register_view(self, url, content, mimetype):
         decoded = base64.b64decode(content)
         app = get_rpc_caller()
-        path = os.path.join(self.plugin_path, app["appid"], url.lstrip(("/")))
+        path = os.path.join(self.plugin_path, app["appid"])
+        try:
+            os.makedirs(path)
+        except:
+            pass
+        path = os.path.join(path, url.lstrip("/"))
         with open(path, "wb") as out:
             out.write(decoded)
-        return app["appid"] + "/" + url.lstrip("/")
+        return "/apps/" + app["appid"] + "/" + url.lstrip("/")
 
 
 class ApplicationService(BackgroundProcessServiceStart, BaseService):
