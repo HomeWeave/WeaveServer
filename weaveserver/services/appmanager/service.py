@@ -1,13 +1,14 @@
 import base64
 import logging
 import os
+from collections import defaultdict
 from tempfile import TemporaryDirectory
 from threading import Event, Thread
 from uuid import uuid4
 
 from jsonschema import Draft4Validator
 
-from weavelib.messaging import Creator
+from weavelib.messaging import Creator, QueueAlreadyExists
 from weavelib.rpc import RPCServer, ServerAPI, ArgParameter, get_rpc_caller
 from weavelib.services import BaseService, BackgroundProcessServiceStart
 
@@ -61,7 +62,7 @@ class ApplicationRPC(object):
         ], service)
         self.queue_creator = Creator(auth=service.auth_token)
         self.plugin_path = plugin_path
-        self.all_rpcs = {}
+        self.all_rpcs = defaultdict(dict)
 
     def start(self):
         self.rpc.start()
@@ -73,6 +74,9 @@ class ApplicationRPC(object):
 
     def register_rpc(self, name, description, apis):
         caller_app_id = get_rpc_caller()["appid"]
+
+        if self.all_rpcs[caller_app_id][name]:
+            raise QueueAlreadyExists(name)
 
         base_queue = "/components/{}/rpcs/{}".format(caller_app_id,
                                                      str(uuid4()))
@@ -100,7 +104,7 @@ class ApplicationRPC(object):
             "request_schema": response_schema
         })
 
-        self.all_rpcs[base_queue] = {
+        self.all_rpcs[caller_app_id][name] = {
             "app_id": caller_app_id,
             "name": name,
             "description": description,
