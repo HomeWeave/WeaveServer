@@ -28,6 +28,7 @@ class HTTPServer(Bottle):
         self.route("/apps/<path:path>")(self.handle_apps)
         self.route("/rpc/<path:path>")(self.handle_rpc)
         self.route("/views/<path:path>")(self.handle_view)
+        self.route("/api/status")(self.handle_status)
 
         logger.info("Temp Dir for HTTP: %s", plugin_path)
 
@@ -65,3 +66,10 @@ class HTTPServer(Bottle):
 
     def handle_view(self, path):
         pass
+
+    def handle_status(self):
+        return {
+            "plugins": len(self.service.plugins),
+            "rules": 0,
+            "version": self.service.version,
+        }

@@ -135,7 +135,9 @@ class ApplicationService(BackgroundProcessServiceStart, BaseService):
     def __init__(self, token, config):
         super().__init__(token)
 
+        self.version = "latest"
         self.plugin_dir = TemporaryDirectory()
+        self.plugins = {}
         self.rpc = ApplicationRPC(self, self.plugin_dir.name)
         self.http = HTTPServer(self, self.plugin_dir.name)
         self.exited = Event()
