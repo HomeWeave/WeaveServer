@@ -168,9 +168,11 @@
             <div class="content">
                 <div class="container-fluid">
                     <div class="row weave-small-cards-row">
+                        Loading..
                     </div>
                     <div class="row weave-medium-cards-row">
                     </div>
+                    
                     <div class="row">
                         <div class="col-lg-6 col-md-12">
                             <div class="card">
@@ -482,62 +484,5 @@
 <script src="/static/js/material-dashboard.js?v=2.0.0"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/handlebars.js/4.0.11/handlebars.min.js" integrity="sha256-+JMHsXRyeTsws/tzbIh5YHQxRdKCuNjmvNcTFtY6DLc=" crossorigin="anonymous"></script>
 <script src="/static/js/dashcomponents.js"></script>
-<script>
-    $(document).ready(function() {
-        var smallCards = [
-            {
-                cardType: 'success',
-                icon: {material: 'content_copy'},
-                title: 'Used Space',
-                content: '49/50GB',
-                footer: [
-                    {
-                        url: '#',
-                        iconName: 'warning',
-                        iconOverride: 'danger',
-                        message: 'Get More Space'
-                    }
-                ]
-            },
-            {
-                cardType: 'warning',
-                icon: {material: 'content_copy'},
-                title: 'Used Space',
-                content: '49/50GB',
-                footer: [
-                    {
-                        url: '#',
-                        iconName: '',
-                        message: 'Get More Space'
-                    }
-                ]
-            }
-        ];
-
-        var mediumCards = [
-            {
-                html: "",
-                cardType: 'success',
-                cardTitle: "Title1",
-                cardContent: [
-                    {material: 'face', text: "Point1"},
-                    {material: 'content_copy', text: "Point2"}
-                ],
-                footer: [
-                    {
-                        url: '#',
-                        iconName: '',
-                        message: 'Get More Space'
-                    }
-                ]
-            }
-        ];
-
-        var smallCard = SmallCard();
-        var mediumCard = MediumCard();
-
-        $('.content .weave-small-cards-row').html($.map(smallCards, smallCard.html).join(""));
-        $('.content .weave-medium-cards-row').html($.map(mediumCards, mediumCard.html).join(""));
-    });
-</script>
+<script src="/static/js/dashboard-main.js"></script>
 </html>
