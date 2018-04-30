@@ -1,0 +1,15 @@
+{
+    "cardType": "info",
+    "cardTitle": "Updater",
+    "cardContent": [
+        {"material": "face", "text": "Point1"},
+        {"material": "content_copy", "text": "Point2"}
+    ],
+    "footer": [
+        {
+            "url": "#",
+            "iconName": "",
+            "message": "Get More Space"
+        }
+    ]
+}

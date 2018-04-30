@@ -208,7 +208,7 @@ class UpdaterService(BackgroundProcessServiceStart, BaseService):
     def on_service_start(self, *args, **kwargs):
         super().on_service_start(*args, **kwargs)
         self.rpc.start()
-        self.http.register_folder("jasonette")
+        self.http.register_folder("static")
         self.update_scanner.start()
         self.updater.start()
         self.notify_start()
