@@ -1,4 +1,20 @@
 {
+    "$actions": {
+        "$load": [
+            {
+                "type": "rpc",
+                "success": {
+                    "type": "$store",
+                    "variable": "status"
+                },
+                "data": {
+                    "api_name": "",
+                    "args": [],
+                    "kwargs": {}
+                }
+            }
+        ]
+    },
     "cardType": "info",
     "cardTitle": "Updater",
     "cardContent": [
