@@ -28,29 +28,13 @@ $(document).ready(function() {
                 footer: []
             },
         ];
-        var mediumCards = [
-            {
-                html: "",
-                cardType: 'success',
-                cardTitle: "Title1",
-                cardContent: [
-                    {material: 'face', text: "Point1"},
-                    {material: 'content_copy', text: "Point2"}
-                ],
-                footer: [
-                    {
-                        url: '#',
-                        iconName: '',
-                        message: 'Get More Space'
-                    }
-                ]
-            }
-        ];
+
+        var mediumCards = statusResponse.components;
 
         var smallCard = SmallCard();
         var mediumCard = MediumCard();
 
         $('.content .weave-small-cards-row').html($.map(smallCards, smallCard.html).join(""));
-        // $('.content .weave-medium-cards-row').html($.map(mediumCards, mediumCard.html).join(""));
+        $('.content .weave-medium-cards-row').html($.map(mediumCards, mediumCard.html).join(""));
     });
 });

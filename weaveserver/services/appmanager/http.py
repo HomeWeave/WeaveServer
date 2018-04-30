@@ -68,8 +68,13 @@ class HTTPServer(Bottle):
         pass
 
     def handle_status(self):
+        all_apps = self.service.registry.all_apps
+        status_cards = [x.status_card for x in all_apps.values()
+                        if x.status_card]
+
         return {
-            "plugins": len(self.service.plugins),
             "rules": 0,
             "version": self.service.version,
+            "plugins": len(all_apps),
+            "components": [json.loads(x.read()) for x in status_cards]
         }
