@@ -32,9 +32,9 @@ $(document).ready(function() {
         var mediumCards = statusResponse.components;
 
         var smallCard = SmallCard();
-        var mediumCard = MediumCard();
+        var mediumCard = MediumCard('.content .weave-medium-cards-row');
 
         $('.content .weave-small-cards-row').html($.map(smallCards, smallCard.html).join(""));
-        $('.content .weave-medium-cards-row').html($.map(mediumCards, mediumCard.html).join(""));
+        mediumCards.forEach(mediumCard.load);
     });
 });
