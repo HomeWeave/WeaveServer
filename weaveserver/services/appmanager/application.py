@@ -51,6 +51,7 @@ class Application(object):
     def __init__(self):
         self.rpcs = {}
         self.resources = {}
+        self.package_name = None
         self.status_card = None
         self.system_app = False
 
