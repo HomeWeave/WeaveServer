@@ -1,43 +1,45 @@
-from weavelib.services import BaseService
+import os
 
-from weaveserver.core.services import ServiceManager
+import appdirs
+import pytest
+
+from weavelib.exceptions import ObjectNotFound
+from weavelib.rpc import RPCClient
+
+import weaveserver.services.simpledb.service as service
 from weaveserver.services.simpledb import SimpleDatabaseService
-
-
-AUTH = {
-    "auth1": {
-        "type": "SYSTEM",
-        "appid": "appmgr"
-    },
-    "auth2": {
-        "appid": "appid2"
-    }
-}
-
-
-class DummyService(BaseService):
-    def __init__(self, token):
-        super(DummyService, self).__init__(token)
-
-    def api1(self):
-        return "OK"
-
-    def on_service_start(self):
-        self.rpc_server.start()
-        self.relative_url = self.http.register_folder("test_dir")
-
-    def on_service_stop(self):
-        self.rpc_server.stop()
+from weaveserver.services.simpledb.service import SimpleDatabase
 
 
 class TestSimpleDBService(object):
+    @classmethod
     def setup_class(cls):
-        cls.service_manager = ServiceManager()
-        cls.service_manager.apps = AUTH
-        cls.service_manager.start_services(["messaging"])
-        cls.db = SimpleDatabaseService("auth1", None)
-        cls.db.on_service_start()
+        cls.rpc_caller_backup = service.get_rpc_caller
+        service.get_rpc_caller = lambda: {"package": "p"}
 
+    @classmethod
     def teardown_class(cls):
-        cls.service_manager.stop()
-        cls.db.service_stop()
+        service.get_rpc_caller = cls.rpc_caller_backup
+
+    def test_db_path(self):
+        dbs = SimpleDatabaseService("token", {})
+        expected_path = os.path.join(appdirs.user_data_dir("homeweave"), "db")
+        assert dbs.db.path == expected_path
+
+    def test_query_bad_key(self):
+        db = SimpleDatabase(":memory:")
+        db.start()
+        with pytest.raises(ObjectNotFound):
+            db.query("key")
+
+    def test_insert_and_query(self):
+        db = SimpleDatabase(":memory:")
+        db.start()
+        obj = {"value": [1, 2], "test": {}}
+        db.insert("key", obj)
+
+        assert db.query("key") == obj
+
+        # Test replace
+        db.insert("key", {})
+        assert db.query("key") == {}

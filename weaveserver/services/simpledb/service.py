@@ -1,14 +1,15 @@
 import json
 import logging
 import os
-import sqlite3
 from threading import Event
 
 import appdirs
-from peewee import Proxy, Model, CharField, TextField
+from peewee import SqliteDatabase, Proxy, Model, CharField, TextField
+from peewee import DoesNotExist
 
-from weavelib.services import BaseService, BackgroundThreadServiceStart
-from weavelib.rpc import RPCServer, ServerAPI, get_rpc_caller
+from weavelib.exceptions import ObjectNotFound
+from weavelib.rpc import RPCServer, ServerAPI, ArgParameter, get_rpc_caller
+from weavelib.services import BaseService, BackgroundProcessServiceStart
 
 
 logger = logging.getLogger(__name__)
@@ -31,7 +32,7 @@ class JSONField(TextField):
 
 class BaseModel(Model):
     class Meta(object):
-        db = proxy
+        database = proxy
 
 
 class AppData(BaseModel):
@@ -45,27 +46,45 @@ class SimpleDatabase(object):
         self.path = path
 
     def start(self):
-        self.conn = sqlite3.connect(self.path)
+        self.conn = SqliteDatabase(self.path)
+        proxy.initialize(self.conn)
+        self.conn.create_tables([AppData])
 
     def query(self, key):
         try:
             return AppData.get(AppData.app_id == get_rpc_caller_package(),
                                AppData.app_key == key).app_value
-        finally:
-            pass
+        except DoesNotExist:
+            raise ObjectNotFound
+
+    def insert(self, key, value):
+        query = AppData.insert(app_id=get_rpc_caller_package(), app_key=key,
+                               app_value=value)
+        query.on_conflict_replace().execute()
 
 
-class SimpleDatabaseService(BackgroundThreadServiceStart, BaseService):
+class SimpleDatabaseService(BackgroundProcessServiceStart, BaseService):
     def __init__(self, token, config):
         super().__init__(token)
-        weave_base = appdirs.user_data_dir("homeweave")
-        self.db = SimpleDatabase(os.path.join(weave_base, "db"))
+        path = config.get("db_path")
+        if not path:
+            weave_base = appdirs.user_data_dir("homeweave")
+            path = os.path.join(weave_base, "db")
+        self.db = SimpleDatabase(path)
         self.rpc = RPCServer("object_store", "Object Store for all plugins.", [
-            ServerAPI("query", "Query for key", [str], self.db.query),
+            ServerAPI("query", "Query for key", [
+                ArgParameter("key", "Name of the key.", str),
+            ], self.db.query),
+            ServerAPI("insert", "Insert key-value pair", [
+                ArgParameter("key", "Name of the key.", str),
+                ArgParameter("value", "JSON Object", {"type": "object"}),
+            ], self.db.insert)
         ], self)
         self.shutdown = Event()
 
     def on_service_start(self, *args, **kwargs):
+        super(SimpleDatabaseService, self).on_service_start(*args, **kwargs)
+        self.rpc.start()
         self.db.start()
         self.notify_start()
         self.shutdown.wait()
