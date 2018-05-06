@@ -15,8 +15,9 @@ setup(
         'bottle',
         'GitPython',
         'redis',
-        'sqlite3'
-        'appdirs'
+        'sqlite3',
+        'appdirs',
+        'peewee',
     ],
     entry_points={
         'console_scripts': [
