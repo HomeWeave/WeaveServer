@@ -77,7 +77,8 @@ class ApplicationRegistry(object):
     def register_rpc(self, name, description, apis):
         caller_app = get_rpc_caller()
         caller_app_id = caller_app["appid"]
-        self.all_apps[caller_app_id].system_app = caller_app["type"] == "SYSTEM"
+        app = self.all_apps[caller_app_id]
+        app.system_app = caller_app.get("type") == "SYSTEM"
 
         base_queue = "/components/{}/rpcs/{}".format(caller_app_id,
                                                      str(uuid4()))
@@ -117,7 +118,8 @@ class ApplicationRegistry(object):
     def register_view(self, url, content, mimetype):
         caller_app = get_rpc_caller()
         caller_app_id = caller_app["appid"]
-        self.all_apps[caller_app_id].system_app = caller_app["type"] == "SYSTEM"
+        app = self.all_apps[caller_app_id]
+        app.system_app = caller_app.get("type") == "SYSTEM"
 
         decoded = base64.b64decode(content)
         path = os.path.join(self.plugin_path, caller_app_id)
