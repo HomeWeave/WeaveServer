@@ -17,7 +17,8 @@ AUTH = {
         "appid": "appmgr"
     },
     "auth2": {
-        "appid": "appid2"
+        "appid": "appid2",
+        "package": "p"
     }
 }
 
@@ -89,3 +90,10 @@ class TestApplicationService(object):
         resp = requests.get(url)
         assert resp.text == "a,b,c\n"
         assert resp.headers["Content-Type"] == "text/csv; charset=UTF-8"
+
+    def test_rpc_info(self):
+        info = self.dummy_service.rpc_client["rpc_info"]("p", "name",
+                                                         _block=True)
+        actual_info = self.dummy_service.rpc_server.info_message
+        assert info["request_queue"] == actual_info["request_queue"]
+        assert info["response_queue"] == actual_info["response_queue"]

@@ -8,6 +8,7 @@ from uuid import uuid4
 
 from jsonschema import Draft4Validator
 
+from weavelib.exceptions import ObjectNotFound
 from weavelib.messaging import Creator
 from weavelib.rpc import RPCServer, ServerAPI, ArgParameter, get_rpc_caller
 from weavelib.services import BaseService, BackgroundProcessServiceStart
@@ -59,7 +60,11 @@ class ApplicationRegistry(object):
                 ArgParameter("url", "URL to register to.", {"type": "string"}),
                 ArgParameter("content", "Resource content", {"type": "string"}),
                 ArgParameter("mimetype", "Resource MIME", {"type": "string"}),
-            ], self.register_view)
+            ], self.register_view),
+            ServerAPI("rpc_info", "Get RPCInfo object.", [
+                ArgParameter("package_name", "Package Name", str),
+                ArgParameter("rpc_name", "RPC Name", str),
+            ], self.rpc_info)
         ], service)
         self.queue_creator = Creator(auth=service.auth_token)
         self.plugin_path = plugin_path
@@ -78,6 +83,7 @@ class ApplicationRegistry(object):
         caller_app = get_rpc_caller()
         caller_app_id = caller_app["appid"]
         app = self.all_apps[caller_app_id]
+        app.package_name = caller_app["package"]
         app.system_app = caller_app.get("type") == "SYSTEM"
 
         base_queue = "/components/{}/rpcs/{}".format(caller_app_id,
@@ -119,6 +125,7 @@ class ApplicationRegistry(object):
         caller_app = get_rpc_caller()
         caller_app_id = caller_app["appid"]
         app = self.all_apps[caller_app_id]
+        app.package_name = caller_app["package"]
         app.system_app = caller_app.get("type") == "SYSTEM"
 
         decoded = base64.b64decode(content)
@@ -132,6 +139,21 @@ class ApplicationRegistry(object):
             self.all_apps[caller_app_id].register_app_resource(app_resource)
 
         return "/apps/" + caller_app_id + "/" + url.lstrip("/")
+
+    def rpc_info(self, package_name, rpc_name):
+        found_app = None
+        for app in self.all_apps.values():
+            if app.package_name == package_name:
+                found_app = app
+                break
+
+        if not found_app:
+            raise ObjectNotFound("Package not found: " + package_name)
+
+        rpc_info = found_app.rpcs.get(rpc_name)
+        if not rpc_info:
+            raise ObjectNotFound("RPC not found: " + rpc_name)
+        return rpc_info.to_json()
 
 
 class ApplicationService(BackgroundProcessServiceStart, BaseService):
