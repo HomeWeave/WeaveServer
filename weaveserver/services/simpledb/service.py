@@ -1,3 +1,4 @@
+import errno
 import json
 import logging
 import os
@@ -14,6 +15,16 @@ from weavelib.services import BaseService, BackgroundProcessServiceStart
 
 logger = logging.getLogger(__name__)
 proxy = Proxy()
+
+
+def get_db_path():
+    weave_base = appdirs.user_data_dir("homeweave")
+    try:
+        os.makedirs(weave_base)
+    except OSError as e:
+        if e.errno != errno.EEXIST:
+            raise
+    return os.path.join(weave_base, "db")
 
 
 def get_rpc_caller_package():
@@ -66,10 +77,7 @@ class SimpleDatabase(object):
 class SimpleDatabaseService(BackgroundProcessServiceStart, BaseService):
     def __init__(self, token, config):
         super().__init__(token)
-        path = config.get("db_path")
-        if not path:
-            weave_base = appdirs.user_data_dir("homeweave")
-            path = os.path.join(weave_base, "db")
+        path = config["core"].get("DB_PATH") or get_db_path()
         self.db = SimpleDatabase(path)
         self.rpc = RPCServer("object_store", "Object Store for all plugins.", [
             ServerAPI("query", "Query for key", [
