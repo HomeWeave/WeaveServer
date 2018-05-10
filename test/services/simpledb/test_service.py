@@ -22,7 +22,7 @@ class TestSimpleDBService(object):
         service.get_rpc_caller = cls.rpc_caller_backup
 
     def test_db_path(self):
-        dbs = SimpleDatabaseService("token", {})
+        dbs = SimpleDatabaseService("token", {"core": {}})
         expected_path = os.path.join(appdirs.user_data_dir("homeweave"), "db")
         assert dbs.db.path == expected_path
 
