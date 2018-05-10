@@ -4,5 +4,13 @@ __meta__ = {
     "name": "Simple Database",
     "class": SimpleDatabaseService,
     "deps": ["messaging", "appmanager"],
-    "config": []
+    "config": [
+        {
+            "name": "core",
+            "loaders": [
+                {"type": "env"},
+                {"type": "sysvarfile"}
+            ]
+        }
+    ]
 }
