@@ -61,6 +61,7 @@ class ApplicationRegistry(object):
                 ArgParameter("content", "Resource content", {"type": "string"}),
                 ArgParameter("mimetype", "Resource MIME", {"type": "string"}),
             ], self.register_view),
+            ServerAPI("register_app", "Register App", [], self.register_app),
             ServerAPI("rpc_info", "Get RPCInfo object.", [
                 ArgParameter("package_name", "Package Name", str),
                 ArgParameter("rpc_name", "RPC Name", str),
@@ -69,7 +70,7 @@ class ApplicationRegistry(object):
         self.queue_creator = Creator(auth=service.auth_token)
         self.plugin_path = plugin_path
         self.all_rpcs = defaultdict(dict)
-        self.all_apps = defaultdict(Application)
+        self.all_apps = {}
 
     def start(self):
         self.rpc.start()
@@ -82,9 +83,6 @@ class ApplicationRegistry(object):
     def register_rpc(self, name, description, apis):
         caller_app = get_rpc_caller()
         caller_app_id = caller_app["appid"]
-        app = self.all_apps[caller_app_id]
-        app.package_name = caller_app["package"]
-        app.system_app = caller_app.get("type") == "SYSTEM"
 
         base_queue = "/components/{}/rpcs/{}".format(caller_app_id,
                                                      str(uuid4()))
@@ -124,9 +122,6 @@ class ApplicationRegistry(object):
     def register_view(self, url, content, mimetype):
         caller_app = get_rpc_caller()
         caller_app_id = caller_app["appid"]
-        app = self.all_apps[caller_app_id]
-        app.package_name = caller_app["package"]
-        app.system_app = caller_app.get("type") == "SYSTEM"
 
         decoded = base64.b64decode(content)
         path = os.path.join(self.plugin_path, caller_app_id)
@@ -139,6 +134,18 @@ class ApplicationRegistry(object):
             self.all_apps[caller_app_id].register_app_resource(app_resource)
 
         return "/apps/" + caller_app_id + "/" + url.lstrip("/")
+
+    def register_app(self):
+        caller_app = get_rpc_caller()
+        caller_app_id = caller_app["appid"]
+        package = caller_app["package"]
+
+        app = Application()
+        app.package_name = package
+        app.system_app = caller_app.get("type") == "SYSTEM"
+
+        self.all_apps[caller_app_id] = app
+        logger.info("Registered app: %s", package)
 
     def rpc_info(self, package_name, rpc_name):
         found_app = None
