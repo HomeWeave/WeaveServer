@@ -66,7 +66,7 @@ class SimpleDatabase(object):
             return AppData.get(AppData.app_id == get_rpc_caller_package(),
                                AppData.app_key == key).app_value
         except DoesNotExist:
-            raise ObjectNotFound
+            raise ObjectNotFound(key)
 
     def insert(self, key, value):
         query = AppData.insert(app_id=get_rpc_caller_package(), app_key=key,
