@@ -90,7 +90,7 @@ class ServiceManager(object):
         self.apps[app_token] = {
             "type": "SYSTEM",
             "appid": "app-id-" + str(uuid4()),
-            "package": module.package_path,
+            "package": module.package_path.replace("/", "."),
         }
 
         service = module.meta["class"](app_token, config)
