@@ -85,7 +85,7 @@ class SimpleDatabaseService(BackgroundProcessServiceStart, BaseService):
             ], self.db.query),
             ServerAPI("insert", "Insert key-value pair", [
                 ArgParameter("key", "Name of the key.", str),
-                ArgParameter("value", "JSON Object", {"type": "object"}),
+                ArgParameter("value", "JSON Object", {}),
             ], self.db.insert)
         ], self)
         self.shutdown = Event()
