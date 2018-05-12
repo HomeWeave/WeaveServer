@@ -32,7 +32,7 @@ class TestUpdateScanner(object):
 
         os.environ["USE_FAKE_REDIS"] = "TRUE"
         self.service_manager = ServiceManager()
-        self.service_manager.apps = AUTH
+        self.service_manager.apps.update(AUTH)
         self.service_manager.start_services(["messaging", "appmanager"])
 
     def teardown_method(self):
