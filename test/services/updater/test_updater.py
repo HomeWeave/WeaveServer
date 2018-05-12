@@ -16,7 +16,8 @@ from weaveserver.services.updater.service import Updater
 AUTH = {
     "auth1": {
         "type": "SYSTEM",
-        "appid": "appmgr"
+        "appid": "appmgr",
+        "package": "p",
     },
     "auth2": {
         "appid": "appid2"
