@@ -8,7 +8,9 @@
                     "variable": "status"
                 },
                 "data": {
-                    "api_name": "",
+                    "package_name": "weaveserver.services.updater",
+                    "rpc_name": "System Update",
+                    "api_name": "status",
                     "args": [],
                     "kwargs": {}
                 }
