@@ -16,7 +16,17 @@
 </head>
 
 <body class="">
-    <script type="text/template" id="template-nav-item">
+    <script type="text/x-template" id="template-footer-status">
+        <div class="stats">
+            <span v-for="f in footer">
+                <i v-if="f.icon && f.icon.fontawesome" class="fa" v-bind:class="'fa-' + f.icon.fontawesome"></i>
+                <i v-else-if="f.icon && f.icon.material" class="material-icons">{{f.icon.material}}</i>
+                <a v-if="f.url" v-bind:href="f.url">{{f.message}}</a>
+                <span v-else>{{f.message}}</span>
+            </span>
+        </div>
+    </script>
+    <script type="text/x-template" id="template-nav-item">
         <li class="nav-item ">
             <a class="nav-link" href="../examples/user.html">
                 <i class="material-icons">person</i>
@@ -27,28 +37,16 @@
     <script type="text/x-template" id="template-small-card">
         <div class="col-lg-3 col-md-6 col-sm-6">
             <div class="card card-stats">
-                <div class="card-header card-header-{{cardType}} card-header-icon">
+                <div class="card-header card-header-icon" v-bind:class="'card-header-' + cardType">
                     <div class="card-icon">
-                        {{#if icon.fontawesome}}
-                            <i class="fa fa-{{icon.fontawesome}}"></i>
-                        {{else if icon.material}}
-                            <i class="material-icons">{{icon.material}}</i>
-                        {{/if}}
+                        <i v-if="icon && icon.fontawesome" class="fa" v-bind:class="'fa-' + icon.fontawesome"></i>
+                        <i v-else-if="icon && icon.material" class="material-icons">{{icon.material}}</i>
                     </div>
                     <p class="card-category">{{title}}</p>
                     <h3 class="card-title">{{content}}</h3>
                 </div>
                 <div class="card-footer">
-                    <div class="stats">
-                        {{#each footer}}
-                            <i class="material-icons text-{{iconOverride}}">{{iconName}}</i>
-                            {{#if url}}
-                            <a href={{url}}>{{message}}</a>
-                            {{else}}
-                            {{message}}
-                            {{/if}}
-                        {{/each}}
-                    </div>
+                    <card-footer-status v-bind:footer="footer"></card-footer-status>
                 </div>
             </div>
         </div>
@@ -56,33 +54,20 @@
     <script type="text/x-template" id="template-medium-card">
         <div class="col-md-4">
             <div class="card">
-                <div class="card-header card-header-{{cardType}}">
-                    {{{html}}} Test
+                <div class="card-header" v-bind:class="'card-header-' + cardType">
+                    {{cardTitle}}
                 </div>
                 <div class="card-body">
                     <h4 class="card-title">{{cardTitle}}</h4>
-                    {{#each cardCotent}}
-                    <p class="card-category">
-                        {{#if icon.fontawesome}}
-                            <i class="fa fa-{{icon.fontawesome}}"></i>
-                        {{else if icon.material}}
-                            <i class="material-icons">{{icon.material}}</i>
-                        {{/if}}
-                        {{text}}
+                    <p v-for="c in cardContent" class="card-category">
+                        <i v-if="c.icon && c.icon.fontawesome" class="fa" v-bind:class="'fa-' + c.icon.fontawesome"></i>
+                        <i v-else-if="c.icon && c.icon.material" class="material-icons">{{c.icon.material}}</i>
+                        <a v-if="c.url" v-bind:href="c.url">{{c.text}}</a>
+                        <span v-else>{{c.text}}</span>
                     </p>
-                    {{/each}}
                 </div>
                 <div class="card-footer">
-                    <div class="stats">
-                        {{#each footer}}
-                            <i class="material-icons text-{{iconOverride}}">{{iconName}}</i>
-                            {{#if url}}
-                            <a href={{url}}>{{message}}</a>
-                            {{else}}
-                            {{message}}
-                            {{/if}}
-                        {{/each}}
-                    </div>
+                    <card-footer-status v-bind:footer="footer"></card-footer-status>
                 </div>
             </div>
         </div>
@@ -166,9 +151,8 @@
             </nav>
             <!-- End Navbar -->
             <div class="content">
-                <div class="container-fluid">
+                <div class="container-fluid" id="mainContent">
                     <div class="row weave-small-cards-row">
-                        Loading..
                     </div>
                     <div class="row weave-medium-cards-row">
                     </div>
@@ -482,7 +466,7 @@
 <script src="/static/js/plugins/bootstrap-notify.js"></script>
 <!-- Material Dashboard Core initialisations of plugins and Bootstrap Material Design Library -->
 <script src="/static/js/material-dashboard.js?v=2.0.0"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/handlebars.js/4.0.11/handlebars.min.js" integrity="sha256-+JMHsXRyeTsws/tzbIh5YHQxRdKCuNjmvNcTFtY6DLc=" crossorigin="anonymous"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/vue/2.5.16/vue.min.js" integrity="sha256-TaLceMwjWRqe4yhbqPOJH6V7UGt5AvvdNfpaIXJWbFU=" crossorigin="anonymous"></script>
 <script src="/static/js/dashcomponents.js"></script>
 <script src="/static/js/dashboard-main.js"></script>
 </html>
