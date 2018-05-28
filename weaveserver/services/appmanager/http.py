@@ -26,8 +26,8 @@ class HTTPServer(Bottle):
         self.route("/static/<path:path>")(self.handle_static)
         self.route("/")(self.handle_root)
         self.route("/apps/<path:path>")(self.handle_apps)
-        self.route("/rpc/<path:path>")(self.handle_rpc)
         self.route("/views/<path:path>")(self.handle_view)
+        self.route("/api/rpc", method="POST")(self.handle_rpc)
         self.route("/api/status")(self.handle_status)
 
         logger.info("Temp Dir for HTTP: %s", plugin_path)
@@ -42,17 +42,30 @@ class HTTPServer(Bottle):
     def handle_apps(self, path):
         return static_file(path, root=os.path.join(self.plugin_path))
 
-    def handle_rpc(self, path):
+    def handle_rpc(self):
         body = json.load(request.body)
+        # TODO: Should be able to deduce package_name.
+        package_name = body.get("package_name")
+        rpc_name = body.get("rpc_name")
         api_name = body.get("api_name")
         args = body.get("args")
         kwargs = body.get("kwargs")
-        rpc_info = self.service.all_rpcs.get(path)
+
+        current_app = None
+        for app in self.service.registry.all_apps.values():
+            if app.package_name == package_name:
+                current_app = app
+                break
+
+        if not current_app:
+            return return_response(404, {"error": "No such app."})
+
+        rpc_info = current_app.rpcs.get(rpc_name)
 
         if not rpc_info or not api_name:
             return return_response(404, {"error": "No such API."})
 
-        rpc_client = RPCClient(rpc_info)
+        rpc_client = RPCClient(rpc_info.to_json(), self.service.token)
 
         rpc_client.start()
         try:
