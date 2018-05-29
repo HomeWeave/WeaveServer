@@ -12,6 +12,10 @@ from weavelib.messaging import Sender, Receiver, Creator, read_message
 from weavelib.messaging import ensure_ok_message
 
 from weaveserver.services.messaging import MessageService
+from weaveserver.core.logger import configure_logging
+
+
+configure_logging()
 
 
 CONFIG = {
@@ -212,6 +216,40 @@ class TestMessagingService(object):
         thread.start()
 
         thread.join()
+
+    def test_multiple_client_disconnection(self):
+        # Two clients waiting on a queue. First one disconnects. Second should
+        # get it.
+        sem1 = Semaphore(0)
+        sem2 = Semaphore(0)
+        msgs1 = []
+        msgs2 = []
+        op = {"foo": "bar"}
+
+        s = Sender("/a.b.c")
+        s.start()
+
+        r1 = Receiver("/a.b.c")
+        r1.on_message = make_receiver(1, msgs1, sem1, r1)
+        r1.start()
+        t1 = Thread(name="Receiver1", target=r1.run)
+        t1.start()
+
+        r2 = Receiver("/a.b.c")
+        r2.on_message = make_receiver(1, msgs2, sem2, r2)
+        r2.start()
+        t2 = Thread(name="Receiver2", target=r2.run)
+        t2.start()
+
+        # Stop the Receiver1, the data should be recvd by r2 even if r1 was
+        # first to request.
+        r1.stop()
+        t1.join()
+
+        s.send(op)
+
+        assert sem2.acquire(timeout=5)
+        assert msgs2[0] == op
 
     def test_sticky_simple_enqueue_dequeue(self):
         sem1 = Semaphore(0)

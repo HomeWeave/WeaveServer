@@ -1,10 +1,11 @@
 import json
 import logging
 import os
+import select
 import time
 from collections import defaultdict
 from socketserver import ThreadingTCPServer, StreamRequestHandler
-from threading import Condition, RLock
+from threading import Condition, Thread, RLock
 from uuid import uuid4
 
 from jsonschema import validate, ValidationError, SchemaError
@@ -106,23 +107,33 @@ class SynchronousQueue(BaseQueue):
     def before_dequeue(self, requestor_id):
         pass
 
-    def dequeue(self, headers):
+    def dequeue(self, headers, active_fn):
         requestor_id = get_required_field(headers, self.REQUESTOR_ID_FIELD)
         self.check_auth(None, headers)
 
         self.before_dequeue(requestor_id)
-
+        logger.info("$$ Trying to dequeue.")
         with self.condition:
             while True:
                 if not self.active:
                     raise ObjectClosed(self)
-
+                logger.info("$$ Queue is active.")
+                if not active_fn():
+                    self.remove_requestor(requestor_id)
+                    self.condition.notify_all()
+                    raise IOError("Client socket closed.")
+                logger.info("$$ Client is active.")
                 condition_value = self.dequeue_condition(requestor_id)
                 if not condition_value:
+                    logger.info("$$ Can't dequeue, waiting..")
                     self.condition.wait()
                 else:
+                    logger.info("$$ Dequeueing..")
                     msg = self.on_dequeue(requestor_id, condition_value)
                     return self.unpack_message(msg)
+
+    def remove_requestor(self, requestor_id):
+        pass
 
 
 class SessionizedQueue(SynchronousQueue):
@@ -158,6 +169,9 @@ class SessionizedQueue(SynchronousQueue):
         self.requestor_version_map[requestor_id] = condition_value["version"]
         return condition_value
 
+    def remove_requestor(self, requestor_id):
+        self.requestor_version_map.pop(requestor_id)
+
 
 class FIFOQueue(SynchronousQueue):
     def __init__(self, queue_info):
@@ -177,6 +191,12 @@ class FIFOQueue(SynchronousQueue):
     def on_dequeue(self, requestor_id, condition_value):
         self.requestors.pop(0)
         return self.queue.pop(0)
+
+    def remove_requestor(self, requestor_id):
+        try:
+            self.requestors.remove(requestor_id)
+        except ValueError:
+            pass
 
 
 class StickyQueue(SynchronousQueue):
@@ -198,6 +218,9 @@ class StickyQueue(SynchronousQueue):
         self.requestors.add(requestor_id)
         return self.sticky_message
 
+    def remove_requestor(self, requestor_id):
+        self.requestors.discard(requestor_id)
+
 
 class KeyedStickyQueue(BaseQueue):
     def __init__(self, queue_info):
@@ -217,11 +240,15 @@ class KeyedStickyQueue(BaseQueue):
             self.sticky_map_version += 1
             self.condition.notify_all()
 
-    def dequeue(self, headers):
+    def dequeue(self, headers, active_fn):
         # Sticky Map doesn't support AUTH.
         requestor_id = headers["SESS"]
 
         def can_dequeue():
+            if not active_fn():
+                self.requestor_map.pop(requestor_id)
+                self.condition.notify_all()
+                return False
             return self.sticky_map_version != self.requestor_map[requestor_id]
 
         with self.condition:
@@ -233,21 +260,42 @@ class KeyedStickyQueue(BaseQueue):
 class MessageHandler(StreamRequestHandler):
     def handle(self):
         sess = str(uuid4())
-        app_info = None
+        self.connection_active = True
+        self.poller = select.poll()
+        self.poller.register(self.connection)
+
         while True:
             try:
                 msg = read_message(self.rfile)
                 msg.headers["SESS"] = sess
-                self.reply(self.server.handle_message(msg))
-            except WeaveException as e:
-                self.reply(serialize_message(exception_to_message(e)))
-                continue
+
+                # Spawning another thread should be okay (eventlet).
+                # Thread(target=self.process, args=(msg,)).start()
+                self.process(msg)
             except IOError:
+                self.connection_active = False
                 break
+
+        self.poller.unregister(self.connection)
+
+    def process(self, msg):
+        try:
+            logger.info("$$ In: %s, %s", msg.headers, msg.task)
+            res = self.server.handle_message(msg, self.is_active)
+            logger.info("$$ Out: %s, %s", res.headers, res.task)
+            self.reply(serialize_message(res))
+        except WeaveException as e:
+            self.reply(serialize_message(exception_to_message(e)))
 
     def reply(self, msg):
         self.wfile.write((msg + "\n").encode())
         self.wfile.flush()
+
+    def is_active(self):
+        for fd, flag in self.poller.poll(1):
+            val = flag & select.POLLOUT
+            logger.info("$$ Poll value: %d", flag)
+            return bool(val)
 
 
 class MessageServer(ThreadingTCPServer):
@@ -295,24 +343,24 @@ class MessageServer(ThreadingTCPServer):
         logger.info("Connecting to %s", queue)
         return queue
 
-    def handle_message(self, msg):
+    def handle_message(self, msg, active_fn):
         self.preprocess(msg)
         if msg.operation == "dequeue":
-            task, headers = self.handle_dequeue(msg)
+            task, headers = self.handle_dequeue(msg, active_fn)
             msg = Message("inform", task)
             msg.headers.update(headers)
-            return serialize_message(msg)
+            return msg
         elif msg.operation == "enqueue":
             self.handle_enqueue(msg)
             msg = Message("result")
             msg.headers["RES"] = "OK"
-            return serialize_message(msg)
+            return msg
         elif msg.operation == "create":
             queue_name = self.handle_create(msg)
             msg = Message("result")
             msg.headers["RES"] = "OK"
             msg.headers["Q"] = queue_name
-            return serialize_message(msg)
+            return msg
         else:
             raise BadOperation(msg.operation)
 
@@ -331,13 +379,13 @@ class MessageServer(ThreadingTCPServer):
                     queue.queue_info["request_schema"], msg.task, queue)
             raise SchemaValidationFailed(msg)
 
-    def handle_dequeue(self, msg):
+    def handle_dequeue(self, msg, active_fn):
         queue_name = get_required_field(msg.headers, "Q")
         try:
             queue = self.queue_map[queue_name]
         except KeyError:
             raise ObjectNotFound(queue_name)
-        return queue.dequeue(msg.headers)
+        return queue.dequeue(msg.headers, active_fn)
 
     def handle_create(self, msg):
         if msg.task is None:
@@ -392,6 +440,7 @@ class MessageServer(ThreadingTCPServer):
             self.sent_start_notification = True
 
     def shutdown(self):
+        logger.info("Shutting down Message server.")
         for _, queue in self.queue_map.items():
             queue.disconnect()
         super().shutdown()
