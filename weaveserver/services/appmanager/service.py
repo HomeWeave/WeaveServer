@@ -107,6 +107,7 @@ class ApplicationRegistry(object):
 
         self.queue_creator.create({
             "queue_name": response_queue,
+            "queue_type": "sessionized",
             "request_schema": response_schema
         })
 
