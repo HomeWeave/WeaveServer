@@ -57,7 +57,7 @@ function Actions(app, actions) {
         return $.Deferred().resolve(data).promise();
     }
 
-    var handlers = {rpc: rpc, store: store};
+    var handlers = {$rpc: rpc, $store: store};
 
     function evaluate(action) {
         var handler = handlers[action.type];
