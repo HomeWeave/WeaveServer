@@ -6,7 +6,39 @@ function registerComponents() {
 }
 
 function Actions(app, actions) {
-    function rpc(action, previousResult) {
+    function evaluateTemplateData(template, context) {
+        if (typeof template === "object" && Array.isArray(template)) {
+            return template.map(function(item) {
+                return evaluateTemplateData(item, context);
+            });
+        } else if (typeof template === "object") {
+            if (template.__vartype && template.__expression) {
+                switch (template.__vartype) {
+                    case "result":
+                        var expr = template.__expression;
+                        return (expr.keys || []).reduce(function(state, value) {
+                            return state[value];
+                        }, context[expr.index || 0]);
+                    case "app":
+                        var expr = template.__expression;
+                        return (expr.keys || []).reduce(function(state, value) {
+                            return state[value];
+                        }, app);
+                    default:
+                        return null;
+                }
+            }
+            var result = {};
+            Object.keys(template).forEach(function(key) {
+                result[key] = evaluateTemplateData(template[key], context);
+            })
+            return result;
+        } else {
+            return template;
+        }
+    }
+
+    function rpc(action, context) {
         return $.ajax({
             url: "/api/rpc",
             type: 'post',
