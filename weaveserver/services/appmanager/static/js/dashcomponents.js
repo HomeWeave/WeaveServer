@@ -94,9 +94,14 @@ function Actions(app, actions) {
 }
 
 function GenericCard(selector, options) {
+    var watch = {};
+    Object.keys(options.data).forEach(function(key) {
+        watch[key] = {handler: function(val) {}, deep: true};
+    });
     var app = new Vue({
         template: options.template,
-        data: options.data
+        data: options.data,
+        watch: watch
     });
 
     function mount() {
