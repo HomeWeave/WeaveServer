@@ -28,7 +28,7 @@
     "cardType": "info",
     "cardTitle": "Updater",
     "cardContent": [
-        {"material": "face", "text": "Checking for updates."},
+        {"material": "face", "text": "Checking for updates."}
     ],
     "footer": [
         {
