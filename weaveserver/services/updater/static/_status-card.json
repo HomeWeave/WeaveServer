@@ -2,17 +2,25 @@
     "$actions": {
         "$load": [
             {
-                "type": "rpc",
-                "success": {
-                    "type": "$store",
-                    "variable": "status"
-                },
+                "type": "$rpc",
                 "data": {
                     "package_name": "weaveserver.services.updater",
                     "rpc_name": "System Update",
                     "api_name": "status",
                     "args": [],
                     "kwargs": {}
+                },
+                "success": {
+                    "type": "$store",
+                    "variable": "status",
+                    "keys": ["cardContent", 0, "text"],
+                    "value": {
+                        "__vartype": "result",
+                        "__expression": {
+                            "index": 0,
+                            "keys": []
+                        }
+                    }
                 }
             }
         ]
@@ -20,8 +28,7 @@
     "cardType": "info",
     "cardTitle": "Updater",
     "cardContent": [
-        {"material": "face", "text": "Point1"},
-        {"material": "content_copy", "text": "Point2"}
+        {"material": "face", "text": "Checking for updates."},
     ],
     "footer": [
         {
