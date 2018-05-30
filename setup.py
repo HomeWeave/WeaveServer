@@ -15,7 +15,6 @@ setup(
         'bottle',
         'GitPython',
         'redis',
-        'sqlite3',
         'appdirs',
         'peewee',
     ],
