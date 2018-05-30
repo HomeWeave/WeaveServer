@@ -59,21 +59,28 @@ function Actions(app, actions) {
 
     var handlers = {$rpc: rpc, $store: store};
 
-    function evaluate(action) {
+    function evaluate(action, context) {
         var handler = handlers[action.type];
         if (handler === undefined) {
             console.log("Unknown action: ", action)
             return;
         }
         
-        return handler(action, null);
+        return handler(action, context);
     }
 
     function evaluateAll(actions) {
-        var promises = actions.map(evaluate);
-        $.when.apply($, promises).then(function() {
-
-        })
+        function evaluateAction(action, context) {
+            evaluate(action, context).then(function(result) {
+                context.splice(0, 0, result);
+                if (action.success) {
+                    evaluateAction(action.success, context);
+                }
+            });
+        }
+        actions.forEach(function(action) {
+            evaluateAction(action, []);
+        });
     }
 
     return {
