@@ -79,7 +79,7 @@ class TestApplicationService(object):
         assert "OK" == rpc["api1"](_block=True)
         rpc.stop()
 
-    def test_http_simple_request(self):
+    def disabled_test_http_simple_request(self):
         base_url = "http://localhost:5000" + self.dummy_service.relative_url
 
         url = base_url + "/index.json"
