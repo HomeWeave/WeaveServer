@@ -1,37 +1,23 @@
 import base64
 import logging
 import os
-from threading import Event, RLock, Thread
-from urllib.parse import urlparse, urlunparse
+from collections import defaultdict
+from tempfile import TemporaryDirectory
+from threading import Event, Thread
 from uuid import uuid4
 
-from bottle import Bottle, abort, response, request
 from jsonschema import Draft4Validator
 
+from weavelib.exceptions import ObjectNotFound
 from weavelib.messaging import Creator
 from weavelib.rpc import RPCServer, ServerAPI, ArgParameter, get_rpc_caller
 from weavelib.services import BaseService, BackgroundProcessServiceStart
 
-from .resourceprocessors import ASCIIDecoder, JSONDecoder, RegexReplacer
-from .resourceprocessors import JSONEncoder
-from .rootview import RootView
+from .http import HTTPServer
+from .application import RPCInfo, AppResource, Application
 
 
 logger = logging.getLogger(__name__)
-
-
-def view_replacement_url(obj, app_info):
-    server_host = request.headers.get("host")
-
-    if not server_host:
-        return ""
-
-    if not server_host.startswith("http://"):
-        server_host = "http://" + server_host
-
-    components = list(urlparse(server_host))
-    components[2] = "/views/{}/".format(app_info["app_id"])
-    return urlunparse(components)
 
 
 class RootRPCServer(RPCServer):
@@ -58,93 +44,12 @@ class RootRPCServer(RPCServer):
         return dict(request_queue=request_queue, response_queue=response_queue)
 
 
-class ApplicationHTTP(Bottle):
-    def __init__(self, service):
-        super().__init__()
-        self.service = service
-        self.views = {}
-        self.view_lock = RLock()
-
-        content = {
-            "modules": self.views,
-            "rpcs": service.rpc.all_rpcs
-        }
-        index_path = os.path.join(os.path.dirname(__file__), "index.json")
-        self.root_view = RootView(index_path, content)
-
-        self.route("/views/<path:path>")(self.handle_view)
-        self.route("/root.json")(self.handle_root)
-
-        self.resource_processors = {
-            "application/vnd.weaveview+json": [
-                ASCIIDecoder(),
-                JSONDecoder(),
-            ]
-        }
-        self.response_processors = {
-            "application/vnd.weaveview+json": [
-                RegexReplacer(r"^\$APP_ROOT/", view_replacement_url),
-                JSONEncoder(),
-            ]
-        }
-
-    def handle_view(self, path):
-        with self.view_lock:
-            obj = self.views.get(path)
-        if not obj:
-            abort(404, "Not found.")
-            return
-        return self.send_view(obj)
-
-
-    def handle_root(self):
-        view_url, app_info = None, None
-        for url, info in self.views.items():
-            if "weave" in info["mime"]:
-                view_url = url
-                app_info = info
-
-        if view_url is None:
-            abort(500, "No view registered.")
-            return
-
-        return self.send_view({
-            "app_id": app_info["app_id"],
-            "mime": "application/vnd.weaveview+json",
-            "view": self.root_view.data({"module_id": view_url})
-        })
-
-    def send_view(self, obj):
-        response.content_type = obj["mime"]
-        res = obj["view"]
-        for processor in self.response_processors.get(obj["mime"], []):
-            res = processor.preprocess(res, obj)
-        return res
-
-    def register_view(self, app_info, url, obj, mimetype):
-        url = app_info["appid"] + "/" + url.lstrip("/")
-        with self.view_lock:
-            self.views[url] = {
-                "app_id": app_info["appid"],
-                "name": "Name",
-                "mime": mimetype,
-                "view": self.postprocess_resource(obj, mimetype, app_info)
-            }
-        return "/views/" + url
-
-    def postprocess_resource(self, obj, mime, app_info):
-        for processor in self.resource_processors.get(mime, []):
-            obj = processor.preprocess(obj, app_info)
-
-        return obj
-
-class ApplicationRPC(object):
+class ApplicationRegistry(object):
     APIS_SCHEMA = {
         "type": "object",
     }
 
-    def __init__(self, service):
-        self.service = service
+    def __init__(self, service, plugin_path):
         self.rpc = RootRPCServer("app_manager", "Application Manager", [
             ServerAPI("register_rpc", "Register new RPC", [
                 ArgParameter("name", "Name of the RPC", str),
@@ -155,11 +60,17 @@ class ApplicationRPC(object):
                 ArgParameter("url", "URL to register to.", {"type": "string"}),
                 ArgParameter("content", "Resource content", {"type": "string"}),
                 ArgParameter("mimetype", "Resource MIME", {"type": "string"}),
-            ], self.register_view)
+            ], self.register_view),
+            ServerAPI("register_app", "Register App", [], self.register_app),
+            ServerAPI("rpc_info", "Get RPCInfo object.", [
+                ArgParameter("package_name", "Package Name", str),
+                ArgParameter("rpc_name", "RPC Name", str),
+            ], self.rpc_info)
         ], service)
         self.queue_creator = Creator(auth=service.auth_token)
-
-        self.all_rpcs = {}
+        self.plugin_path = plugin_path
+        self.all_rpcs = defaultdict(dict)
+        self.all_apps = {}
 
     def start(self):
         self.rpc.start()
@@ -170,7 +81,8 @@ class ApplicationRPC(object):
         self.queue_creator.close()
 
     def register_rpc(self, name, description, apis):
-        caller_app_id = get_rpc_caller()["appid"]
+        caller_app = get_rpc_caller()
+        caller_app_id = caller_app["appid"]
 
         base_queue = "/components/{}/rpcs/{}".format(caller_app_id,
                                                      str(uuid4()))
@@ -195,45 +107,85 @@ class ApplicationRPC(object):
 
         self.queue_creator.create({
             "queue_name": response_queue,
+            "queue_type": "sessionized",
             "request_schema": response_schema
         })
 
-        self.all_rpcs[base_queue] = {
-            "app_id": caller_app_id,
-            "name": name,
-            "description": description,
-            "apis": apis,
-            "request_queue": request_queue,
-            "response_queue": response_queue,
-            "request_schema": request_schema,
-            "response_schema": response_schema
-        }
+        rpc_info = RPCInfo(name, description, apis, request_queue,
+                           response_queue, request_schema, response_schema)
+        self.all_rpcs[caller_app_id][name] = rpc_info.to_json()
+        self.all_rpcs[caller_app_id][name]["app_id"] = caller_app_id
+
+        self.all_apps[caller_app_id].register_rpc(rpc_info)
 
         return dict(request_queue=request_queue, response_queue=response_queue)
 
     def register_view(self, url, content, mimetype):
+        caller_app = get_rpc_caller()
+        caller_app_id = caller_app["appid"]
+
         decoded = base64.b64decode(content)
-        app = get_rpc_caller()
-        return self.service.http.register_view(app, url, decoded, mimetype)
+        path = os.path.join(self.plugin_path, caller_app_id)
+
+        app_resource = AppResource.create(path, url, mimetype, decoded)
+        if url == "_status-card.json":
+            self.all_apps[caller_app_id].register_status_card(app_resource)
+        else:
+            # TODO: app_resource should not be accessible through static URL.
+            self.all_apps[caller_app_id].register_app_resource(app_resource)
+
+        return "/apps/" + caller_app_id + "/" + url.lstrip("/")
+
+    def register_app(self):
+        caller_app = get_rpc_caller()
+        caller_app_id = caller_app["appid"]
+        package = caller_app["package"]
+
+        app = Application()
+        app.package_name = package
+        app.system_app = caller_app.get("type") == "SYSTEM"
+
+        self.all_apps[caller_app_id] = app
+        logger.info("Registered app: %s", package)
+
+    def rpc_info(self, package_name, rpc_name):
+        found_app = None
+        for app in self.all_apps.values():
+            if app.package_name == package_name:
+                found_app = app
+                break
+
+        if not found_app:
+            raise ObjectNotFound("Package not found: " + package_name)
+
+        rpc_info = found_app.rpcs.get(rpc_name)
+        if not rpc_info:
+            raise ObjectNotFound("RPC not found: " + rpc_name)
+        return rpc_info.to_json()
 
 
 class ApplicationService(BackgroundProcessServiceStart, BaseService):
     def __init__(self, token, config):
         super().__init__(token)
-        self.rpc = ApplicationRPC(self)
-        self.http = ApplicationHTTP(self)
+
+        self.version = "latest"
+        self.plugin_dir = TemporaryDirectory()
+        self.plugins = {}
+        self.registry = ApplicationRegistry(self, self.plugin_dir.name)
+        self.http = HTTPServer(self, self.plugin_dir.name)
         self.exited = Event()
 
     def before_service_start(self):
         """Needs to be overridden to prevent rpc_client connecting."""
 
     def on_service_start(self, *args, **kwargs):
-        self.rpc.start()
-        Thread(target=self.http.run, kwargs={"host": "", "port": 5000},
+        self.registry.start()
+        Thread(target=self.http.run, kwargs={"host": "", "port": 5000, "debug": True},
                daemon=True).start()
         self.notify_start()
         self.exited.wait()
 
     def on_service_stop(self):
         self.exited.set()
-        self.rpc.stop()
+        self.plugin_dir.cleanup()
+        self.registry.stop()

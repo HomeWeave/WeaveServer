@@ -32,6 +32,7 @@ def list_modules(module):
         deps = module_meta["deps"]
         res.append(Module(name=name, deps=deps, meta=module_meta,
                           package_path="weaveserver/services/" + name))
+        res[-1].system = True
     return res
 
 
@@ -55,7 +56,7 @@ class ServiceManager(object):
         self.services = []
         self.active = threading.Event()
 
-        self.apps = {}  # Unique tokens given to services for authenticate.
+        self.apps = {x.id: x.json() for x in unsorted_services}
 
     def run(self):
         """ Sequentially starts all the services."""
@@ -69,7 +70,7 @@ class ServiceManager(object):
         self.start_service(messaging_module, error_modules, apps=self.apps)
 
         for module in self.service_modules:
-            self.start_service(module, error_modules, apps=self.apps)
+            self.start_service(module, error_modules)
 
         total_services = len(self.service_modules)
         started_services = total_services - len(error_modules)
@@ -83,17 +84,10 @@ class ServiceManager(object):
             error_modules.add(module.name)
             return False
 
-        app_token = "app-token-" + str(uuid4())
         config = get_config(module.get_config())
         config.update(kwargs)
 
-        self.apps[app_token] = {
-            "type": "SYSTEM",
-            "appid": "app-id-" + str(uuid4()),
-            "package": module.package_path,
-        }
-
-        service = module.meta["class"](app_token, config)
+        service = module.meta["class"](module.id, config)
         service.service_start()
 
         if not service.wait_for_start(config.get("start_timeout", 10)):

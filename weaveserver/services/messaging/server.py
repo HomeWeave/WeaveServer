@@ -9,11 +9,12 @@ from uuid import uuid4
 
 from jsonschema import validate, ValidationError, SchemaError
 
+from weavelib.exceptions import WeaveException, ObjectNotFound, ObjectClosed
+from weavelib.exceptions import ObjectAlreadyExists, AuthenticationFailed
+from weavelib.exceptions import ProtocolError, BadOperation, InternalError
+from weavelib.exceptions import SchemaValidationFailed
 from weavelib.messaging import read_message, serialize_message, Message
-from weavelib.messaging import QueueAlreadyExists, AuthenticationFailed
-from weavelib.messaging import SchemaValidationFailed, BadOperation
-from weavelib.messaging import RequiredFieldsMissing, InternalMessagingError
-from weavelib.messaging import MessagingException, QueueNotFound, QueueClosed
+from weavelib.messaging import exception_to_message
 from weavelib.services import BaseService, BackgroundThreadServiceStart
 
 
@@ -22,7 +23,7 @@ logger = logging.getLogger(__name__)
 
 def get_required_field(headers, key):
     if key not in headers:
-        raise RequiredFieldsMissing("'{}' is required.".format(key))
+        raise ProtocolError("'{}' is required.".format(key))
     return headers[key]
 
 
@@ -114,7 +115,7 @@ class SynchronousQueue(BaseQueue):
         with self.condition:
             while True:
                 if not self.active:
-                    raise QueueClosed(self)
+                    raise ObjectClosed(self)
 
                 condition_value = self.dequeue_condition(requestor_id)
                 if not condition_value:
@@ -238,8 +239,8 @@ class MessageHandler(StreamRequestHandler):
                 msg = read_message(self.rfile)
                 msg.headers["SESS"] = sess
                 self.reply(self.server.handle_message(msg))
-            except MessagingException as e:
-                self.reply(serialize_message(e.to_msg()))
+            except WeaveException as e:
+                self.reply(serialize_message(exception_to_message(e)))
                 continue
             except IOError:
                 break
@@ -317,12 +318,12 @@ class MessageServer(ThreadingTCPServer):
 
     def handle_enqueue(self, msg):
         if msg.task is None:
-            raise RequiredFieldsMissing("Task is required for enqueue.")
+            raise ProtocolError("Task is required for enqueue.")
         queue_name = get_required_field(msg.headers, "Q")
         try:
             queue = self.queue_map[queue_name]
         except KeyError:
-            raise QueueNotFound(queue_name)
+            raise ObjectNotFound(queue_name)
         try:
             queue.enqueue(msg.task, msg.headers)
         except ValidationError:
@@ -335,12 +336,12 @@ class MessageServer(ThreadingTCPServer):
         try:
             queue = self.queue_map[queue_name]
         except KeyError:
-            raise QueueNotFound(queue_name)
+            raise ObjectNotFound(queue_name)
         return queue.dequeue(msg.headers)
 
     def handle_create(self, msg):
         if msg.task is None:
-            raise RequiredFieldsMissing("QueueInfo is required for create.")
+            raise ProtocolError("QueueInfo is required for create.")
 
         app_info = get_required_field(msg.headers, "AUTH")
         if app_info is None:
@@ -362,11 +363,11 @@ class MessageServer(ThreadingTCPServer):
 
         with self.queue_map_lock:
             if queue_name in self.queue_map:
-                raise QueueAlreadyExists(queue_name)
+                raise ObjectAlreadyExists(queue_name)
             queue = self.create_queue(msg.task, msg.headers)
 
         if not queue.connect():
-            raise InternalMessagingError("Cant connect: " + queue_name)
+            raise InternalError("Cant connect: " + queue_name)
 
         self.queue_map[msg.task["queue_name"]] = queue
 

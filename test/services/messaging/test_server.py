@@ -4,13 +4,12 @@ from copy import deepcopy
 from threading import Thread, Event, Semaphore
 
 import pytest
-from weavelib.messaging import Sender, Receiver, Creator, RequiredFieldsMissing
-from weavelib.messaging import QueueNotFound, SchemaValidationFailed
-from weavelib.messaging import InvalidMessageStructure, BadOperation
-from weavelib.messaging import QueueAlreadyExists, InternalMessagingError
-from weavelib.messaging import AuthenticationFailed, QueueClosed
-from weavelib.messaging import read_message
-from weavelib.messaging.messaging import ensure_ok_message
+from weavelib.exceptions import ObjectNotFound, ObjectAlreadyExists
+from weavelib.exceptions import SchemaValidationFailed, ProtocolError
+from weavelib.exceptions import BadOperation, InternalError, ObjectClosed
+from weavelib.exceptions import AuthenticationFailed
+from weavelib.messaging import Sender, Receiver, Creator, read_message
+from weavelib.messaging import ensure_ok_message
 
 from weaveserver.services.messaging import MessageService
 
@@ -125,11 +124,11 @@ class TestMessagingService(object):
             send_raw('')
 
     def test_bad_structure(self):
-        with pytest.raises(InvalidMessageStructure):
+        with pytest.raises(ProtocolError):
             send_raw("sdkhsds-ss!3l")
 
     def test_required_fields_missing(self):
-        with pytest.raises(RequiredFieldsMissing):
+        with pytest.raises(ProtocolError):
             send_raw("HDR enqueue\nMSG blah\n\n")
 
     def test_bad_operation(self):
@@ -137,33 +136,33 @@ class TestMessagingService(object):
             send_raw('MSG {"a": "b"}\nOP bad-operation\nQ a.b.c\n\n')
 
     def test_bad_json(self):
-        with pytest.raises(SchemaValidationFailed):
+        with pytest.raises(ProtocolError):
             send_raw('MSG {a": "b"}\nOP enqueue\nQ a.b.c\n\n')
 
     def test_enqueue_without_queue_header(self):
-        with pytest.raises(RequiredFieldsMissing):
+        with pytest.raises(ProtocolError):
             send_raw('MSG {"a": "b"}\nOP enqueue\n\n')
 
     def test_enqueue_without_task(self):
         s = Sender("/a.b.c")
         s.start()
-        with pytest.raises(RequiredFieldsMissing):
+        with pytest.raises(ProtocolError):
             s.send(None)
 
     def test_enqueue_to_unknown_queue(self):
         s = Sender("unknown.queue")
         s.start()
-        with pytest.raises(QueueNotFound):
+        with pytest.raises(ObjectNotFound):
             s.send({"a": "b"})
 
     def test_dequeue_from_unknown_queue(self):
         r = Receiver("unknown.queue")
         r.start()
-        with pytest.raises(QueueNotFound):
+        with pytest.raises(ObjectNotFound):
             r.receive()
 
     def test_dequeue_without_required_header(self):
-        with pytest.raises(RequiredFieldsMissing):
+        with pytest.raises(ProtocolError):
             send_raw('OP dequeue\n\n')
 
     def test_enqueue_with_bad_schema(self):
@@ -258,7 +257,7 @@ class TestMessagingService(object):
     def test_keyed_enqueue_without_key_header(self):
         s = Sender("/x.keyedsticky")
         s.start()
-        with pytest.raises(RequiredFieldsMissing):
+        with pytest.raises(ProtocolError):
             s.send({"foo": "bar"})
 
     def test_keyed_sticky(self):
@@ -304,7 +303,7 @@ class TestMessagingService(object):
         assert obj2[-1] == {"1": {"foo": "hello"}, "2": {"baz": "grr"}}
 
     def test_create_queue_with_no_payload(self):
-        with pytest.raises(RequiredFieldsMissing):
+        with pytest.raises(ProtocolError):
             send_raw("OP create\n\n")
 
     def test_create_duplicate_queues(self):
@@ -316,7 +315,7 @@ class TestMessagingService(object):
         creator.start()
         creator.create(queue_info, headers={"AUTH": "auth1"})
 
-        with pytest.raises(QueueAlreadyExists):
+        with pytest.raises(ObjectAlreadyExists):
             creator.create(queue_info, headers={"AUTH": "auth1"})
 
     def test_create_bad_schema_object(self):
@@ -376,13 +375,13 @@ class TestMessagingService(object):
 
         sender = Sender("/test.sessionized")
         sender.start()
-        with pytest.raises(RequiredFieldsMissing):
+        with pytest.raises(ProtocolError):
             sender.send("test")
 
         receiver = Receiver("/test.sessionized")
         receiver.start()
 
-        with pytest.raises(RequiredFieldsMissing):
+        with pytest.raises(ProtocolError):
             receiver.receive()
 
     def test_simple_sessionized_enqueue_dequeue(self):
@@ -523,7 +522,7 @@ class TestMessagingService(object):
         }
         creator = Creator()
         creator.start()
-        with pytest.raises(RequiredFieldsMissing):
+        with pytest.raises(ProtocolError):
             creator.create(queue_info)
 
         with pytest.raises(AuthenticationFailed):
