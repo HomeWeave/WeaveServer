@@ -59,7 +59,7 @@ class Application(object):
         self.rpcs[rpc_info.name] = rpc_info
 
     def register_app_resource(self, resource):
-        self.rpcs[resource.path] = resource
+        self.resources[resource.path] = resource
 
     def register_status_card(self, resource):
         self.status_card = resource
