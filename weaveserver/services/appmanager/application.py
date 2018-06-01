@@ -36,7 +36,8 @@ class AppResource(object):
 
     @staticmethod
     def create(app_resource_dir, path, mime, content):
-        full_path = os.path.join(app_resource_dir, path.lstrip("/"))
+        path = path.lstrip("/")
+        full_path = os.path.join(app_resource_dir, path)
         try:
             os.makedirs(os.path.dirname(full_path))
         except:
@@ -44,7 +45,7 @@ class AppResource(object):
         with open(full_path, "wb") as out:
             out.write(content)
 
-        return AppResource(app_resource_dir, path.lstrip("/"), mime)
+        return AppResource(app_resource_dir, path, mime)
 
 
 class Application(object):
