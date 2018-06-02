@@ -16,6 +16,16 @@
 </head>
 
 <body class="">
+    <script type="text/x-template" id="template-all-components">
+        <div v-if="item.type == 'vertical-layout'">
+            <vertical-layout v-bind:items="item.items"></vertical-layout>
+        </div>
+    </script>
+    <script type="text/x-template" id="template-vertical-layout">
+        <div class="row" v-for="content in contents">
+            <all-components v-bind:data="content"></all-components>
+        </div>
+    </script>
     <script type="text/x-template" id="template-footer-status">
         <div class="stats">
             <span v-for="f in footer">
