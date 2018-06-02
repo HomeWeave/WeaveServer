@@ -17,8 +17,14 @@
 
 <body class="">
     <script type="text/x-template" id="template-all-components">
-        <div v-if="item.type == 'vertical-layout'">
-            <vertical-layout v-bind:items="item.items"></vertical-layout>
+        <div v-if="data.type == 'vertical-layout'">
+            <vertical-layout v-bind:data="item.items"></vertical-layout>
+        </div>
+        <div v-if="data.type == 'h3'">
+            <header-3 v-bind:data="item"></header-3>
+        </div>
+        <div v-if="data.type == 'p'">
+            <p v-bind:data="item"></p>
         </div>
     </script>
     <script type="text/x-template" id="template-vertical-layout">
