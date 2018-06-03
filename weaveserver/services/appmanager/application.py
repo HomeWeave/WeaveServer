@@ -36,11 +36,11 @@ class AppResource(object):
 
     @staticmethod
     def create(app_resource_dir, path, mime, content):
+        full_path = os.path.join(app_resource_dir, path.lstrip("/"))
         try:
-            os.makedirs(app_resource_dir)
+            os.makedirs(os.path.dirname(full_path))
         except:
             pass
-        full_path = os.path.join(app_resource_dir, path.lstrip("/"))
         with open(full_path, "wb") as out:
             out.write(content)
 
