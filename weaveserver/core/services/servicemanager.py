@@ -48,14 +48,21 @@ class ServiceManager(object):
     """
     Scans for all service modules within the given module.
     """
-    def __init__(self):
+    def __init__(self, debug=False, apps=None):
         unsorted_services = list_modules(weaveserver.services)
+        if debug:
+            for module in unsorted_services:
+                logger.info("**DEBUG** App %s: %s", module.name, module.id)
+
+        self.apps = {x.id: x.json() for x in unsorted_services}
+
+        if apps:
+            unsorted_services = [x for x in unsorted_services if x.name in apps]
+
         self.service_modules = topo_sort_modules(unsorted_services)
         self.module_map = {x.name: x for x in unsorted_services}
         self.services = []
         self.active = threading.Event()
-
-        self.apps = {x.id: x.json() for x in unsorted_services}
 
     def run(self):
         """ Sequentially starts all the services."""

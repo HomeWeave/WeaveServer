@@ -3,17 +3,24 @@ The main module for HomePiServer. Initializes SocketIO, ServiceManager,
 NavigationChannel, View Manager.
 """
 
+import argparse
 import signal
+import sys
 
 from .core.services import ServiceManager
+
+
+parser = argparse.ArgumentParser()
+parser.add_argument('--debug', action='store_true')
+parser.add_argument('--apps', nargs="*", type=str)
 
 
 class WeaveApp(object):
     """
     Encapsulates the entire server.
     """
-    def __init__(self):
-        self.service_manager = ServiceManager()
+    def __init__(self, debug=False, apps=None):
+        self.service_manager = ServiceManager(debug=debug, apps=apps)
 
     def start(self):
         """Starts self.service_manager.start() on a new thread."""
@@ -40,6 +47,7 @@ def setup_signals(app):
 
 def create_app():
     """ Returns a new instance of WeaveApp."""
-    app = WeaveApp()
+    args = parser.parse_args()
+    app = WeaveApp(args.debug, apps=args.apps)
     setup_signals(app)
     return app
