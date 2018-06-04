@@ -6,7 +6,6 @@ import importlib
 import logging
 import os
 import threading
-from uuid import uuid4
 
 from weavelib.services import Module
 
