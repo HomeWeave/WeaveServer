@@ -3,6 +3,22 @@ function registerComponents() {
       template: '#template-footer-status',
       props: ['footer']
     });
+    Vue.component('all-components', {
+      template: '#template-all-components',
+      props: ['data']
+    });
+    Vue.component('vertical-layout', {
+      template: '#template-vertical-layout',
+      props: ['data']
+    });
+    Vue.component('h3', {
+      template: '#template-h3',
+      props: ['data']
+    });
+    Vue.component('paragraph', {
+      template: '#template-paragraph',
+      props: ['data']
+    });
 }
 
 function Actions(app, actions) {

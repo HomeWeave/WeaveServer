@@ -13,7 +13,7 @@
                 "success": {
                     "type": "$store",
                     "variable": "status",
-                    "keys": ["cardContent", 0, "text"],
+                    "keys": ["cardContent", "items", 0, "text"],
                     "value": {
                         "__vartype": "result",
                         "__expression": {
@@ -27,9 +27,15 @@
     },
     "cardType": "info",
     "cardTitle": "Updater",
-    "cardContent": [
-        {"material": "face", "text": "Checking for updates."}
-    ],
+    "cardContent": {
+        "type": "vertical-layout",
+        "items": [
+            {
+                "type": "paragraph",
+                "text": "Checking for updates"
+            }
+        ]
+    },
     "footer": [
         {
             "url": "#",
