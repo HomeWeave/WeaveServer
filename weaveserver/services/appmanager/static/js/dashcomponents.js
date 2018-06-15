@@ -19,6 +19,15 @@ function registerComponents() {
       template: '#template-paragraph',
       props: ['data']
     });
+    Vue.component('weave-button', {
+      template: '#template-button',
+      props: ['data'],
+      methods: {
+        "onClick": function(event) {
+            this.$root.fireEvent(event);
+        }
+      }
+    });
 }
 
 function Actions(app, actions) {
@@ -117,7 +126,12 @@ function GenericCard(selector, options) {
     var app = new Vue({
         template: options.template,
         data: options.data,
-        watch: watch
+        watch: watch,
+        methods: {
+            fireEvent: function(event) {
+                this.$actions.fire(event);
+            }
+        }
     });
 
     function mount() {

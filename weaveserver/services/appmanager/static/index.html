@@ -26,6 +26,9 @@
         <div v-else-if="data.type == 'paragraph'">
             <paragraph v-bind:data="data.text"></paragraph>
         </div>
+        <div v-else-if="data.type == 'button'">
+            <weave-button v-bind:data="data"></paragraph>
+        </div>
     </script>
     <script type="text/x-template" id="template-vertical-layout">
         <div>
@@ -39,6 +42,11 @@
     </script>
     <script type="text/x-template" id="template-h3">
         <h3>{{data}}</h3>
+    </script>
+    <script type="text/x-template" id="template-button">
+        <button v-on:click="onClick(data.onclick)">
+            {{data.text}}
+        </button>
     </script>
     <script type="text/x-template" id="template-footer-status">
         <div class="stats">
