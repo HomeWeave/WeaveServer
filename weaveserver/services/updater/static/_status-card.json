@@ -1,6 +1,6 @@
 {
     "$actions": {
-        "$load": [
+        "checkForUpdates": [
             {
                 "type": "$rpc",
                 "data": {
@@ -23,6 +23,36 @@
                     }
                 }
             }
+        ],
+        "getStatus": [
+            {
+                "type": "$rpc",
+                "data": {
+                    "package_name": "weaveserver.services.updater",
+                    "rpc_name": "System Update",
+                    "api_name": "status",
+                    "args": [],
+                    "kwargs": {}
+                },
+                "success": {
+                    "type": "$store",
+                    "variable": "status",
+                    "keys": ["cardContent", "items", 0, "text"],
+                    "value": {
+                        "__vartype": "result",
+                        "__expression": {
+                            "index": 0,
+                            "keys": []
+                        }
+                    }
+                }
+            }
+        ],
+        "$load": [
+            {
+                "type": "$action",
+                "action": "checkForUpdates"
+            }
         ]
     },
     "cardType": "info",
@@ -33,6 +63,11 @@
             {
                 "type": "paragraph",
                 "text": "Checking for updates"
+            },
+            {
+                "type": "button",
+                "text": "Check",
+                "onclick": "checkForUpdates"
             }
         ]
     },
