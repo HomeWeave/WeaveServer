@@ -82,7 +82,18 @@ function Actions(app, actions) {
         return $.Deferred().resolve(data).promise();
     }
 
-    var handlers = {$rpc: rpc, $store: store};
+    function action(data, context) {
+        if (data.action) {
+            fireAction(data.action);
+        }
+        return $.Deferred().resolve(null).promise();
+    }
+
+    var handlers = {
+        $rpc: rpc,
+        $store: store,
+        $action: action
+    };
 
     function evaluate(action, context) {
         var handler = handlers[action.type];
@@ -90,7 +101,7 @@ function Actions(app, actions) {
             console.log("Unknown action: ", action)
             return;
         }
-        
+
         return handler(action, context);
     }
 
@@ -108,13 +119,15 @@ function Actions(app, actions) {
         });
     }
 
-    return {
-        fire: function(name) {
-            var obj = actions[name];
-            if (obj !== undefined) {
-                return evaluateAll(obj);
-            }
+    function fireAction(name) {
+        var obj = actions[name];
+        if (obj !== undefined) {
+            return evaluateAll(obj);
         }
+    }
+
+    return {
+        fire: fireAction
     }
 }
 
