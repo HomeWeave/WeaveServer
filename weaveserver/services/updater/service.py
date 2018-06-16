@@ -194,7 +194,7 @@ class UpdaterService(BackgroundProcessServiceStart, BaseService):
         self.shutdown = Event()
         self.rpc = RPCServer("System Update", "Update the System", [
             ServerAPI("check_updates", "Check for updates", [],
-                      self.update_scanner.check_updates),
+                      self.check_updates),
             ServerAPI("perform_upgrade", "Perform update", [],
                       self.updater.perform_upgrade),
             ServerAPI("reboot", "Reboot the system", [], reboot),
@@ -229,3 +229,6 @@ class UpdaterService(BackgroundProcessServiceStart, BaseService):
     def get_status(self):
         with self.status_lock:
             return self.status
+
+    def check_updates(self):
+        Thread(target=self.update_scanner.check_updates).start()
