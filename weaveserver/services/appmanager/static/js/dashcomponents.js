@@ -105,24 +105,23 @@ function Actions(app, actions) {
         return handler(action, context);
     }
 
-    function evaluateAll(actions) {
-        function evaluateAction(action, context) {
+    function evaluateAll(actions, context) {
+        function evaluateAction(action) {
             evaluate(action, context).then(function(result) {
-                context.splice(0, 0, result);
-                if (action.success) {
-                    evaluateAction(action.success, context);
-                }
+                var contextCopy = JSON.parse(JSON.stringify(context));
+                contextCopy.unshift(result);
+                evaluateAll(action.success || [], contextCopy);
             });
         }
         actions.forEach(function(action) {
-            evaluateAction(action, []);
+            evaluateAction(action, context);
         });
     }
 
     function fireAction(name) {
         var obj = actions[name];
         if (obj !== undefined) {
-            return evaluateAll(obj);
+            return evaluateAll(obj, []);
         }
     }
 

@@ -10,18 +10,20 @@
                     "args": [],
                     "kwargs": {}
                 },
-                "success": {
-                    "type": "$store",
-                    "variable": "status",
-                    "keys": ["cardContent", "items", 0, "text"],
-                    "value": {
-                        "__vartype": "result",
-                        "__expression": {
-                            "index": 0,
-                            "keys": []
+                "success": [
+                    {
+                        "type": "$store",
+                        "variable": "status",
+                        "keys": ["cardContent", "items", 0, "text"],
+                        "value": {
+                            "__vartype": "result",
+                            "__expression": {
+                                "index": 0,
+                                "keys": []
+                            }
                         }
                     }
-                }
+                ]
             }
         ],
         "getStatus": [
@@ -34,18 +36,20 @@
                     "args": [],
                     "kwargs": {}
                 },
-                "success": {
-                    "type": "$store",
-                    "variable": "status",
-                    "keys": ["cardContent", "items", 0, "text"],
-                    "value": {
-                        "__vartype": "result",
-                        "__expression": {
-                            "index": 0,
-                            "keys": []
+                "success": [
+                    {
+                        "type": "$store",
+                        "variable": "status",
+                        "keys": ["cardContent", "items", 0, "text"],
+                        "value": {
+                            "__vartype": "result",
+                            "__expression": {
+                                "index": 0,
+                                "keys": []
+                            }
                         }
                     }
-                }
+                ]
             }
         ],
         "$load": [
