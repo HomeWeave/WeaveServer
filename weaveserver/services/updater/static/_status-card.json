@@ -63,6 +63,9 @@
     "cardTitle": "Updater",
     "cardContent": {
         "type": "vertical-layout",
+        "columnsLarge": 12,
+        "columnsMedium": 12,
+        "columnsSmall": 12,
         "items": [
             {
                 "type": "paragraph",

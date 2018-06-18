@@ -18,7 +18,7 @@
 <body class="">
     <script type="text/x-template" id="template-all-components">
         <div v-if="data.type == 'vertical-layout'">
-            <vertical-layout v-bind:data="data.items"></vertical-layout>
+            <vertical-layout v-bind:data="data"></vertical-layout>
         </div>
         <div v-else-if="data.type == 'h3'">
             <header-3 v-bind:data="data.text"></header-3>
@@ -31,11 +31,13 @@
         </div>
     </script>
     <script type="text/x-template" id="template-vertical-layout">
-        <div>
-            <div class="row" v-for="item in data">
-                <all-components v-bind:data="item"></all-components>
-            </div>
-        </div>
+		<div>
+	        <div class="row" v-for="item in data.items">
+				<div v-bind:class="'col-lg-' + data.columnsLarge + ' col-md-' + data.columnsMedium + ' col-sm-' + data.columnsSmall">
+		            <all-components v-bind:data="item"></all-components>
+				</div>
+		    </div>
+		<div>
     </script>
     <script type="text/x-template" id="template-paragraph">
         <p>{{data}}</p>
