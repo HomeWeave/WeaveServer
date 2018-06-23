@@ -17,6 +17,7 @@
 
 <body class="">
     <script type="text/x-template" id="template-all-components">
+        <!-- TODO: Remove one level of hierarchy of div -->
         <div v-if="data.type == 'vertical-layout'">
             <vertical-layout v-bind:data="data.items"></vertical-layout>
         </div>
@@ -29,11 +30,23 @@
         <div v-else-if="data.type == 'button'">
             <weave-button v-bind:data="data"></paragraph>
         </div>
+        <div v-else-if="data.type == 'switch'">
+            <weave-switch v-bind:data="data"></weave-switch>
+        </div>
     </script>
     <script type="text/x-template" id="template-vertical-layout">
         <div>
             <div class="row" v-for="item in data">
                 <all-components v-bind:data="item"></all-components>
+            </div>
+        </div>
+    </script>
+    <script type="text/x-template" id="template-switch">
+        <div>
+            <div v-for="(value, key) in data.cases">
+                <div v-bind:class="$root.variables[data.variable]" v-if="key == $root.variables[data.variable]">
+                    <all-components v-bind:data="value"></all-components>
+                </div>
             </div>
         </div>
     </script>

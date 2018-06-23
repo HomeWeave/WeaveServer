@@ -118,7 +118,7 @@ class UpdateScanner(object):
         if res:
             if self.has_new_updates(res):
                 self.repos_to_update = {x.repo_name: x for x in res}
-                self.notify_updates()
+            self.update_status("Updates available.")
         else:
             self.update_status("No updates available.")
         return res
@@ -130,9 +130,6 @@ class UpdateScanner(object):
         keys = {x.repo_name for x in res}
         existing = set(self.repos_to_update.keys())
         return keys - existing
-
-    def notify_updates(self):
-        self.update_status("Updates available.")
 
     def list_repos(self, path):
         return [os.path.join(path, x) for x in os.listdir(path)]

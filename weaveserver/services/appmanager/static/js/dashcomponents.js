@@ -1,3 +1,11 @@
+function uuidv4() {
+    // From: https://stackoverflow.com/a/2117523/227884
+    return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+        var r = Math.random() * 16 | 0, v = c == 'x' ? r : (r & 0x3 | 0x8);
+        return v.toString(16);
+    });
+}
+
 function registerComponents() {
     Vue.component('card-footer-status', {
       template: '#template-footer-status',
@@ -5,6 +13,10 @@ function registerComponents() {
     });
     Vue.component('all-components', {
       template: '#template-all-components',
+      props: ['data']
+    });
+    Vue.component('weave-switch', {
+      template: '#template-switch',
       props: ['data']
     });
     Vue.component('vertical-layout', {
@@ -131,13 +143,19 @@ function Actions(app, actions) {
 }
 
 function GenericCard(selector, options) {
+    var data = Object.assign({}, options.data, {variables: {}});
     var watch = {};
-    Object.keys(options.data).forEach(function(key) {
+    Object.keys(data).forEach(function(key) {
         watch[key] = {handler: function(val) {}, deep: true};
     });
+
+    var id = "id-" + uuidv4();
+    $("<div/>").attr("id", id).appendTo(selector);
+
     var app = new Vue({
+        el: "#" + id,
         template: options.template,
-        data: options.data,
+        data: data,
         watch: watch,
         methods: {
             fireEvent: function(event) {
@@ -145,6 +163,8 @@ function GenericCard(selector, options) {
             }
         }
     });
+
+    DEBUG_APPS.push(app);
 
     function mount() {
         app.$mount();
@@ -162,7 +182,7 @@ function GenericCard(selector, options) {
             });
 
             app.$actions.fire("$load");
-            mount();
+            //mount();
         }
     };
 }
@@ -184,7 +204,7 @@ function MediumCard(selector) {
     return GenericCard(selector, {
         template: "#template-medium-card",
         data: {
-            cartTitle: '',
+            cardTitle: '',
             cardContent: [],
             cardType: '',
             icon: {},

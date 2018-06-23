@@ -43,6 +43,7 @@ function loadComponents(components) {
 }
 
 $(document).ready(function() {
+    DEBUG_APPS = [];
     registerComponents();
     var statusRequest = $.ajax({
         url: "/api/status",

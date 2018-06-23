@@ -13,7 +13,7 @@
                 "success": [
                     {
                         "type": "$store",
-                        "variable": "status",
+                        "variable": "update_status",
                         "keys": ["cardContent", "items", 0, "text"],
                         "value": {
                             "__vartype": "result",
@@ -39,20 +39,18 @@
                 "success": [
                     {
                         "type": "$store",
-                        "variable": "status",
-                        "keys": ["cardContent", "items", 0, "text"],
-                        "value": {
-                            "__vartype": "result",
-                            "__expression": {
-                                "index": 0,
-                                "keys": []
-                            }
-                        }
+                        "keys": ["variables", "update_status"],
+                        "value": "available"
                     }
                 ]
             }
         ],
         "$load": [
+            {
+                "type": "$store",
+                "keys": ["variables", "update_status"],
+                "value": "checking"
+            },
             {
                 "type": "$action",
                 "action": "getStatus"
@@ -65,8 +63,18 @@
         "type": "vertical-layout",
         "items": [
             {
-                "type": "paragraph",
-                "text": "Checking for updates"
+                "type": "switch",
+                "variable": "update_status",
+                "cases": {
+                    "checking": {
+                        "type": "paragraph",
+                        "text": "Checking for updates"
+                    },
+                    "Updates available.": {
+                        "type": "paragraph",
+                        "text": "Updates available."
+                    }
+                }
             },
             {
                 "type": "button",
