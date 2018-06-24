@@ -7,6 +7,10 @@ function registerComponents() {
       template: '#template-all-components',
       props: ['data']
     });
+    Vue.component('weave-switch', {
+      template: '#template-switch',
+      props: ['data']
+    });
     Vue.component('vertical-layout', {
       template: '#template-vertical-layout',
       props: ['data']
@@ -56,7 +60,7 @@ function Actions(app, actions) {
             var result = {};
             Object.keys(template).forEach(function(key) {
                 result[key] = evaluateTemplateData(template[key], context);
-            })
+            });
             return result;
         } else {
             return template;
@@ -131,66 +135,75 @@ function Actions(app, actions) {
 }
 
 function GenericCard(selector, options) {
+    var variables = options.data["$variables"] || {};
+    var actions = options.data["$actions"] || {};
+    delete options.data["$variables"];
+    delete options.data["$actions"];
+
+    options.data = options.data || {};
+    options.data.variables = variables;
+
+    // Setup watch object for all variables and internal 'variables'.
     var watch = {};
     Object.keys(options.data).forEach(function(key) {
         watch[key] = {handler: function(val) {}, deep: true};
     });
+
     var app = new Vue({
         template: options.template,
         data: options.data,
-        watch: watch,
-        methods: {
-            fireEvent: function(event) {
-                this.$actions.fire(event);
-            }
-        }
+        watch: watch
     });
+    DEBUG_APPS.push(app);
 
-    function mount() {
-        app.$mount();
-        var dom = app.$el;
-        $(selector).append(dom);
-    }
+    // Setup actions.
+    var appActions = Actions(app, actions);
+    delete options.data["$actions"];
+
+    appActions.fire("$load");
+
+    // Manually mount to so that we can append it.
+    app.$mount();
+    $(selector).append(app.$el);
 
     return {
-        load: function(data) {
-            app.$actions = Actions(app, data["$actions"] || {});
-            delete data["$actions"]
-
-            Object.keys(data).forEach(function(key) {
-                app[key] = data[key];
-            });
-
-            app.$actions.fire("$load");
-            mount();
+        event: function(event) {
+            appActions.fire(event);
+        },
+        unload: function() {
+            return;
         }
     };
 }
 
-function SmallCard(selector) {
+function SmallCard(selector, data) {
+    var defaultData = {
+        cardType: '',
+        icon: {},
+        title: '',
+        content: '',
+        footer: []
+    };
+
     return GenericCard(selector, {
         template: "#template-small-card",
-        data: {
-            cardType: '',
-            icon: {},
-            title: '',
-            content: '',
-            footer: []
-        }
+        data: Object.assign({}, defaultData, data)
     });
 }
 
-function MediumCard(selector) {
+function MediumCard(selector, data) {
+    var defaultData = {
+        cardTitle: '',
+        cardContent: [],
+        cardType: '',
+        icon: {},
+        title: '',
+        content: '',
+        footer: []
+    }
+
     return GenericCard(selector, {
         template: "#template-medium-card",
-        data: {
-            cartTitle: '',
-            cardContent: [],
-            cardType: '',
-            icon: {},
-            title: '',
-            content: '',
-            footer: []
-        }
+        data: Object.assign({}, defaultData, data)
     });
 }

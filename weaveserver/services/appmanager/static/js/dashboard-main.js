@@ -29,20 +29,18 @@ function loadSystemCards(data) {
         },
     ];
     var cards = smallCards.forEach(function(data) {
-        var card = SmallCard('.content .weave-small-cards-row');
-        card.load(data);
-        return card;
+        return SmallCard('.content .weave-small-cards-row', data);
     });
 }
 
 function loadComponents(components) {
     components.forEach(function(component) {
-        var card = MediumCard('.content .weave-medium-cards-row');
-        card.load(component);
+        return MediumCard('.content .weave-medium-cards-row', component);
     });
 }
 
 $(document).ready(function() {
+    DEBUG_APPS = [];
     registerComponents();
     var statusRequest = $.ajax({
         url: "/api/status",
