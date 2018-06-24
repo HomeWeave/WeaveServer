@@ -143,15 +143,14 @@ function Actions(app, actions) {
 }
 
 function GenericCard(selector, options) {
-    var data = Object.assign({}, options.data, {variables: {}});
     var watch = {};
-    Object.keys(data).forEach(function(key) {
+    Object.keys(options.data).forEach(function(key) {
         watch[key] = {handler: function(val) {}, deep: true};
     });
 
     var app = new Vue({
         template: options.template,
-        data: data,
+        data: options.data,
         watch: watch,
         methods: {
             fireEvent: function(event) {
@@ -170,9 +169,19 @@ function GenericCard(selector, options) {
 
     return {
         load: function(data) {
+            // Setup actions.
             app.$actions = Actions(app, data["$actions"] || {});
-            delete data["$actions"]
+            delete data["$actions"];
 
+            // Setup variables watching.
+            app.variables = {};
+            app.$watch("variables", function(val) {}, {deep: true});
+            Object.keys(data["$variables"] || {}).forEach(function(key) {
+                Vue.set(app.variables, key, data["$variables"][key]);
+            });
+            delete data["$variables"];
+
+            // Use rest of the data key-values as Vue fields.
             Object.keys(data).forEach(function(key) {
                 app[key] = data[key];
             });
