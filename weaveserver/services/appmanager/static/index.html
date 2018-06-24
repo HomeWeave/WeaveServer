@@ -43,8 +43,8 @@
     </script>
     <script type="text/x-template" id="template-switch">
         <div>
-            <div v-for="(value, key) in data.cases">
-                <div v-bind:class="$root.variables[data.variable]" v-if="key == $root.variables[data.variable]">
+            <div v-for="(value, key) in data.cases" v-if="key == $root.variables[data.variable]">
+                <div v-bind:class="$root.variables[data.variable]">
                     <all-components v-bind:data="value"></all-components>
                 </div>
             </div>
