@@ -68,7 +68,7 @@ function Actions(app, actions) {
             var result = {};
             Object.keys(template).forEach(function(key) {
                 result[key] = evaluateTemplateData(template[key], context);
-            })
+            });
             return result;
         } else {
             return template;
@@ -149,11 +149,7 @@ function GenericCard(selector, options) {
         watch[key] = {handler: function(val) {}, deep: true};
     });
 
-    var id = "id-" + uuidv4();
-    $("<div/>").attr("id", id).appendTo(selector);
-
     var app = new Vue({
-        el: "#" + id,
         template: options.template,
         data: data,
         watch: watch,
@@ -182,7 +178,8 @@ function GenericCard(selector, options) {
             });
 
             app.$actions.fire("$load");
-            //mount();
+
+            mount();
         }
     };
 }
