@@ -34,18 +34,18 @@ class GitPlugin(BasePlugin):
 
 class FilePlugin(object):
     def create(self):
-        shutil.copytree(self.sec, self.plugin_dir)
+        shutil.copytree(self.src, self.plugin_dir)
 
 
 class PluginManager(object):
-    BASE_DIR = os.path.expanduser("~/.rpi/modules")
     PLUGIN_TYPES = {
         "git": GitPlugin,
         "file": FilePlugin,
     }
 
-    def __init__(self):
-        self.init_structure(self.BASE_DIR)
+    def __init__(self, base_dir):
+        self.base_dir = base_dir
+        self.init_structure(base_dir)
 
     def list_modules(self):
         sys.path.insert(0, self.BASE_DIR)
@@ -75,8 +75,8 @@ class PluginManager(object):
             with open(list_file) as f:
                 f.write("")
 
-    def list_enabled_repos(self, path):
-        with open(path) as config_file:
+    def list_enabled_repos(self):
+        with open(os.path.join(self.base_dir, "modules.txt")) as config_file:
             obj = json.load(config_file)
         for repo_info in obj:
             if not repo_info.get("enabled", True):
