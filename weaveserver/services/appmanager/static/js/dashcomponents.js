@@ -143,6 +143,15 @@ function Actions(app, actions) {
 }
 
 function GenericCard(selector, options) {
+    var variables = options.data["$variables"] || {};
+    var actions = options.data["$actions"] || {};
+    delete options.data["$variables"];
+    delete options.data["$actions"];
+
+    options.data = options.data || {};
+    options.data.variables = variables;
+
+    // Setup watch object for all variables and internal 'variables'.
     var watch = {};
     Object.keys(options.data).forEach(function(key) {
         watch[key] = {handler: function(val) {}, deep: true};
@@ -151,72 +160,58 @@ function GenericCard(selector, options) {
     var app = new Vue({
         template: options.template,
         data: options.data,
-        watch: watch,
-        methods: {
-            fireEvent: function(event) {
-                this.$actions.fire(event);
-            }
-        }
+        watch: watch
     });
-
     DEBUG_APPS.push(app);
 
-    function mount() {
-        app.$mount();
-        var dom = app.$el;
-        $(selector).append(dom);
-    }
+    // Setup actions.
+    var appActions = Actions(app, actions);
+    delete options.data["$actions"];
+
+    appActions.fire("$load");
+
+    // Manually mount to so that we can append it.
+    app.$mount();
+    $(selector).append(app.$el);
 
     return {
-        load: function(data) {
-            // Setup actions.
-            app.$actions = Actions(app, data["$actions"] || {});
-            delete data["$actions"];
-
-            // Setup variables watching.
-            app.variables = {};
-            app.$watch("variables", function(val) {}, {deep: true});
-            Object.keys(data["$variables"] || {}).forEach(function(key) {
-                Vue.set(app.variables, key, data["$variables"][key]);
-            });
-            delete data["$variables"];
-
-            // Use rest of the data key-values as Vue fields.
-            Object.keys(data).forEach(function(key) {
-                app[key] = data[key];
-            });
-
-            app.$actions.fire("$load");
-
-            mount();
+        event: function(event) {
+            appActions.fire(event);
+        },
+        unload: function() {
+            return;
         }
     };
 }
 
-function SmallCard(selector) {
+function SmallCard(selector, data) {
+    var defaultData = {
+        cardType: '',
+        icon: {},
+        title: '',
+        content: '',
+        footer: []
+    };
+
     return GenericCard(selector, {
         template: "#template-small-card",
-        data: {
-            cardType: '',
-            icon: {},
-            title: '',
-            content: '',
-            footer: []
-        }
+        data: Object.assign({}, defaultData, data)
     });
 }
 
-function MediumCard(selector) {
+function MediumCard(selector, data) {
+    var defaultData = {
+        cardTitle: '',
+        cardContent: [],
+        cardType: '',
+        icon: {},
+        title: '',
+        content: '',
+        footer: []
+    }
+
     return GenericCard(selector, {
         template: "#template-medium-card",
-        data: {
-            cardTitle: '',
-            cardContent: [],
-            cardType: '',
-            icon: {},
-            title: '',
-            content: '',
-            footer: []
-        }
+        data: Object.assign({}, defaultData, data)
     });
 }
