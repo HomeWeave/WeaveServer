@@ -1,4 +1,7 @@
 {
+    "$variables": {
+        "update_status": "checking"
+    },
     "$actions": {
         "checkForUpdates": [
             {
@@ -13,15 +16,8 @@
                 "success": [
                     {
                         "type": "$store",
-                        "variable": "update_status",
-                        "keys": ["cardContent", "items", 0, "text"],
-                        "value": {
-                            "__vartype": "result",
-                            "__expression": {
-                                "index": 0,
-                                "keys": []
-                            }
-                        }
+                        "keys": ["variables", "update_status"],
+                        "value": "checking"
                     }
                 ]
             }
@@ -40,17 +36,18 @@
                     {
                         "type": "$store",
                         "keys": ["variables", "update_status"],
-                        "value": "available"
+                        "value": {
+                            "__vartype": "result",
+                            "__expression": {
+                                "index": 0,
+                                "keys": []
+                            }
+                        }
                     }
                 ]
             }
         ],
         "$load": [
-            {
-                "type": "$store",
-                "keys": ["variables", "update_status"],
-                "value": "checking"
-            },
             {
                 "type": "$action",
                 "action": "getStatus"
@@ -73,6 +70,10 @@
                     "Updates available.": {
                         "type": "paragraph",
                         "text": "Updates available."
+                    },
+                    "No updates available.": {
+                        "type": "paragraph",
+                        "text": "No new updates."
                     }
                 }
             },
