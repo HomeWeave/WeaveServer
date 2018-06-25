@@ -1,16 +1,11 @@
 import os
-import logging
 import time
-from threading import Semaphore, Thread, Event
-from unittest.mock import patch, Mock
+from threading import Thread, Event
+from unittest.mock import Mock
 
-import git
-
-from weavelib.messaging import Receiver, Sender
 from weavelib.rpc import RPCClient
 from weaveserver.core.services import ServiceManager
 from weaveserver.services.updater.service import UpdaterService, UpdateScanner
-from weaveserver.services.updater.service import Updater
 
 
 AUTH = {
