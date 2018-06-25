@@ -44,7 +44,8 @@ class TestUpdateScanner(object):
         service = UpdaterService("auth1", None)
         service.before_service_start()
         service.notify_start = started.set
-        Thread(target=service.on_service_start).start()
+        thread = Thread(target=service.on_service_start)
+        thread.start()
 
         started.wait()
 
@@ -58,6 +59,7 @@ class TestUpdateScanner(object):
         assert service.get_status() == "Updates available."
 
         service.on_service_stop()
+        thread.join()
 
     def test_trigger_update_when_no_update(self):
         UpdateScanner.UPDATE_CHECK_FREQ = 1000
@@ -71,7 +73,8 @@ class TestUpdateScanner(object):
         service = UpdaterService("auth1", None)
         service.before_service_start()
         service.notify_start = started.set
-        Thread(target=service.on_service_start).start()
+        thread = Thread(target=service.on_service_start)
+        thread.start()
 
         started.wait()
 
@@ -85,3 +88,4 @@ class TestUpdateScanner(object):
         assert service.get_status() == "No updates available."
 
         service.on_service_stop()
+        thread.join()

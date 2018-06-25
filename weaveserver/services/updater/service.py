@@ -215,6 +215,7 @@ class UpdaterService(BackgroundProcessServiceStart, BaseService):
         logger.info("Stopping update scanner..")
         self.update_scanner.stop()
         self.shutdown.set()
+        self.http.stop()
         self.rpc.stop()
         super().on_service_stop()
 
