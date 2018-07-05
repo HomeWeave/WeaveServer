@@ -80,8 +80,9 @@ function Actions(app, actions) {
         if (data.keys && data.keys.length) {
             var obj = (data.keys || []).slice(0, -1).reduce(function(state, value) {
                 return state[value];
-            }, app);
-            obj[data.keys.slice(-1)[0]] = evaluateTemplateData(data.value, context);
+            }, app.$data);
+            app.$set(obj, data.keys.slice(-1)[0],
+                     evaluateTemplateData(data.value, context));
         }
         return $.Deferred().resolve(data).promise();
     }
