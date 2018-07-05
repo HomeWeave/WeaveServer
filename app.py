@@ -3,6 +3,7 @@ eventlet.monkey_patch()  # NOLINT
 
 
 import importlib
+import os
 import sys
 from weaveserver.main import create_app
 from weaveserver.core.logger import configure_logging
@@ -16,6 +17,11 @@ def handle_launch():
     token = sys.stdin.readline().strip()
 
     name = sys.argv[1]
+    if len(sys.argv) > 2:
+        # This is mostly for plugins. Need to change dir so imports can succeed.
+        os.chdir(sys.argv[2])
+        sys.path.append(sys.argv[2])
+
     module = importlib.import_module(name)
     meta = module.__meta__
 
