@@ -3,8 +3,10 @@ Contains components that manage services, their sequences and interdependence.
 """
 
 import importlib
+import json
 import logging
 import os
+import sys
 import threading
 
 from weavelib.services import Module
@@ -35,6 +37,39 @@ def list_modules(module):
     return res
 
 
+def list_plugins(base_dir):
+    res = []
+    for name in os.listdir(base_dir):
+        try:
+            with open(os.path.join(base_dir, name, "plugin.json")) as inp:
+                plugin_info = json.load(inp)
+        except IOError:
+            logger.warning("Error opening plugin.json within %s", name)
+            continue
+        except ValueError:
+            logger.warning("Error parsing plugin.json within %s", name)
+            continue
+
+        try:
+            sys.path.append(os.path.join(base_dir, name))
+            logger.info("PATH: %s", os.path.join(base_dir, name))
+            module = importlib.import_module(plugin_info["service"])
+            module_meta = module.__meta__
+        except ImportError:
+            logger.warning("Failed to import dependencies for %s", name)
+            sys.path.pop(-1)
+            continue
+        except KeyError:
+            logger.warning("Required field not found in %s/plugin.json.", name)
+            sys.path.pop(-1)
+            continue
+
+        deps = module_meta["deps"]
+        res.append(Module(name=name, deps=deps, meta=module_meta,
+                          package_path=plugin_info["service"]))
+    return res
+
+
 def topo_sort_modules(modules):
     module_map = {x.name: x for x in modules}
     dep_map = {x.name: x.deps for x in modules}
@@ -50,6 +85,13 @@ class ServiceManager(object):
     """
     def __init__(self, debug=False, apps=None):
         unsorted_services = list_modules(weaveserver.services)
+
+        plugin_dir = get_config([{
+            "name": "plugin",
+            "loaders": [{"type": "env"}, {"type": "sysvarfile"}]
+        }])["plugin"].get("PLUGIN_DIR")
+
+        unsorted_services += list_plugins(plugin_dir)
         if debug:
             for module in unsorted_services:
                 logger.info("**DEBUG** App %s: %s", module.name, module.id)
