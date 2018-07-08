@@ -17,6 +17,7 @@ setup(
         'redis',
         'appdirs',
         'peewee',
+        'virtualenv',
     ],
     entry_points={
         'console_scripts': [
