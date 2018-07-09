@@ -17,7 +17,7 @@ class CoreService(BackgroundThreadServiceStart, BaseService):
         self.apps_auth = {
             token: {"type": "SYSTEM", "appid": token}
         }
-        self.message_server = MessageServer(self, config.get("PORT") or PORT,
+        self.message_server = MessageServer(int(config.get("PORT") or PORT),
                                             self.apps_auth,
                                             self.message_server_started)
         self.message_server_thread = Thread(target=self.message_server.run)
