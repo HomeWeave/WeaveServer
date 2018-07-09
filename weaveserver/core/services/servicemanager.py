@@ -53,12 +53,6 @@ class ServiceManager(object):
     def __init__(self, debug=False, apps=None):
         unsorted_services = list_modules(weaveserver.services)
 
-        plugin_dir = get_config([{
-            "name": "plugin",
-            "loaders": [{"type": "env"}, {"type": "sysvarfile"}]
-        }])["plugin"].get("PLUGIN_DIR")
-
-        unsorted_services += list_plugins(plugin_dir)
         if debug:
             for module in unsorted_services:
                 logger.info("**DEBUG** App %s: %s", module.name, module.id)
@@ -76,13 +70,13 @@ class ServiceManager(object):
     def run(self):
         """ Sequentially starts all the services."""
 
-        messaging_module = self.module_map["messaging"]
-        if messaging_module in self.service_modules:
-            self.service_modules.remove(messaging_module)
+        core_module = self.module_map["core"]
+        if core_module in self.service_modules:
+            self.service_modules.remove(core_module)
 
         error_modules = set()
 
-        self.start_service(messaging_module, error_modules, apps=self.apps)
+        self.start_service(core_module, error_modules, apps=self.apps)
 
         for module in self.service_modules:
             self.start_service(module, error_modules)
