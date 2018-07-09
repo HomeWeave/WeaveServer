@@ -12,6 +12,7 @@ from weavelib.messaging import Sender, Receiver, Creator, read_message
 from weavelib.messaging import ensure_ok_message
 
 from weaveserver.services.core.server import MessageServer
+from weaveserver.core.logger import configure_logging
 
 
 CONFIG = {
@@ -24,6 +25,14 @@ CONFIG = {
             "appid": "plugin",
             "package": "com.plugin"
         },
+        "auth3": {
+            "appid": "blah1",
+            "type": "SYSTEM"
+        },
+        "auth4": {
+            "appid": "plugin2",
+            "package": "com.plugin2"
+        }
     }
 }
 
@@ -60,6 +69,8 @@ TEST_QUEUES = [
     }
 ]
 
+configure_logging()
+
 
 def send_raw(msg):
     sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -93,7 +104,7 @@ class TestMessageServer(object):
     @classmethod
     def setup_class(cls):
         event = Event()
-        cls.server = MessageServer(11023, CONFIG["apps"], lambda: None)
+        cls.server = MessageServer(11023, CONFIG["apps"], event.set)
         cls.server_thread = Thread(target=cls.server.run)
         cls.server_thread.start()
         event.wait()
@@ -572,7 +583,7 @@ class TestMessageServer(object):
         pass
 
 
-class TestMessageServiceClosure(object):
+class TestMessageServerClosure(object):
     @pytest.mark.parametrize("queue_type,cookie",
                              [("fifo", (x for x in ("a", "b"))),
                               ("sticky", (x for x in ("a", "b"))),
@@ -580,9 +591,8 @@ class TestMessageServiceClosure(object):
                               ("sessionized", (x for x in ("a", "b")))])
     def test_queue_closure(self, queue_type, cookie):
         event = Event()
-        service = MessageService(None, CONFIG)
-        service.notify_start = event.set
-        thread = Thread(target=service.on_service_start)
+        server = MessageServer(11023, CONFIG["apps"], event.set)
+        thread = Thread(target=server.run)
         thread.start()
         event.wait()
 
@@ -605,7 +615,7 @@ class TestMessageServiceClosure(object):
             def run():
                 try:
                     receiver.run()
-                except QueueClosed:
+                except:
                     pass
             return run
 
@@ -626,7 +636,7 @@ class TestMessageServiceClosure(object):
         e1.wait()
         e2.wait()
 
-        service.on_service_stop()
+        server.shutdown()
         thread.join()
         t1.join()
         t2.join()
