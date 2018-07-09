@@ -252,9 +252,8 @@ class MessageServer(ThreadingTCPServer):
     allow_reuse_address = True
     daemon_threads = True
 
-    def __init__(self, service, port, apps_auth, notify_start):
+    def __init__(self, port, apps_auth, notify_start):
         super().__init__(("", port), MessageHandler)
-        self.service = service
         self.notify_start = notify_start
         self.sent_start_notification = False
         self.queue_map = {}
