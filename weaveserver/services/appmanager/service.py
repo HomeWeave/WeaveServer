@@ -19,9 +19,28 @@ from .http import HTTPServer
 logger = logging.getLogger(__name__)
 
 
+class AppResource(object):
+    def __init__(self, app_resource_dir, path, mime):
+        self.app_resource_dir = app_resource_dir
+        self.path = path
+        self.mime = mime
 
+    def read(self):
+        with open(os.path.join(self.app_resource_dir, self.path), 'rb') as inp:
+            return inp.read()
 
+    @staticmethod
+    def create(app_resource_dir, path, mime, content):
+        path = path.lstrip("/")
+        full_path = os.path.join(app_resource_dir, path)
+        try:
+            os.makedirs(os.path.dirname(full_path))
+        except:
+            pass
+        with open(full_path, "wb") as out:
+            out.write(content)
 
+        return AppResource(app_resource_dir, path, mime)
 
 
 class HTTPResourceRegistry(object):
