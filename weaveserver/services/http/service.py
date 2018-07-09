@@ -1,15 +1,9 @@
 import base64
 import logging
 import os
-from collections import defaultdict
 from tempfile import TemporaryDirectory
 from threading import Event, Thread
-from uuid import uuid4
 
-from jsonschema import Draft4Validator
-
-from weavelib.exceptions import ObjectNotFound
-from weavelib.messaging import Creator
 from weavelib.rpc import RPCServer, ServerAPI, ArgParameter, get_rpc_caller
 from weavelib.services import BaseService, BackgroundProcessServiceStart
 
@@ -74,21 +68,18 @@ class HTTPResourceRegistry(object):
             # TODO: app_resource should not be accessible through static URL.
             self.all_apps[caller_app_id].register_app_resource(app_resource)
 
+        # TODO: caller_app_id should not be visible. Use something else.
         return "/apps/" + caller_app_id + "/" + url.lstrip("/")
 
 
-class ApplicationService(BackgroundProcessServiceStart, BaseService):
+class HTTPService(BackgroundProcessServiceStart, BaseService):
     def __init__(self, token, config):
         super().__init__(token)
 
-        self.version = "latest"
         self.plugin_dir = TemporaryDirectory()
         self.http_registry = HTTPResourceRegistry(self, self.plugin_dir.name)
         self.http = HTTPServer(self, self.plugin_dir.name)
         self.exited = Event()
-
-    def before_service_start(self):
-        """Needs to be overridden to prevent rpc_client connecting."""
 
     def on_service_start(self, *args, **kwargs):
         self.registry.start()

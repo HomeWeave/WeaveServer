@@ -1,8 +1,8 @@
-from .service import ApplicationService
+from .service import HTTPService
 
 __meta__ = {
-    "name": "Application Manager",
-    "class": ApplicationService,
+    "name": "HTTP Service",
+    "class": HTTPService,
     "deps": ["messaging"],
     "config": []
 }
