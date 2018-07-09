@@ -170,7 +170,6 @@ class ApplicationService(BackgroundProcessServiceStart, BaseService):
 
         self.version = "latest"
         self.plugin_dir = TemporaryDirectory()
-        self.plugins = {}
         self.registry = ApplicationRegistry(self, self.plugin_dir.name)
         self.http = HTTPServer(self, self.plugin_dir.name)
         self.exited = Event()
