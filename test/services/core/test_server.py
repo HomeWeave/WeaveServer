@@ -11,13 +11,10 @@ from weavelib.exceptions import AuthenticationFailed
 from weavelib.messaging import Sender, Receiver, Creator, read_message
 from weavelib.messaging import ensure_ok_message
 
-from weaveserver.services.messaging import MessageService
+from weaveserver.services.core.server import MessageServer
 
 
 CONFIG = {
-    "redis_config": {
-        "USE_FAKE_REDIS": True
-    },
     "apps": {
         "auth1": {
             "appid": "blah",
@@ -27,14 +24,6 @@ CONFIG = {
             "appid": "plugin",
             "package": "com.plugin"
         },
-        "auth3": {
-            "appid": "blah1",
-            "type": "SYSTEM"
-        },
-        "auth4": {
-            "appid": "plugin2",
-            "package": "com.plugin2"
-        }
     }
 }
 
@@ -100,14 +89,13 @@ def make_receiver(count, obj, sem, r):
     return on_message
 
 
-class TestMessagingService(object):
+class TestMessageServer(object):
     @classmethod
     def setup_class(cls):
         event = Event()
-        cls.service = MessageService(None, CONFIG)
-        cls.service.notify_start = lambda: event.set()
-        cls.service_thread = Thread(target=cls.service.on_service_start)
-        cls.service_thread.start()
+        cls.server = MessageServer(11023, CONFIG["apps"], lambda: None)
+        cls.server_thread = Thread(target=cls.server.run)
+        cls.server_thread.start()
         event.wait()
         creator = Creator()
         creator.start()
@@ -116,8 +104,8 @@ class TestMessagingService(object):
 
     @classmethod
     def teardown_class(cls):
-        cls.service.on_service_stop()
-        cls.service_thread.join()
+        cls.server.shutdown()
+        cls.server_thread.join()
 
     def test_connect_disconnect(self):
         with pytest.raises(IOError):
