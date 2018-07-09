@@ -15,7 +15,6 @@ from weavelib.exceptions import ProtocolError, BadOperation, InternalError
 from weavelib.exceptions import SchemaValidationFailed
 from weavelib.messaging import read_message, serialize_message, Message
 from weavelib.messaging import exception_to_message
-from weavelib.services import BaseService, BackgroundThreadServiceStart
 
 
 logger = logging.getLogger(__name__)
@@ -233,7 +232,6 @@ class KeyedStickyQueue(BaseQueue):
 class MessageHandler(StreamRequestHandler):
     def handle(self):
         sess = str(uuid4())
-        app_info = None
         while True:
             try:
                 msg = read_message(self.rfile)
@@ -254,9 +252,10 @@ class MessageServer(ThreadingTCPServer):
     allow_reuse_address = True
     daemon_threads = True
 
-    def __init__(self, service, port, redis_config, apps_auth):
+    def __init__(self, service, port, apps_auth, notify_start):
         super().__init__(("", port), MessageHandler)
         self.service = service
+        self.notify_start = notify_start
         self.sent_start_notification = False
         self.queue_map = {}
         self.queue_map_lock = RLock()
@@ -388,7 +387,7 @@ class MessageServer(ThreadingTCPServer):
 
     def service_actions(self):
         if not self.sent_start_notification:
-            self.service.notify_start()
+            self.notify_start()
             self.sent_start_notification = True
 
     def shutdown(self):
@@ -396,23 +395,3 @@ class MessageServer(ThreadingTCPServer):
             queue.disconnect()
         super().shutdown()
         super().server_close()
-
-
-class MessageService(BackgroundThreadServiceStart, BaseService):
-    PORT = 11023
-
-    def __init__(self, token, config):
-        super().__init__(token)
-        self.redis_config = config["redis_config"]
-        self.apps_auth = config["apps"]
-
-    def before_service_start(self):
-        """Need to override to prevent rpc_client connecting."""
-
-    def on_service_start(self, *args, **kwargs):
-        self.message_server = MessageServer(self, self.PORT, self.redis_config,
-                                            self.apps_auth)
-        self.message_server.run()
-
-    def on_service_stop(self):
-        self.message_server.shutdown()

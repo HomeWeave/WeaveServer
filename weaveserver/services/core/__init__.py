@@ -1,13 +1,13 @@
-from .server import MessageService
+from .service import CoreService
 
 
 __meta__ = {
-    "name": "Messaging Server",
-    "class": MessageService,
+    "name": "HomeWeave Core",
+    "class": CoreService,
     "deps": [],
     "config": [
         {
-            "name": "redis_config",
+            "name": "core_config",
             "loaders": [
                 {"type": "env"},
                 {"type": "sysvarfile"}
