@@ -92,4 +92,4 @@ class HTTPService(BackgroundProcessServiceStart, BaseService):
     def on_service_stop(self):
         self.exited.set()
         self.plugin_dir.cleanup()
-        self.registry.stop()
+        self.http_registry.stop()
