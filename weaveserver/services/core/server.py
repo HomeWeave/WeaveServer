@@ -377,6 +377,9 @@ class MessageServer(ThreadingTCPServer):
         if "AUTH" in msg.headers:
             msg.headers["AUTH"] = self.apps_auth.get(msg.headers["AUTH"])
 
+    def register_application(self, auth_info):
+        self.apps_auth[auth_info["appid"]] = auth_info
+
     def run(self):
         for queue in self.queue_map.values():
             if not queue.connect():
