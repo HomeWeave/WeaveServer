@@ -75,7 +75,7 @@ class ApplicationRegistry(object):
         caller_app_id = caller_app["appid"]
 
         if caller_app.get("type") == "SYSTEM":
-            base_queue = "/_system/{}"
+            base_queue = "/_system/{}".format(name)
         else:
             base_queue = "/components/{}/rpcs/{}".format(caller_app_id,
                                                          str(uuid4()))
