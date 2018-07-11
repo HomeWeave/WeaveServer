@@ -15,10 +15,8 @@ class CoreService(BackgroundThreadServiceStart, BaseService):
         self.message_server_started = Event()
         self.shutdown_event = Event()
 
+        self.apps_auth = config["apps"]
         config = config["core_config"]
-        self.apps_auth = {
-            token: {"type": "SYSTEM", "appid": token}
-        }
         self.message_server = MessageServer(int(config.get("PORT") or PORT),
                                             self.apps_auth,
                                             self.message_server_started.set)

@@ -2,7 +2,7 @@ import time
 
 from weavelib.messaging import Receiver
 from weavelib.rpc import RPCServer, ServerAPI, RPCClient
-from weavelib.services import BaseService, BackgroundThreadServiceStart
+from weavelib.services import BaseService
 
 from weaveserver.services.core import CoreService
 
@@ -38,7 +38,8 @@ class DummyService(BaseService):
 
 class TestApplicationService(object):
     def setup_class(cls):
-        cls.core_service = CoreService("auth1", {"core_config": {}})
+        cls.core_service = CoreService("auth1",
+                                       {"core_config": {}, "apps": AUTH})
         cls.core_service.service_start()
         assert cls.core_service.wait_for_start(30)
 
