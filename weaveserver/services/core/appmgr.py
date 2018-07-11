@@ -74,8 +74,11 @@ class ApplicationRegistry(object):
         caller_app = get_rpc_caller()
         caller_app_id = caller_app["appid"]
 
-        base_queue = "/components/{}/rpcs/{}".format(caller_app_id,
-                                                     str(uuid4()))
+        if caller_app.get("type") == "SYSTEM":
+            base_queue = "/_system/{}"
+        else:
+            base_queue = "/components/{}/rpcs/{}".format(caller_app_id,
+                                                         str(uuid4()))
         request_queue = base_queue + "/request"
         response_queue = base_queue + "/response"
 
