@@ -9,6 +9,11 @@ from weavelib.services import BaseService, BackgroundThreadServiceStart
 from weaveserver.services.core import CoreService
 from weaveserver.services.http import HTTPService
 
+from weaveserver.core.logger import configure_logging
+
+
+configure_logging()
+
 
 AUTH = {
     "auth1": {
@@ -105,7 +110,7 @@ class TestHTTPService(object):
         assert resp.headers["Content-Type"] == "text/csv; charset=UTF-8"
 
     def test_rpc_info(self):
-        info = self.dummy_service.rpc_client["rpc_info"]("p", "name",
+        info = self.dummy_service.rpc_client["rpc_info"]("dummy", "name",
                                                          _block=True)
         actual_info = self.dummy_service.rpc_server.info_message
         assert info["request_queue"] == actual_info["request_queue"]
