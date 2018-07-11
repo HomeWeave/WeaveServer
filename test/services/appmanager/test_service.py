@@ -1,26 +1,29 @@
-import os
 import time
 
 import requests
 from weavelib.http import AppHTTPServer
 from weavelib.messaging import Receiver
 from weavelib.rpc import RPCServer, ServerAPI, RPCClient
-from weavelib.services import BaseService
+from weavelib.services import BaseService, BackgroundThreadServiceStart
 
-from weaveserver.core.services import ServiceManager
-from weaveserver.services.appmanager import ApplicationService
+from weaveserver.services.core import CoreService
+from weaveserver.services.http import HTTPService
 
 
 AUTH = {
     "auth1": {
         "type": "SYSTEM",
-        "appid": "appmgr"
+        "appid": "auth1"
     },
     "auth2": {
-        "appid": "appid2",
+        "appid": "auth2",
         "package": "p"
     }
 }
+
+
+class ThreadedHTTPService(BackgroundThreadServiceStart, HTTPService):
+    pass
 
 
 class DummyService(BaseService):
@@ -36,21 +39,21 @@ class DummyService(BaseService):
 
     def on_service_start(self):
         self.rpc_server.start()
+        self.http.start()
         self.relative_url = self.http.register_folder("test_dir")
 
     def on_service_stop(self):
+        self.http.stop()
         self.rpc_server.stop()
 
 
-class TestApplicationService(object):
+class TestHTTPService(object):
     def setup_class(cls):
-        os.environ["USE_FAKE_REDIS"] = "TRUE"
-        cls.service_manager = ServiceManager()
-        cls.service_manager.apps = AUTH
-        cls.service_manager.start_services(["messaging"])
-        cls.appmgr = ApplicationService("auth1", {"apps": AUTH})
-        cls.appmgr.exited.set()
-        cls.appmgr.on_service_start()
+        cls.core_service = CoreService("auth1", {"core_config": {}})
+        cls.core_service.service_start()
+        cls.core_service.wait_for_start(30)
+
+        cls.core_service.message_server.register_application(AUTH["auth2"])
 
         # Wait till it starts.
         receiver = Receiver("/_system/root_rpc/request")
@@ -61,10 +64,13 @@ class TestApplicationService(object):
             except:
                 time.sleep(1)
 
+        cls.service = ThreadedHTTPService("auth2", None)
+        cls.service.service_start()
+        cls.service.wait_for_start(30)
+
     def teardown_class(cls):
-        del os.environ["USE_FAKE_REDIS"]
-        cls.service_manager.stop()
-        cls.appmgr.on_service_stop()
+        cls.service.service_stop()
+        cls.core_service.service_stop()
 
     def setup_method(self):
         self.dummy_service = DummyService("auth2")
