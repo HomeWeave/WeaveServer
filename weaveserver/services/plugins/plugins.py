@@ -108,3 +108,9 @@ class PluginManager(object):
                 pass
             if not os.path.isdir(path):
                 raise Exception("Unable to create plugins directory.")
+
+    def activate(self, id):
+        pass
+
+    def deactivate(self, id):
+        pass

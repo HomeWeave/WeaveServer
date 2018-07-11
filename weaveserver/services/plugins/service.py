@@ -1,6 +1,7 @@
 import logging
 from threading import Event
 
+from weavelib.db import AppDBConnection
 from weavelib.rpc import RPCServer, ServerAPI, ArgParameter
 from weavelib.services import BaseService, BackgroundProcessServiceStart
 
@@ -14,8 +15,9 @@ class PluginService(BackgroundProcessServiceStart, BaseService):
     def __init__(self, token, config):
         super().__init__(token)
         path = config["plugins"].get("PLUGIN_DIR")
-        self.plugin_manager = PluginManager(path)
-        self.rpc = RPCServer("object_store", "Object Store for all plugins.", [
+        self.db = AppDBConnection(self)
+        self.plugin_manager = PluginManager(path, self.db)
+        self.rpc = RPCServer("plugins", "External Plugins Manager.", [
             ServerAPI("activate", "Activate a plugin.", [
                 ArgParameter("id", "ID of the plugin to activate", str),
             ], self.plugin_manager.activate),
