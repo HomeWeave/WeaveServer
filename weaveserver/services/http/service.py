@@ -75,14 +75,13 @@ class HTTPResourceRegistry(object):
 class HTTPService(BackgroundProcessServiceStart, BaseService):
     def __init__(self, token, config):
         super().__init__(token)
-
         self.plugin_dir = TemporaryDirectory()
         self.http_registry = HTTPResourceRegistry(self, self.plugin_dir.name)
         self.http = HTTPServer(self, self.plugin_dir.name)
         self.exited = Event()
 
     def on_service_start(self, *args, **kwargs):
-        self.registry.start()
+        self.http_registry.start()
         Thread(target=self.http.run,
                kwargs={"host": "", "port": 5000, "debug": True},
                daemon=True).start()
