@@ -38,7 +38,7 @@ class DummyService(BaseService):
         self.rpc_server.stop()
 
 
-class TestApplicationService(object):
+class TestHTTPService(object):
     def setup_class(cls):
         cls.service_manager = ServiceManager()
         cls.service_manager.apps = AUTH
