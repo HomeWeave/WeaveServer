@@ -2,7 +2,7 @@ import time
 
 from weavelib.messaging import Receiver
 from weavelib.rpc import RPCServer, ServerAPI, RPCClient
-from weavelib.services import BaseService
+from weavelib.services import BaseService, BackgroundThreadServiceStart
 
 from weaveserver.services.core import CoreService
 
