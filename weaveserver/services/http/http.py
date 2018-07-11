@@ -26,7 +26,6 @@ class HTTPServer(Bottle):
         self.route("/static/<path:path>")(self.handle_static)
         self.route("/")(self.handle_root)
         self.route("/apps/<path:path>")(self.handle_apps)
-        self.route("/views/<path:path>")(self.handle_view)
         self.route("/api/rpc", method="POST")(self.handle_rpc)
         self.route("/api/status")(self.handle_status)
 
