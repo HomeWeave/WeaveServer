@@ -23,17 +23,11 @@ class HTTPServer(Bottle):
         self.static_path = os.path.join(os.path.dirname(__file__), "static")
         self.plugin_path = plugin_path
 
-        self.route("/static/<path:path>")(self.handle_static)
         self.route("/")(self.handle_root)
         self.route("/apps/<path:path>")(self.handle_apps)
         self.route("/api/rpc", method="POST")(self.handle_rpc)
-        self.route("/api/status")(self.handle_status)
 
         logger.info("Temp Dir for HTTP: %s", plugin_path)
-
-    def handle_static(self, path):
-        logger.info("Static: %s (within %s)", path, self.static_path)
-        return static_file(path, root=self.static_path)
 
     def handle_root(self):
         return self.handle_static("/index.html")
@@ -75,18 +69,3 @@ class HTTPServer(Bottle):
         rpc_client.stop()
 
         return return_response(200, res)
-
-    def handle_view(self, path):
-        pass
-
-    def handle_status(self):
-        all_apps = self.service.registry.all_apps
-        status_cards = [x.status_card for x in all_apps.values()
-                        if x.status_card]
-
-        return {
-            "rules": 0,
-            "version": self.service.version,
-            "plugins": len(all_apps),
-            "components": [json.loads(x.read()) for x in status_cards]
-        }
