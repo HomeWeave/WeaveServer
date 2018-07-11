@@ -13,11 +13,17 @@ from weaveserver.services.http import HTTPService
 AUTH = {
     "auth1": {
         "type": "SYSTEM",
+        "package": "core",
         "appid": "auth1"
     },
     "auth2": {
         "appid": "auth2",
-        "package": "p"
+        "type": "SYSTEM",
+        "package": "http"
+    },
+    "auth3": {
+        "appid": "auth3",
+        "package": "dummy"
     }
 }
 
@@ -54,6 +60,7 @@ class TestHTTPService(object):
         cls.core_service.wait_for_start(30)
 
         cls.core_service.message_server.register_application(AUTH["auth2"])
+        cls.core_service.message_server.register_application(AUTH["auth3"])
 
         # Wait till it starts.
         receiver = Receiver("/_system/root_rpc/request")
@@ -73,7 +80,7 @@ class TestHTTPService(object):
         cls.core_service.service_stop()
 
     def setup_method(self):
-        self.dummy_service = DummyService("auth2")
+        self.dummy_service = DummyService("auth3")
         self.dummy_service.service_start()
 
     def teardown_method(self):
