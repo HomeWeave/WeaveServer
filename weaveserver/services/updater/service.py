@@ -189,7 +189,7 @@ class UpdaterService(BackgroundProcessServiceStart, BaseService):
         self.update_scanner = UpdateScanner(self)
         self.updater = Updater(self, self.update_scanner)
         self.shutdown = Event()
-        self.rpc = RPCServer("System Update", "Update the System", [
+        self.rpc = RPCServer("system", "System Utilities", [
             ServerAPI("check_updates", "Check for updates", [],
                       self.check_updates),
             ServerAPI("perform_upgrade", "Perform update", [],
