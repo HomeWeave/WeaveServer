@@ -1,6 +1,7 @@
 import base64
 import logging
 import os
+from collections import defaultdict
 from tempfile import TemporaryDirectory
 from threading import Event, Thread
 
@@ -47,6 +48,7 @@ class HTTPResourceRegistry(object):
             ], self.register_view),
         ], service)
         self.plugin_path = plugin_path
+        self.all_resources = defaultdict(dict)
 
     def start(self):
         self.rpc.start()
@@ -62,14 +64,12 @@ class HTTPResourceRegistry(object):
         path = os.path.join(self.plugin_path, caller_app_id)
 
         app_resource = AppResource.create(path, url, mimetype, decoded)
-        if url == "_status-card.json":
-            self.all_apps[caller_app_id].register_status_card(app_resource)
-        else:
-            # TODO: app_resource should not be accessible through static URL.
-            self.all_apps[caller_app_id].register_app_resource(app_resource)
 
         # TODO: caller_app_id should not be visible. Use something else.
-        return "/apps/" + caller_app_id + "/" + url.lstrip("/")
+        final_url = "/apps/" + caller_app_id + "/" + url.lstrip("/")
+        self.all_resources[caller_app_id][final_url] = app_resource
+
+        return final_url
 
 
 class HTTPService(BackgroundProcessServiceStart, BaseService):
