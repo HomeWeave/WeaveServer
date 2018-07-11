@@ -39,7 +39,7 @@ class AppResource(object):
 
 class HTTPResourceRegistry(object):
     def __init__(self, service, plugin_path):
-        self.rpc = RPCServer("weave_http", "Manage HTTP server.", [
+        self.rpc = RPCServer("http", "Manage HTTP server.", [
             ServerAPI("register_view", "Register resources to HTTP server", [
                 ArgParameter("url", "URL to register to.", {"type": "string"}),
                 ArgParameter("content", "Resource content", {"type": "string"}),
