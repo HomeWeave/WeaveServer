@@ -6,7 +6,6 @@ from weavelib.rpc import RPCServer, ServerAPI
 from weavelib.services import BaseService
 
 from weaveserver.core.services import ServiceManager
-from weaveserver.services.appmanager import ApplicationService
 
 
 AUTH = {
