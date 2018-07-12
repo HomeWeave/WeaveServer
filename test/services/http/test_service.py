@@ -1,3 +1,5 @@
+import hashlib
+import os
 import time
 
 import requests
@@ -60,7 +62,8 @@ class DummyService(BaseService):
 
 class TestHTTPService(object):
     def setup_class(cls):
-        cls.core_service = CoreService("auth1", {"core_config": {}})
+        cls.core_service = CoreService("auth1",
+                                       {"core_config": {}, "apps": AUTH})
         cls.core_service.service_start()
         cls.core_service.wait_for_start(30)
 
@@ -109,9 +112,24 @@ class TestHTTPService(object):
         assert resp.text == "a,b,c\n"
         assert resp.headers["Content-Type"] == "text/csv; charset=UTF-8"
 
-    def test_rpc_info(self):
-        info = self.dummy_service.rpc_client["rpc_info"]("dummy", "name",
-                                                         _block=True)
-        actual_info = self.dummy_service.rpc_server.info_message
-        assert info["request_queue"] == actual_info["request_queue"]
-        assert info["response_queue"] == actual_info["response_queue"]
+    def test_resource_creation(self):
+        src = os.path.join(os.path.dirname(__file__), "test_dir")
+        dest = os.path.join(self.service.plugin_dir.name, "auth3")
+        src_files = [x[1:] for x in os.walk(src)]
+        dest_files = [x[1:] for x in os.walk(dest)]
+
+        assert src_files == dest_files
+        src_full_paths = [os.path.join(src, x)
+                          for folder_info in src_files
+                          for x in folder_info[1]]
+        dest_full_paths = [os.path.join(dest, x)
+                           for folder_info in dest_files
+                           for x in folder_info[1]]
+
+        for src_path, dest_path in zip(src_full_paths, dest_full_paths):
+            with open(src_path, "rb") as src_inp:
+                src_hash = hashlib.md5(src_inp.read()).hexdigest()
+            with open(dest_path, "rb") as dest_inp:
+                dest_hash = hashlib.md5(dest_inp.read()).hexdigest()
+
+            assert src_hash == dest_hash
