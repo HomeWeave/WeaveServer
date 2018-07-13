@@ -48,7 +48,7 @@ class DummyService(BaseService):
         self.http = AppHTTPServer(self)
 
     def api1(self):
-        return "OK"
+        return [200, "OK"]
 
     def on_service_start(self):
         self.rpc_server.start()
@@ -94,13 +94,26 @@ class TestHTTPService(object):
     def teardown_method(self):
         self.dummy_service.service_stop()
 
-    def test_rpc(self):
+    def test_simple_rpc(self):
         rpc = RPCClient(self.dummy_service.rpc_server.info_message)
         rpc.start()
-        assert "OK" == rpc["api1"](_block=True)
+        assert [200, "OK"] == rpc["api1"](_block=True)
         rpc.stop()
 
-    def disabled_test_http_simple_request(self):
+    def test_multiple_rpcs(self):
+        obj = {
+            "package_name": "dummy",
+            "rpc_name": "name",
+            "api_name": "api1",
+            "args": [],
+            "kwargs": {}
+        }
+        url = "http://localhost:5000/api/rpc"
+        for _ in range(10):
+            res = requests.post(url, json=obj).json()
+            assert res == [200, "OK"]
+
+    def test_http_simple_request(self):
         base_url = "http://localhost:5000" + self.dummy_service.relative_url
 
         url = base_url + "/index.json"
