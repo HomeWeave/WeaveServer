@@ -113,6 +113,19 @@ class TestHTTPService(object):
             res = requests.post(url, json=obj).json()
             assert res == [200, "OK"]
 
+    def test_rpc_with_unknown_package(self):
+        obj = {
+            "package_name": "unknown",
+            "rpc_name": "name",
+            "api_name": "api1",
+            "args": [],
+            "kwargs": {}
+        }
+        url = "http://localhost:5000/api/rpc"
+        res = requests.post(url, json=obj).json()
+        assert res == {"error": "RPC not found."}
+
+
     def test_http_simple_request(self):
         base_url = "http://localhost:5000" + self.dummy_service.relative_url
 
