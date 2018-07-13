@@ -115,21 +115,15 @@ class TestHTTPService(object):
     def test_resource_creation(self):
         src = os.path.join(os.path.dirname(__file__), "test_dir")
         dest = os.path.join(self.service.plugin_dir.name, "auth3")
-        src_files = [x[1:] for x in os.walk(src)]
-        dest_files = [x[1:] for x in os.walk(dest)]
+        src_files = sorted(y for x in os.walk(src) for y in x[2])
+        dest_files = sorted(y for x in os.walk(dest) for y in x[2])
 
         assert src_files == dest_files
-        src_full_paths = [os.path.join(src, x)
-                          for folder_info in src_files
-                          for x in folder_info[1]]
-        dest_full_paths = [os.path.join(dest, x)
-                           for folder_info in dest_files
-                           for x in folder_info[1]]
 
-        for src_path, dest_path in zip(src_full_paths, dest_full_paths):
-            with open(src_path, "rb") as src_inp:
+        for rel_path in src_files:
+            with open(os.path.join(src, rel_path), "rb") as src_inp:
                 src_hash = hashlib.md5(src_inp.read()).hexdigest()
-            with open(dest_path, "rb") as dest_inp:
+            with open(os.path.join(dest, rel_path), "rb") as dest_inp:
                 dest_hash = hashlib.md5(dest_inp.read()).hexdigest()
 
             assert src_hash == dest_hash
