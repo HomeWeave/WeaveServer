@@ -89,6 +89,15 @@ class PluginManager(object):
     def stop(self):
         pass
 
+    def init_structure(self, path):
+        if not os.path.isdir(path):
+            try:
+                os.makedirs(path)
+            except:
+                pass
+            if not os.path.isdir(path):
+                raise Exception("Unable to create plugins directory.")
+
     def list_installed_plugins(self):
         try:
             enabled_plugins = self.database["ENABLED_PLUGINS"]
@@ -101,14 +110,6 @@ class PluginManager(object):
 
         return all_plugins
 
-    def init_structure(self, path):
-        if not os.path.isdir(path):
-            try:
-                os.makedirs(path)
-            except:
-                pass
-            if not os.path.isdir(path):
-                raise Exception("Unable to create plugins directory.")
     def list_available_plugins(self):
         res = []
         for repo in self.github_weave_org.repositories():
