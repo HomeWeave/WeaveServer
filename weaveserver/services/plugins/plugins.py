@@ -8,7 +8,7 @@ import sys
 from uuid import uuid4
 
 import git
-from weavelib.db import AppDBConnection
+from github3 import GitHub
 
 
 logger = logging.getLogger(__name__)
@@ -81,6 +81,7 @@ class PluginManager(object):
     def __init__(self, base_dir, database):
         self.base_dir = base_dir
         self.database = database
+        self.github_weave_org = GitHub().organization('HomeWeave')
 
     def start(self):
         self.init_structure(self.base_dir)
@@ -108,6 +109,17 @@ class PluginManager(object):
                 pass
             if not os.path.isdir(path):
                 raise Exception("Unable to create plugins directory.")
+    def list_available_plugins(self):
+        res = []
+        for repo in self.github_weave_org.repositories():
+            contents = repo.directory_contents("/", return_as=dict)
+            if "plugin.json" in contents:
+                res.append({
+                    "url": repo.clone_url,
+                    "description": repo.description,
+                    "enabled": False,
+                })
+        return res
 
     def activate(self, id):
         pass

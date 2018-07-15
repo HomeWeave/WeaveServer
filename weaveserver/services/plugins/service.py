@@ -26,6 +26,8 @@ class PluginService(BackgroundProcessServiceStart, BaseService):
             ], self.plugin_manager.deactivate),
             ServerAPI("list", "List all installed plugins", [],
                       self.plugin_manager.list_installed_plugins),
+            ServerAPI("list_available", "List all available plugins.", [],
+                      self.plugin_manager.list_available_plugins)
         ], self)
         self.shutdown = Event()
 
