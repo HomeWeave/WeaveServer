@@ -31,6 +31,7 @@ class PluginService(BackgroundProcessServiceStart, BaseService):
 
     def on_service_start(self, *args, **kwargs):
         super(PluginService, self).on_service_start(*args, **kwargs)
+        self.db.start()
         self.plugin_manager.start()
         self.rpc.start()
         self.notify_start()
@@ -39,4 +40,5 @@ class PluginService(BackgroundProcessServiceStart, BaseService):
     def on_service_stop(self):
         self.rpc.stop()
         self.plugin_manager.stop()
+        self.db.stop()
         self.shutdown.set()
