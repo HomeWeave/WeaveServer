@@ -18,6 +18,7 @@ setup(
         'appdirs',
         'peewee',
         'virtualenv',
+        'github3.py',
     ],
     entry_points={
         'console_scripts': [
