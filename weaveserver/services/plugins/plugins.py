@@ -5,6 +5,7 @@ import logging
 import os
 import shutil
 import sys
+from threading import Thread
 
 import git
 from github3 import GitHub
@@ -128,7 +129,11 @@ class PluginManager(object):
 
         self.enabled_plugins = set(self.all_plugins) & set(enabled_plugins)
 
-        for plugin_id in self.enabled_plugins:
+        thread = Thread(target=self.start_async, args=(self.enabled_plugins,))
+        thread.start()
+
+    def start_async(self, enabled_plugins):
+        for plugin_id in enabled_plugins:
             self.activate(plugin_id)
 
         logger.info("Started %d of %d plugins.", len(self.running_plugins),
