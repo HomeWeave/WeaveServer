@@ -75,10 +75,12 @@ class TestPluginService(object):
         cls.db_service.service_start()
         cls.db_service.wait_for_start(30)
 
+        cls.venv_dir = TemporaryDirectory()
         plugin_config = {
             "plugins": {
                 "PLUGIN_DIR": os.path.join(os.path.dirname(__file__),
                                            'test_dir'),
+                "VENV_DIR": cls.venv_dir.name,
             }
         }
         cls.plugin_service = ThreadedPluginService("auth3", plugin_config)

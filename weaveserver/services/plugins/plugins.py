@@ -103,10 +103,11 @@ class PluginManager(object):
         "file": FilePlugin,
     }
 
-    def __init__(self, base_dir, venv_dir, database):
+    def __init__(self, base_dir, venv_dir, database, appmgr_rpc):
         self.base_dir = base_dir
         self.venv_dir = venv_dir
         self.database = database
+        self.appmgr_rpc = appmgr_rpc
         self.enabled_plugins = set()
         self.running_plugins = {}
         self.all_plugins = {}

@@ -14,10 +14,11 @@ logger = logging.getLogger(__name__)
 class PluginService(BackgroundProcessServiceStart, BaseService):
     def __init__(self, token, config):
         super().__init__(token)
-        plugin_path = config["plugins"].get("PLUGIN_DIR")
-        venv_path = config["plugins"].get("VENV_DIR")
+        plugin_path = config["plugins"]["PLUGIN_DIR"]
+        venv_path = config["plugins"]["VENV_DIR"]
         self.db = AppDBConnection(self)
-        self.plugin_manager = PluginManager(plugin_path, venv_path, self.db)
+        self.plugin_manager = PluginManager(plugin_path, venv_path, self.db,
+                                            self.rpc_client)
         self.rpc = RPCServer("plugins", "External Plugins Manager.", [
             ServerAPI("activate", "Activate a plugin.", [
                 ArgParameter("id", "ID of the plugin to activate", str),
