@@ -32,8 +32,7 @@ def list_plugins(base_dir):
 
         try:
             sys.path.append(os.path.join(base_dir, name))
-            module = importlib.import_module(plugin_info["service"])
-            module_meta = module.__meta__
+            importlib.import_module(plugin_info["service"])
         except ImportError:
             logger.warning("Failed to import dependencies for %s", name)
             continue
@@ -44,10 +43,14 @@ def list_plugins(base_dir):
             sys.path.pop(-1)
 
         plugin = create_plugin(os.path.join(base_dir, name))
-        plugin_id = plugin.unique_id()
-        deps = module_meta["deps"]
-        res.append(dict(name=name, deps=deps, meta=module_meta, id=plugin_id,
-                        package_path=plugin_info["service"]))
+        res.append({
+            "name": name,
+            "deps": plugin_info["deps"],
+            "id": plugin.unique_id(),
+            "package_path": plugin_info["service"],
+            "config": plugin_info["config"],
+            "start_timeout": plugin_info["start_timeout"]
+        })
     return res
 
 
@@ -57,8 +60,12 @@ def create_plugin(path):
     return FilePlugin(path, path)
 
 
-def run_plugin(service):
-    pass
+def run_plugin(service, timeout):
+    service.service_start()
+    if not service.wait_for_start(timeout=timeout):
+        service.service_stop()
+        return False
+    return True
 
 
 def stop_plugin(service):
@@ -185,7 +192,7 @@ class PluginManager(object):
             return True
 
         service = plugin.get_module()
-        if not run_plugin(service):
+        if not run_plugin(service, timeout=plugin["start_timeout"]):
             return False
 
         logger.info("Started plugin: %s", plugin.dest)
