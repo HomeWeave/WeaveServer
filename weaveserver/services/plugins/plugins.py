@@ -9,6 +9,8 @@ import sys
 import git
 from github3 import GitHub
 
+from weavelib.exceptions import ObjectNotFound
+
 from .virtualenv import VirtualEnvManager
 
 logger = logging.getLogger(__name__)
@@ -51,8 +53,15 @@ def list_plugins(base_dir):
 def create_plugin(path):
     if os.path.isdir(os.path.join(path, '.git')):
         return GitPlugin(None, path)
-    else:
-        return FilePlugin(path, path)
+    return FilePlugin(path, path)
+
+
+def run_plugin(service):
+    pass
+
+
+def stop_plugin(service):
+    pass
 
 
 class BasePlugin(object):
@@ -98,7 +107,9 @@ class PluginManager(object):
         self.base_dir = base_dir
         self.venv_dir = venv_dir
         self.database = database
-        self.enabled_plugins = []
+        self.enabled_plugins = set()
+        self.running_plugins = {}
+        self.all_plugins = {}
         self.github_weave_org = GitHub().organization('HomeWeave')
 
     def start(self):
@@ -106,13 +117,25 @@ class PluginManager(object):
         self.init_structure(self.venv_dir)
 
         try:
-            self.enabled_plugins = self.database["ENABLED_PLUGINS"]
+            enabled_plugins = self.database["ENABLED_PLUGINS"]
         except KeyError:
             self.database["ENABLED_PLUGINS"] = []
-            self.enabled_plugins = []
+            enabled_plugins = []
+
+        for plugin in list_plugins(self.base_dir):
+            self.all_plugins[plugin["id"]] = plugin
+
+        self.enabled_plugins = set(self.all_plugins) & set(enabled_plugins)
+
+        for plugin_id in self.enabled_plugins:
+            self.activate(plugin_id)
+
+        logger.info("Started %d of %d plugins.", len(self.running_plugins),
+                    len(self.all_plugins))
 
     def stop(self):
-        pass
+        for id, service in self.running_plugins.items():
+            stop_plugin(service)
 
     def init_structure(self, path):
         if not os.path.isdir(path):
@@ -124,11 +147,15 @@ class PluginManager(object):
                 raise Exception("Unable to create directory: " + path)
 
     def list_installed_plugins(self):
-        all_plugins = list_plugins(self.base_dir)
-        for plugin_info in all_plugins:
-            plugin_info["enabled"] = plugin_info["id"] in self.enabled_plugins
+        def transform(plugin):
+            return {
+                "id": plugin["id"],
+                "name": plugin["name"],
+                "description": plugin["description"],
+                "enabled": plugin["id"] in self.enabled_plugins
+            }
 
-        return all_plugins
+        return [transform(x) for x in self.all_plugins]
 
     def list_available_plugins(self):
         res = []
@@ -143,7 +170,21 @@ class PluginManager(object):
         return res
 
     def activate(self, id):
-        pass
+        try:
+            plugin = self.all_plugins[id]
+        except KeyError:
+            raise ObjectNotFound(id)
+
+        if id in self.running_plugins:
+            return True
+
+        service = plugin.get_module()
+        if not run_plugin(service):
+            return False
+
+        logger.info("Started plugin: %s", plugin.dest)
+        self.running_plugins[id] = service
+        return True
 
     def deactivate(self, id):
         pass
