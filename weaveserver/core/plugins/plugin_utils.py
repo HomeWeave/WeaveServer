@@ -8,18 +8,15 @@ import sys
 
 import git
 
-from weaveserver.core.plugins.virtualenv import VirtualEnvManager
-
 
 logger = logging.getLogger(__name__)
 
 
 class BasePlugin(object):
-    def __init__(self, src, dest, venv_base_path):
+    def __init__(self, src, dest):
         self.src = src
         self.dest = dest
         self.plugin_dir = self.get_plugin_dir()
-        self.venv_manager = VirtualEnvManager()
 
     def get_plugin_dir(self):
         return os.path.join(self.dest, self.unique_id())
