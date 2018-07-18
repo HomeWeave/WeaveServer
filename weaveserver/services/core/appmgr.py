@@ -42,6 +42,9 @@ class ApplicationRegistry(object):
     APIS_SCHEMA = {
         "type": "object",
     }
+    PLUGIN_INFO_SCHEMA = {
+        "type": "object"
+    }
 
     def __init__(self, service):
         self.rpc = RootRPCServer("app_manager", "Application Manager", [
@@ -51,6 +54,10 @@ class ApplicationRegistry(object):
                 ArgParameter("apis", "Maps of all APIs", self.APIS_SCHEMA),
             ], self.register_rpc),
             ServerAPI("register_app", "Register App", [], self.register_app),
+            ServerAPI("register_plugin", "Register Pliugin", [
+                ArgParameter("plugin_info", "Plugin Information",
+                             self.PLUGIN_INFO_SCHEMA)
+            ], self.register_app),
             ServerAPI("rpc_info", "Get RPCInfo object.", [
                 ArgParameter("package_name", "Package Name", str),
                 ArgParameter("rpc_name", "RPC Name", str),
@@ -58,6 +65,7 @@ class ApplicationRegistry(object):
             ServerAPI("build_info", "Get HomeWeave version info.", [],
                       self.build_info),
         ], service)
+        self.service = service
         self.queue_creator = Creator(auth=service.auth_token)
         self.all_rpcs = defaultdict(dict)
         self.all_apps = {}
@@ -126,6 +134,15 @@ class ApplicationRegistry(object):
 
         self.all_apps[caller_app_id] = app
         logger.info("Registered app: %s", package)
+
+    def register_plugin(self, plugin_info):
+        caller_app = get_rpc_caller()
+        if caller_app.get("type") != "SYSTEM":
+            raise ObjectNotFound("No such RPC.")
+
+        self.service.message_server.register_application(plugin_info)
+
+        return True
 
     def rpc_info(self, package_name, rpc_name):
         found_app = None
