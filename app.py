@@ -7,6 +7,7 @@ import os
 import sys
 from weaveserver.main import create_app
 from weaveserver.core.logger import configure_logging
+from weaveserver.core.virtualenv import VirtualEnvManager
 
 
 def handle_launch():
@@ -18,15 +19,21 @@ def handle_launch():
 
     name = sys.argv[1]
     if len(sys.argv) > 2:
-        # This is mostly for plugins. Need to change dir so imports can succeed.
+        # This is mostly for plugins. Need to change dir so that plugins see
+        # their own directory as current directory.
         os.chdir(sys.argv[2])
         sys.path.append(sys.argv[2])
+        venv = VirtualEnvManager(sys.argv[3])
+        venv.activate()
 
-    module = importlib.import_module(name)
-    meta = module.__meta__
+        plugin_cls = importlib.import_module(name)
+    else:
+        # Core Services.
+        module = importlib.import_module(name)
+        meta = module.__meta__
 
-    config = get_config(meta.get("config"))
-    app = meta["class"](token, config)
+        config = get_config(meta.get("config"))
+        app = meta["class"](token, config)
 
     signal.signal(signal.SIGTERM, lambda x, y: app.on_service_stop())
     signal.signal(signal.SIGINT, lambda x, y: app.on_service_stop())
