@@ -1,0 +1,87 @@
+import importlib
+import hashlib
+import json
+import logging
+import os
+import shutil
+import sys
+
+import git
+
+from weaveserver.core.plugins.virtualenv import VirtualEnvManager
+
+
+logger = logging.getLogger(__name__)
+
+
+class BasePlugin(object):
+    def __init__(self, src, dest, venv_base_path):
+        self.src = src
+        self.dest = dest
+        self.plugin_dir = self.get_plugin_dir()
+        self.venv_manager = VirtualEnvManager()
+
+    def get_plugin_dir(self):
+        return os.path.join(self.dest, self.unique_id())
+
+    def unique_id(self):
+        return hashlib.md5(self.src.encode('utf-8')).hexdigest()
+
+    def needs_create(self):
+        return not os.path.isdir(self.plugin_dir)
+
+
+class GitPlugin(BasePlugin):
+    def __init__(self, src, dest):
+        if src is None:
+            self.git = git.Repo(dest)
+            self.src = next(self.git.remote('origin').urls)
+        super(GitPlugin, self).__init__(self.src, dest)
+
+    def create(self):
+        git.Repo.clone_from(self.src, self.plugin_dir)
+
+
+class FilePlugin(BasePlugin):
+    def create(self):
+        shutil.copytree(self.src, self.plugin_dir)
+
+
+def create_plugin(path):
+    if os.path.isdir(os.path.join(path, '.git')):
+        return GitPlugin(None, path)
+    return FilePlugin(path, path)
+
+
+def load_plugin_from_path(base_dir, name):
+    try:
+        with open(os.path.join(base_dir, name, "plugin.json")) as inp:
+            plugin_info = json.load(inp)
+    except IOError:
+        logger.warning("Error opening plugin.json within %s", name)
+        return None
+    except ValueError:
+        logger.warning("Error parsing plugin.json within %s", name)
+        return None
+
+    try:
+        sys.path.append(os.path.join(base_dir, name))
+        importlib.import_module(plugin_info["service"])
+    except ImportError:
+        logger.warning("Failed to import dependencies for %s", name)
+        return None
+    except KeyError:
+        logger.warning("Required field not found in %s/plugin.json.", name)
+        return None
+    finally:
+        sys.path.pop(-1)
+
+    plugin = create_plugin(os.path.join(base_dir, name))
+    return {
+        "name": name,
+        "deps": plugin_info["deps"],
+        "id": plugin.unique_id(),
+        "package_path": plugin_info["service"],
+        "config": plugin_info["config"],
+        "start_timeout": plugin_info["start_timeout"]
+    }
