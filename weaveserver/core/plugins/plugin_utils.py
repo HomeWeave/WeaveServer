@@ -63,7 +63,7 @@ def load_plugin_from_path(base_dir, name):
 
     try:
         sys.path.append(os.path.join(base_dir, name))
-        importlib.import_module(plugin_info["service"])
+        module = importlib.import_module(plugin_info["service"])
     except ImportError:
         logger.warning("Failed to import dependencies for %s", name)
         return None
@@ -75,6 +75,7 @@ def load_plugin_from_path(base_dir, name):
 
     plugin = create_plugin(os.path.join(base_dir, name))
     return {
+        "cls": module,
         "name": name,
         "deps": plugin_info["deps"],
         "id": plugin.unique_id(),
