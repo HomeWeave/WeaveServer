@@ -7,7 +7,7 @@ import os
 import sys
 from weaveserver.main import create_app
 from weaveserver.core.logger import configure_logging
-from weaveserver.core.virtualenv import VirtualEnvManager
+from weaveserver.core.plugins import VirtualEnvManager, load_plugin_from_path
 
 
 def handle_launch():
@@ -17,18 +17,23 @@ def handle_launch():
 
     token = sys.stdin.readline().strip()
 
-    name = sys.argv[1]
     if len(sys.argv) > 2:
         # This is mostly for plugins. Need to change dir so that plugins see
         # their own directory as current directory.
-        os.chdir(sys.argv[2])
-        sys.path.append(sys.argv[2])
-        venv = VirtualEnvManager(sys.argv[3])
+        plugin_dir = sys.argv[1]
+        os.chdir(plugin_dir)
+        sys.path.append(plugin_dir)
+
+        venv_path = sys.argv[2]
+        venv = VirtualEnvManager(venv_path)
         venv.activate()
 
-        plugin_cls = importlib.import_module(name)
+        plugin_info = load_plugin_from_path(os.path.dirname(plugin_dir),
+                                            os.path.basename(plugin_dir))
+        app = plugin_info["cls"](token, plugin_info["config"], venv_path)
     else:
         # Core Services.
+        name = sys.argv[1]
         module = importlib.import_module(name)
         meta = module.__meta__
 

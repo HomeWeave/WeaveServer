@@ -113,7 +113,12 @@ class PluginManager(object):
         if id in self.running_plugins:
             return True
 
-        service = plugin.get_module()
+        venv_dir = os.path.join(self.venv_dir, plugin["id"])
+        if not os.path.isdir(venv_dir):
+            logger.error("VirtualEnv directory %s not found.", venv_dir)
+            return False
+
+        service = plugin["cls"]("token", plugin["config"], venv_dir)
         if not run_plugin(service, timeout=plugin["start_timeout"]):
             return False
 
