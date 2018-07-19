@@ -34,3 +34,18 @@ class TestVirtualEnvManager(object):
             "import bottle"
         ]
         assert subprocess.call(cmd) == 0
+
+    def test_install_bad_requirements_file(self):
+        requirements_file = os.path.join(self.tempdir.name, 'invalid.txt')
+
+        venv = VirtualEnvManager(os.path.join(self.tempdir.name, "3"))
+        assert not venv.install(requirements_file=requirements_file)
+
+    def test_install_bad_dependencies(self):
+        requirements_file = os.path.join(self.tempdir.name, 'requirements.txt')
+
+        with open(requirements_file, 'w') as out:
+            out.write('some-random-package-that-doesnt-exist')
+
+        venv = VirtualEnvManager(os.path.join(self.tempdir.name, "4"))
+        assert not venv.install(requirements_file=requirements_file)
