@@ -5,6 +5,7 @@ import logging
 import os
 import shutil
 import sys
+from uuid import uuid4
 
 import git
 
@@ -17,12 +18,19 @@ class BasePlugin(object):
         self.src = src
         self.dest = dest
         self.plugin_dir = self.get_plugin_dir()
+        self.appid = "plugin-token-" + str(uuid4())
 
     def get_plugin_dir(self):
         return os.path.join(self.dest, self.unique_id())
 
     def unique_id(self):
         return hashlib.md5(self.src.encode('utf-8')).hexdigest()
+
+    def json(self):
+        return {
+            "appid": "app-token-" + self.appid,
+            "package": self.dest.replace("/", ".")
+        }
 
     def needs_create(self):
         return not os.path.isdir(self.plugin_dir)
@@ -75,6 +83,7 @@ def load_plugin_from_path(base_dir, name):
 
     plugin = create_plugin(os.path.join(base_dir, name))
     return {
+        "plugin": plugin,
         "cls": module,
         "name": name,
         "deps": plugin_info["deps"],

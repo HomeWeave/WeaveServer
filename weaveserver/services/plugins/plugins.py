@@ -125,7 +125,7 @@ class PluginManager(object):
         logger.info("Started plugin: %s", plugin.dest)
         self.running_plugins[id] = service
 
-        # TODO: RPC call to core to register token.
+        self.appmgr_rpc["register_plugin"](plugin["plugin"].json(), _block=True)
         return True
 
     def deactivate(self, id):
