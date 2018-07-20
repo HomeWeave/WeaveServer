@@ -90,7 +90,7 @@ class PluginManager(object):
                 "enabled": plugin["id"] in self.enabled_plugins
             }
 
-        return [transform(x) for x in self.all_plugins]
+        return [transform(x) for x in self.all_plugins.values()]
 
     def list_available_plugins(self):
         res = []
