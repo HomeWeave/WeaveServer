@@ -104,6 +104,12 @@ class PluginManager(object):
                 })
         return res
 
+    def supported_types(self):
+        return ["git", "file"]
+
+    def install_plugin(self, plugin_type, src):
+        pass
+
     def activate(self, id):
         try:
             plugin = self.all_plugins[id]
