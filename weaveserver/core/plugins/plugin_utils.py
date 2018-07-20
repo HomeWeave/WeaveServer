@@ -92,3 +92,11 @@ def load_plugin_from_path(base_dir, name):
         "config": plugin_info.get("config", {}),
         "start_timeout": plugin_info.get("start_timeout", 30)
     }
+
+
+def install_plugin_from_source(cls, src, dest):
+    plugin = cls(src, dest)
+    plugin.create()
+
+    dir_name = os.path.basename(plugin.get_plugin_dir())
+    return load_plugin_from_path(dest, dir_name)
