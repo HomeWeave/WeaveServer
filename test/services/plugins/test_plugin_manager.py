@@ -75,12 +75,15 @@ class TestPluginService(object):
         cls.db_service.service_start()
         cls.db_service.wait_for_start(30)
 
-        cls.venv_dir = TemporaryDirectory()
+        cls.temp_dir = TemporaryDirectory()
+        plugin_dir = os.path.join(cls.temp_dir.name, 'plugins')
+        venv_dir = os.path.join(cls.temp_dir.name, 'venv')
+        os.makedirs(plugin_dir)
+        os.makedirs(venv_dir)
         plugin_config = {
             "plugins": {
-                "PLUGIN_DIR": os.path.join(os.path.dirname(__file__),
-                                           'test_dir'),
-                "VENV_DIR": cls.venv_dir.name,
+                "PLUGIN_DIR": plugin_dir,
+                "VENV_DIR": venv_dir
             }
         }
         cls.plugin_service = ThreadedPluginService("auth3", plugin_config)
@@ -94,6 +97,7 @@ class TestPluginService(object):
         cls.core_service.service_stop()
 
         cls.db_dir.cleanup()
+        cls.temp_dir.cleanup()
 
     def test_list_installed_plugins(self):
         rpc_client = RPCClient(self.plugin_service.rpc.info_message, "auth4")
