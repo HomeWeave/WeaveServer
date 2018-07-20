@@ -86,9 +86,9 @@ def load_plugin_from_path(base_dir, name):
         "plugin": plugin,
         "cls": module,
         "name": name,
-        "deps": plugin_info["deps"],
+        "deps": plugin_info.get("deps"),
         "id": plugin.unique_id(),
         "package_path": plugin_info["service"],
-        "config": plugin_info["config"],
-        "start_timeout": plugin_info["start_timeout"]
+        "config": plugin_info.get("config", {}),
+        "start_timeout": plugin_info.get("start_timeout", 30)
     }
