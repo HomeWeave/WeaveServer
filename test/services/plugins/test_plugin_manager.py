@@ -27,13 +27,9 @@ AUTH = {
     },
     "auth3": {
         "appid": "auth3",
-        "package": "plugin",
+        "package": "weaveserver.services.plugins",
         "type": "SYSTEM"
     },
-    "auth4": {
-        "appid": "auth4",
-        "package": "test",
-    }
 }
 
 
