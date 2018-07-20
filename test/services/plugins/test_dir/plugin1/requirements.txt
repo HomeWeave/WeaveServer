@@ -1,0 +1,1 @@
+-e git+https://github.com/HomeWeave/WeaveLib.git@develop#egg=weavelib-0.8
