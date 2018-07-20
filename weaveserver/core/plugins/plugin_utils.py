@@ -81,9 +81,11 @@ def load_plugin_from_path(base_dir, name):
     finally:
         sys.path.pop(-1)
 
+    # TODO: os.path.join(..) should not happen. Base dir should be pased.
     plugin = create_plugin(os.path.join(base_dir, name))
     return {
         "plugin": plugin,
+        "description": "",
         "cls": module,
         "name": name,
         "deps": plugin_info.get("deps"),

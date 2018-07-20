@@ -115,4 +115,21 @@ class TestPluginService(object):
             }
         ]
         assert rpc_client["list_available"](_block=True) == expected
+        rpc_client.stop()
 
+    def test_supported_plugins(self):
+        rpc_client = RPCClient(self.plugin_service.rpc.info_message, "auth4")
+        rpc_client.start()
+        expected = ["git", "file"]
+        assert rpc_client["supported_plugin_types"](_block=True) == expected
+        rpc_client.stop()
+
+    def test_install_plugin(self):
+        rpc_client = RPCClient(self.plugin_service.rpc.info_message, "auth4")
+        rpc_client.start()
+
+        path = os.path.join(os.path.dirname(__file__), 'test_dir/plugin1')
+        plugin_id = rpc_client["install_plugin"]("file", path, _block=True)
+
+        assert plugin_id
+        rpc_client.stop()
