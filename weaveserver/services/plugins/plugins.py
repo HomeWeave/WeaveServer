@@ -7,8 +7,7 @@ from github3 import GitHub
 from weavelib.exceptions import ObjectNotFound, BadArguments
 
 from weaveserver.core.plugins import load_plugin_from_path, GitPlugin
-from weaveserver.core.plugins import install_plugin_from_source, FilePlugin
-from weaveserver.core.plugins import VirtualEnvManager
+from weaveserver.core.plugins import FilePlugin, VirtualEnvManager
 
 logger = logging.getLogger(__name__)
 
@@ -117,19 +116,17 @@ class PluginManager(object):
         plugin = cls(src, self.base_dir)
         plugin.create()
 
-        dir_name = os.path.basename(plugin.get_plugin_dir())
-
-        import pdb; pdb.set_trace()
-        plugin_info = install_plugin_from_source(cls, src, self.base_dir)
-
-        venv = VirtualEnvManager(os.path.join(self.venv_dir, plugin_info["id"]))
-        requirements_file = os.path.join(plugin_info["plugin"].get_plugin_dir(),
+        venv_path = os.path.join(self.venv_dir, plugin.unique_id())
+        venv = VirtualEnvManager(venv_path)
+        requirements_file = os.path.join(plugin.get_plugin_dir(),
                                          "requirements.txt")
         if not os.path.isfile(requirements_file):
             requirements_file = None
         venv.install(requirements_file=requirements_file)
 
-        self.all_plugins[plugin_info["id"]] = plugin_info
+        plugin_name = os.path.basename(plugin.get_plugin_dir())
+        plugin_info = load_plugin_from_path(self.base_dir, plugin_name)
+        self.all_plugins[plugin.unique_id()] = plugin_info
         return plugin_info["id"]
 
     def activate(self, id):

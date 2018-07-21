@@ -40,22 +40,37 @@ class GitPlugin(BasePlugin):
     def __init__(self, src, dest):
         if src is None:
             self.git = git.Repo(dest)
-            self.src = next(self.git.remote('origin').urls)
-        super(GitPlugin, self).__init__(self.src, dest)
+            src = next(self.git.remote('origin').urls)
+            dest = os.path.dirname(dest)
+        super(GitPlugin, self).__init__(src, dest)
 
     def create(self):
         git.Repo.clone_from(self.src, self.plugin_dir)
 
 
 class FilePlugin(BasePlugin):
+    def __init__(self, src, dest):
+        if src is None:
+            src = open(os.path.join(dest, "source")).read().strip()
+            dest = os.path.dirname(dest)
+        super(FilePlugin, self).__init__(src, dest)
+
     def create(self):
         shutil.copytree(self.src, self.plugin_dir)
+        with open(os.path.join(self.plugin_dir, "source"), "w") as f:
+            f.write(self.src)
 
 
-def create_plugin(path):
-    if os.path.isdir(os.path.join(path, '.git')):
-        return GitPlugin(None, path)
-    return FilePlugin(path, path)
+def create_plugin(base, name):
+    if os.path.isdir(os.path.join(base, name, '.git')):
+        plugin = GitPlugin(None, os.path.join(base, name))
+    else:
+        plugin = FilePlugin(None, os.path.join(base, name))
+    if plugin.get_plugin_dir() != os.path.join(base, name):
+        logger.warning("Plugin directory name mismatch: %s/%s v/s %s",
+                       base, name, plugin.get_plugin_dir())
+        return None
+    return plugin
 
 
 def load_plugin_from_path(base_dir, name):
@@ -81,8 +96,7 @@ def load_plugin_from_path(base_dir, name):
     finally:
         sys.path.pop(-1)
 
-    # TODO: os.path.join(..) should not happen. Base dir should be pased.
-    plugin = create_plugin(os.path.join(base_dir, name))
+    plugin = create_plugin(base_dir, name)
     return {
         "plugin": plugin,
         "description": "",
@@ -94,11 +108,3 @@ def load_plugin_from_path(base_dir, name):
         "config": plugin_info.get("config", {}),
         "start_timeout": plugin_info.get("start_timeout", 30)
     }
-
-
-def install_plugin_from_source(cls, src, dest):
-    plugin = cls(src, dest)
-    plugin.create()
-
-    dir_name = os.path.basename(plugin.get_plugin_dir())
-    return load_plugin_from_path(dest, dir_name)
