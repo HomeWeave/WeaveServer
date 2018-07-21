@@ -16,8 +16,10 @@ class TestPluginService(BasePlugin):
         return "test"
 
     def on_service_start(self, *args, **kwargs):
+        self.rpc.start()
         self.notify_start()
         self.exited.wait()
 
     def on_service_stop(self):
         self.exited.set()
+        self.rpc.stop()
