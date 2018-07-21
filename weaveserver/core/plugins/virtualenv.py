@@ -4,6 +4,12 @@ import subprocess
 import virtualenv
 
 
+def execute_file(path):
+    global_vars = {"__file__":  path}
+    with open(path, 'rb') as pyfile:
+        exec(compile(pyfile.read(), path, 'exec'), global_vars)
+
+
 class VirtualEnvManager(object):
     def __init__(self, path):
         self.venv_home = path
@@ -24,7 +30,7 @@ class VirtualEnvManager(object):
 
     def activate(self):
         script = os.path.join(self.venv_home, "bin", "activate_this.py")
-        execfile(script, dict(__file__=script))
+        execute_file(script)
 
     def deactivate(self):
         pass
