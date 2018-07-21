@@ -26,12 +26,6 @@ class BasePlugin(object):
     def unique_id(self):
         return hashlib.md5(self.src.encode('utf-8')).hexdigest()
 
-    def json(self):
-        return {
-            "appid": "app-token-" + self.appid,
-            "package": self.dest.replace("/", ".")
-        }
-
     def needs_create(self):
         return not os.path.isdir(self.plugin_dir)
 

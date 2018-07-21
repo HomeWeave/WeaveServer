@@ -130,4 +130,15 @@ class TestPluginService(object):
         assert plugin_id
 
         assert rpc_client["activate"](plugin_id, _block=True)
+
+        # Send a test RPC.
+        package = "testplugin.TestPluginService"
+        info = self.plugin_service.rpc_client["rpc_info"](package,
+                                                          "test_plugin",
+                                                          _block=True)
+        plugin_rpc = RPCClient(info, "auth4")
+        plugin_rpc.start()
+        assert plugin_rpc["test"](_block=True) == "test"
+
+        plugin_rpc.stop()
         rpc_client.stop()
