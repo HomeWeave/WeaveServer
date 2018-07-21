@@ -84,9 +84,17 @@ def load_plugin_from_path(base_dir, name):
         logger.warning("Error parsing plugin.json within %s", name)
         return None
 
+    sys.path.append(os.path.join(base_dir, name))
     try:
-        sys.path.append(os.path.join(base_dir, name))
-        module = importlib.import_module(plugin_info["service"])
+        fully_qualified = plugin_info["service"]
+        if '.' not in fully_qualified:
+            logger.warning("Bad 'service' specification in plugin.json.")
+            return None
+        mod, cls = plugin_info["service"].rsplit('.', 1)
+        module = getattr(importlib.import_module(mod), cls)
+    except AttributeError:
+        logger.warning("Possibly bad 'service' specification in plugin.json")
+        return None
     except ImportError:
         logger.warning("Failed to import dependencies for %s", name)
         return None
