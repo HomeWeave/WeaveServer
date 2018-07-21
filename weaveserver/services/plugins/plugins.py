@@ -143,14 +143,15 @@ class PluginManager(object):
             logger.error("VirtualEnv directory %s not found.", venv_dir)
             return False
 
-        service = plugin["cls"]("token", plugin["config"], venv_dir)
+        token = self.appmgr_rpc["register_plugin"](plugin["plugin"].json(),
+                                                   _block=True)
+        service = plugin["cls"](token, plugin["config"], venv_dir)
         if not run_plugin(service, timeout=plugin["start_timeout"]):
             return False
 
-        logger.info("Started plugin: %s", plugin.dest)
+        logger.info("Started plugin: %s", plugin["package_path"])
         self.running_plugins[id] = service
 
-        self.appmgr_rpc["register_plugin"](plugin["plugin"].json(), _block=True)
         return True
 
     def deactivate(self, id):

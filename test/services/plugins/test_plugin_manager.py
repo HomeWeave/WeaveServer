@@ -128,4 +128,6 @@ class TestPluginService(object):
         plugin_id = rpc_client["install_plugin"]("file", path, _block=True)
 
         assert plugin_id
+
+        assert rpc_client["activate"](plugin_id, _block=True)
         rpc_client.stop()

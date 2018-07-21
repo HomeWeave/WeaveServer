@@ -57,7 +57,7 @@ class ApplicationRegistry(object):
             ServerAPI("register_plugin", "Register Pliugin", [
                 ArgParameter("plugin_info", "Plugin Information",
                              self.PLUGIN_INFO_SCHEMA)
-            ], self.register_app),
+            ], self.register_plugin),
             ServerAPI("rpc_info", "Get RPCInfo object.", [
                 ArgParameter("package_name", "Package Name", str),
                 ArgParameter("rpc_name", "RPC Name", str),
@@ -140,9 +140,12 @@ class ApplicationRegistry(object):
         if caller_app.get("type") != "SYSTEM":
             raise ObjectNotFound("No such RPC.")
 
+        token = "app-token-" + str(uuid4())
+        plugin_info["type"] = "PLUIGIN"
+        plugin_info["appid"] = token
         self.service.message_server.register_application(plugin_info)
 
-        return True
+        return token
 
     def rpc_info(self, package_name, rpc_name):
         found_app = None
