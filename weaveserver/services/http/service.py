@@ -58,16 +58,15 @@ class HTTPResourceRegistry(object):
 
     def register_view(self, url, content, mimetype):
         caller_app = get_rpc_caller()
-        caller_app_id = caller_app["appid"]
+        package = caller_app["package"]
 
         decoded = base64.b64decode(content)
-        path = os.path.join(self.plugin_path, caller_app_id)
+        path = os.path.join(self.plugin_path, package)
 
         app_resource = AppResource.create(path, url, mimetype, decoded)
 
-        # TODO: caller_app_id should not be visible. Use something else.
-        final_url = "/apps/" + caller_app_id + "/" + url.lstrip("/")
-        self.all_resources[caller_app_id][final_url] = app_resource
+        final_url = "/apps/" + package + "/" + url.lstrip("/")
+        self.all_resources[package][final_url] = app_resource
 
         return final_url
 
