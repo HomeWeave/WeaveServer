@@ -2,6 +2,7 @@ import logging
 from threading import Event
 
 from weavelib.db import AppDBConnection
+from weavelib.http import AppHTTPServer
 from weavelib.rpc import RPCServer, ServerAPI, ArgParameter
 from weavelib.services import BaseService, BackgroundProcessServiceStart
 
@@ -37,6 +38,7 @@ class PluginService(BackgroundProcessServiceStart, BaseService):
                 ArgParameter("src", "URI to the plugin.", str),
             ], self.plugin_manager.install_plugin)
         ], self)
+        self.http = AppHTTPServer(self)
         self.shutdown = Event()
 
     def on_service_start(self, *args, **kwargs):
@@ -44,10 +46,13 @@ class PluginService(BackgroundProcessServiceStart, BaseService):
         self.db.start()
         self.plugin_manager.start()
         self.rpc.start()
+        self.http.start()
+        self.http.register_folder('static', watch=True)
         self.notify_start()
         self.shutdown.wait()
 
     def on_service_stop(self):
+        self.http.stop()
         self.rpc.stop()
         self.plugin_manager.stop()
         self.db.stop()

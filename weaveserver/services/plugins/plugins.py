@@ -99,6 +99,7 @@ class PluginManager(object):
             contents = repo.directory_contents("/", return_as=dict)
             if "plugin.json" in contents:
                 res.append({
+                    "name": repo.name,
                     "url": repo.clone_url,
                     "description": repo.description,
                     "enabled": False,
