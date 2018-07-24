@@ -24,7 +24,7 @@ class BasePlugin(object):
         return os.path.join(self.dest, self.unique_id())
 
     def unique_id(self):
-        return hashlib.md5(self.src.encode('utf-8')).hexdigest()
+        return get_plugin_id(self.src)
 
     def needs_create(self):
         return not os.path.isdir(self.plugin_dir)
@@ -53,6 +53,10 @@ class FilePlugin(BasePlugin):
         shutil.copytree(self.src, self.plugin_dir)
         with open(os.path.join(self.plugin_dir, "source"), "w") as f:
             f.write(self.src)
+
+
+def get_plugin_id(url):
+    return hashlib.md5(url.encode('utf-8')).hexdigest()
 
 
 def create_plugin(base, name):
@@ -104,9 +108,12 @@ def load_plugin_from_path(base_dir, name):
         "description": "",
         "cls": module,
         "name": name,
+        "url": plugin.src,
         "deps": plugin_info.get("deps"),
         "id": plugin.unique_id(),
         "package_path": plugin_info["service"],
         "config": plugin_info.get("config", {}),
-        "start_timeout": plugin_info.get("start_timeout", 30)
+        "start_timeout": plugin_info.get("start_timeout", 30),
+        "installed": True,
+        "enabled": False,
     }

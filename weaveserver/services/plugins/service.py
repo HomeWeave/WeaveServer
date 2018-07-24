@@ -27,10 +27,8 @@ class PluginService(BackgroundProcessServiceStart, BaseService):
             ServerAPI("deactivate", "Activate a plugin.", [
                 ArgParameter("id", "ID of the plugin to deactivate", str),
             ], self.plugin_manager.deactivate),
-            ServerAPI("list", "List all installed plugins", [],
-                      self.plugin_manager.list_installed_plugins),
-            ServerAPI("list_available", "List all available plugins.", [],
-                      self.plugin_manager.list_available_plugins),
+            ServerAPI("list_available", "List all plugins.", [],
+                      self.plugin_manager.list_plugins),
             ServerAPI("supported_plugin_types", "Types supported.", [],
                       self.plugin_manager.supported_types),
             ServerAPI("install_plugin", "Install a plugin of supported type", [

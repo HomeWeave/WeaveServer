@@ -8,6 +8,7 @@ from weavelib.exceptions import ObjectNotFound, BadArguments
 
 from weaveserver.core.plugins import load_plugin_from_path, GitPlugin
 from weaveserver.core.plugins import FilePlugin, VirtualEnvManager
+from weaveserver.core.plugins import get_plugin_id
 
 logger = logging.getLogger(__name__)
 
@@ -55,9 +56,27 @@ class PluginManager(object):
             enabled_plugins = []
 
         for plugin in list_plugins(self.base_dir):
+            plugin["enabled"] = plugin["id"] in enabled_plugins
             self.all_plugins[plugin["id"]] = plugin
 
         self.enabled_plugins = set(self.all_plugins) & set(enabled_plugins)
+
+        # Fetch all repos from HomeWeave
+        for repo in self.github_weave_org.repositories():
+            contents = repo.directory_contents("/", return_as=dict)
+            plugin_id = get_plugin_id(repo.clone_url)
+            if plugin_id in self.all_plugins:
+                continue
+
+            if "plugin.json" in contents:
+                self.all_plugins[plugin_id] = {
+                    "id": plugin_id,
+                    "name": repo.name,
+                    "url": repo.clone_url,
+                    "description": repo.description,
+                    "enabled": False,
+                    "installed": False,
+                }
 
         thread = Thread(target=self.start_async, args=(self.enabled_plugins,))
         thread.start()
@@ -82,29 +101,9 @@ class PluginManager(object):
             if not os.path.isdir(path):
                 raise Exception("Unable to create directory: " + path)
 
-    def list_installed_plugins(self):
-        def transform(plugin):
-            return {
-                "id": plugin["id"],
-                "name": plugin["name"],
-                "description": plugin["description"],
-                "enabled": plugin["id"] in self.enabled_plugins
-            }
-
-        return [transform(x) for x in self.all_plugins.values()]
-
-    def list_available_plugins(self):
-        res = []
-        for repo in self.github_weave_org.repositories():
-            contents = repo.directory_contents("/", return_as=dict)
-            if "plugin.json" in contents:
-                res.append({
-                    "name": repo.name,
-                    "url": repo.clone_url,
-                    "description": repo.description,
-                    "enabled": False,
-                })
-        return res
+    def list_plugins(self):
+        subset = {"id", "name", "description", "enabled", "installed", "url"}
+        return [{k: x[k] for k in subset} for x in self.all_plugins.values()]
 
     def supported_types(self):
         return ["git", "file"]
