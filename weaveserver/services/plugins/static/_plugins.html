@@ -8,9 +8,9 @@
             <div v-for="item in data">
                 <p>{{item.name}}</p>
                 <p>{{item.description}}</p>
-                <button v-if="!item.progress && item.enabled && item.installed">Activate</button>
-                <button v-if="!item.progress && !item.enabled && item.installed">Deactivate</button>
-                <button v-if="!item.progress && !item.installed">Install</button>
+                <button v-if="!item.progress && !item.enabled && item.installed">Activate</button>
+                <button v-if="!item.progress && item.enabled && item.installed">Deactivate</button>
+                <button v-if="!item.progress && !item.installed" v-on:click="install(item)">Install</button>
                 <button disabled v-if="item.progress">Action in Progress</button>
             </div>
         </div>
@@ -34,8 +34,8 @@
                 })
             });
         }
-        function install(source) {
-            return rpc("weaveserver.services.plugins", "plugins", "install_plugin", ["git", source], {});
+        function install(plugin) {
+            return rpc("weaveserver.services.plugins", "plugins", "install_plugin", ["git", plugin.url], {});
         }
 
         $(document).ready(function() {
