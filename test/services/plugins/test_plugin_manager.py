@@ -105,6 +105,7 @@ class TestPluginService(object):
     @classmethod
     def teardown_class(cls):
         cls.plugin_service.service_stop()
+        cls.http_service.service_stop()
         cls.db_service.service_stop()
         cls.core_service.service_stop()
 
