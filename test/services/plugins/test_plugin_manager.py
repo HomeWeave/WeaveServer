@@ -112,22 +112,16 @@ class TestPluginService(object):
         cls.db_dir.cleanup()
         cls.temp_dir.cleanup()
 
-    def test_list_installed_plugins(self):
-        rpc_client = RPCClient(self.plugin_service.rpc.info_message, "auth4")
-        rpc_client.start()
-        assert rpc_client["list"](_block=True) == []
-
     def test_available_plugins(self):
         rpc_client = RPCClient(self.plugin_service.rpc.info_message, "auth4")
         rpc_client.start()
-        expected = [
-            {
-                "url": "https://github.com/HomeWeave/PhilipsHue.git",
-                "description": None,
-                "enabled": False
-            }
-        ]
-        assert rpc_client["list_available"](_block=True) == expected
+        expected = {
+            "https://github.com/HomeWeave/PhilipsHue.git",
+            "https://github.com/HomeWeave/Dashboard.git",
+        }
+        available = rpc_client["list_available"](_block=True)
+        available = {x["url"] for x in available if x["url"].startswith("http")}
+        assert available == expected
         rpc_client.stop()
 
     def test_supported_plugins(self):
