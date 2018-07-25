@@ -2,6 +2,8 @@ import os
 import time
 from tempfile import TemporaryDirectory
 
+import pytest
+from weavelib.exceptions import ObjectNotFound
 from weavelib.messaging import Receiver
 from weavelib.rpc import RPCClient
 from weavelib.services import BackgroundThreadServiceStart
@@ -9,6 +11,7 @@ from weavelib.services import BackgroundThreadServiceStart
 from weaveserver.services.core import CoreService
 from weaveserver.services.simpledb import SimpleDatabaseService
 from weaveserver.services.plugins import PluginService
+from weaveserver.services.http import HTTPService
 from weaveserver.core.logger import configure_logging
 
 
@@ -30,6 +33,11 @@ AUTH = {
         "package": "weaveserver.services.plugins",
         "type": "SYSTEM"
     },
+    "auth4": {
+        "appid": "auth4",
+        "package": "weaveserver.services.http",
+        "type": "SYSTEM"
+    },
 }
 
 
@@ -38,6 +46,10 @@ class ThreadedDBService(BackgroundThreadServiceStart, SimpleDatabaseService):
 
 
 class ThreadedPluginService(BackgroundThreadServiceStart, PluginService):
+    pass
+
+
+class ThreadedHTTPService(BackgroundThreadServiceStart, HTTPService):
     pass
 
 
@@ -70,6 +82,10 @@ class TestPluginService(object):
         cls.db_service = ThreadedDBService("auth2", db_config)
         cls.db_service.service_start()
         cls.db_service.wait_for_start(30)
+
+        cls.http_service = ThreadedHTTPService("auth4", {})
+        cls.http_service.service_start()
+        cls.http_service.wait_for_start(30)
 
         cls.temp_dir = TemporaryDirectory()
         plugin_dir = os.path.join(cls.temp_dir.name, 'plugins')
@@ -141,4 +157,11 @@ class TestPluginService(object):
         assert plugin_rpc["test"](_block=True) == "test"
 
         plugin_rpc.stop()
+
+        # Deactivate
+        assert rpc_client["deactivate"](plugin_id, _block=True)
+        with pytest.raises(ObjectNotFound):
+            self.plugin_service.rpc_client["rpc_info"](package, "test_plugin",
+                                                       _block=True)
+
         rpc_client.stop()

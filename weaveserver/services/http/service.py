@@ -57,6 +57,7 @@ class HTTPResourceRegistry(object):
         self.rpc.stop()
 
     def register_view(self, url, content, mimetype):
+        logger.info("Registering resource: %s", url)
         caller_app = get_rpc_caller()
         package = caller_app["package"]
 

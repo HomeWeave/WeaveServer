@@ -152,8 +152,27 @@ class PluginManager(object):
 
         logger.info("Started plugin: %s", plugin["package_path"])
         self.running_plugins[id] = service
+        plugin["enabled"] = True
 
         return True
 
     def deactivate(self, id):
-        pass
+        try:
+            plugin = self.all_plugins[id]
+        except KeyError:
+            raise ObjectNotFound(id)
+
+        if not plugin["enabled"]:
+            raise BadArguments("Plugin not active.")
+
+        service = self.running_plugins.get(id)
+        if id not in self.running_plugins:
+            return True
+
+        stop_plugin(service)
+        logger.info("Stopped plugin: %s", plugin["package_path"])
+
+        self.appmgr_rpc["unregister_plugin"](service.token, _block=True)
+        del self.running_plugins[id]
+        plugin["enabled"] = False
+        return True

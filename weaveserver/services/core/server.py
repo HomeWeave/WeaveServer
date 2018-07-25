@@ -377,6 +377,9 @@ class MessageServer(ThreadingTCPServer):
         if "AUTH" in msg.headers:
             msg.headers["AUTH"] = self.apps_auth.get(msg.headers["AUTH"])
 
+    def unregister_application(self, token):
+        return self.apps_auth.pop(token, None)
+
     def register_application(self, auth_info):
         self.apps_auth[auth_info["appid"]] = auth_info
 

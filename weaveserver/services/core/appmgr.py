@@ -54,10 +54,13 @@ class ApplicationRegistry(object):
                 ArgParameter("apis", "Maps of all APIs", self.APIS_SCHEMA),
             ], self.register_rpc),
             ServerAPI("register_app", "Register App", [], self.register_app),
-            ServerAPI("register_plugin", "Register Pliugin", [
+            ServerAPI("register_plugin", "Register Plugin", [
                 ArgParameter("plugin_info", "Plugin Information",
                              self.PLUGIN_INFO_SCHEMA)
             ], self.register_plugin),
+            ServerAPI("unregister_plugin", "Unregister Plugin", [
+                ArgParameter("token", "Plugin Token", str)
+            ], self.unregister_plugin),
             ServerAPI("rpc_info", "Get RPCInfo object.", [
                 ArgParameter("package_name", "Package Name", str),
                 ArgParameter("rpc_name", "RPC Name", str),
@@ -146,6 +149,19 @@ class ApplicationRegistry(object):
         self.service.message_server.register_application(plugin_info)
 
         return token
+
+    def unregister_plugin(self, token):
+        caller_app = get_rpc_caller()
+        if caller_app.get("type") != "SYSTEM":
+            raise ObjectNotFound("No such RPC.")
+
+        # This works because token == plugin["appid"].
+        self.all_apps.pop(token, None)
+        # TODO: Remove RPC calls,m close queues etc.
+
+        self.service.message_server.unregister_application(token)
+
+        return True
 
     def rpc_info(self, package_name, rpc_name):
         found_app = None
