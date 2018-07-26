@@ -140,7 +140,7 @@ class TestHTTPService(object):
 
     def test_resource_creation(self):
         src = os.path.join(os.path.dirname(__file__), "test_dir")
-        dest = os.path.join(self.service.plugin_dir.name, "auth3")
+        dest = os.path.join(self.service.plugin_dir.name, "dummy")
         src_files = sorted(y for x in os.walk(src) for y in x[2])
         dest_files = sorted(y for x in os.walk(dest) for y in x[2])
 
