@@ -118,7 +118,7 @@ class UpdateScanner(object):
         if res:
             if self.has_new_updates(res):
                 self.repos_to_update = {x.repo_name: x for x in res}
-                self.notify_updates()
+            self.update_status("Updates available.")
         else:
             self.update_status("No updates available.")
         return res
@@ -130,9 +130,6 @@ class UpdateScanner(object):
         keys = {x.repo_name for x in res}
         existing = set(self.repos_to_update.keys())
         return keys - existing
-
-    def notify_updates(self):
-        self.update_status("Updates available.")
 
     def list_repos(self, path):
         return [os.path.join(path, x) for x in os.listdir(path)]
@@ -192,9 +189,9 @@ class UpdaterService(BackgroundProcessServiceStart, BaseService):
         self.update_scanner = UpdateScanner(self)
         self.updater = Updater(self, self.update_scanner)
         self.shutdown = Event()
-        self.rpc = RPCServer("System Update", "Update the System", [
+        self.rpc = RPCServer("system", "System Utilities", [
             ServerAPI("check_updates", "Check for updates", [],
-                      self.update_scanner.check_updates),
+                      self.check_updates),
             ServerAPI("perform_upgrade", "Perform update", [],
                       self.updater.perform_upgrade),
             ServerAPI("reboot", "Reboot the system", [], reboot),
@@ -208,7 +205,8 @@ class UpdaterService(BackgroundProcessServiceStart, BaseService):
     def on_service_start(self, *args, **kwargs):
         super().on_service_start(*args, **kwargs)
         self.rpc.start()
-        self.http.register_folder("static")
+        self.http.start()
+        self.http.register_folder("static", watch=True)
         self.update_scanner.start()
         self.updater.start()
         self.notify_start()
@@ -218,6 +216,7 @@ class UpdaterService(BackgroundProcessServiceStart, BaseService):
         logger.info("Stopping update scanner..")
         self.update_scanner.stop()
         self.shutdown.set()
+        self.http.stop()
         self.rpc.stop()
         super().on_service_stop()
 
@@ -229,3 +228,6 @@ class UpdaterService(BackgroundProcessServiceStart, BaseService):
     def get_status(self):
         with self.status_lock:
             return self.status
+
+    def check_updates(self):
+        Thread(target=self.update_scanner.check_updates).start()

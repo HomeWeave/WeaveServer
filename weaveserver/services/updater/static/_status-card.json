@@ -1,6 +1,28 @@
 {
+    "$variables": {
+        "update_status": "checking"
+    },
     "$actions": {
-        "$load": [
+        "checkForUpdates": [
+            {
+                "type": "$rpc",
+                "data": {
+                    "package_name": "weaveserver.services.updater",
+                    "rpc_name": "System Update",
+                    "api_name": "check_updates",
+                    "args": [],
+                    "kwargs": {}
+                },
+                "success": [
+                    {
+                        "type": "$store",
+                        "keys": ["variables", "update_status"],
+                        "value": "checking"
+                    }
+                ]
+            }
+        ],
+        "getStatus": [
             {
                 "type": "$rpc",
                 "data": {
@@ -10,26 +32,61 @@
                     "args": [],
                     "kwargs": {}
                 },
-                "success": {
-                    "type": "$store",
-                    "variable": "status",
-                    "keys": ["cardContent", 0, "text"],
-                    "value": {
-                        "__vartype": "result",
-                        "__expression": {
-                            "index": 0,
-                            "keys": []
+                "success": [
+                    {
+                        "type": "$store",
+                        "keys": ["variables", "update_status"],
+                        "value": {
+                            "__vartype": "result",
+                            "__expression": {
+                                "index": 0,
+                                "keys": []
+                            }
                         }
                     }
-                }
+                ]
+            }
+        ],
+        "$load": [
+            {
+                "type": "$action",
+                "action": "getStatus"
             }
         ]
     },
     "cardType": "info",
     "cardTitle": "Updater",
-    "cardContent": [
-        {"material": "face", "text": "Checking for updates."}
-    ],
+    "cardContent": {
+        "type": "vertical-layout",
+        "columnsLarge": 12,
+        "columnsMedium": 12,
+        "columnsSmall": 12,
+        "items": [
+            {
+                "type": "switch",
+                "variable": "update_status",
+                "cases": {
+                    "checking": {
+                        "type": "paragraph",
+                        "text": "Checking for updates"
+                    },
+                    "Updates available.": {
+                        "type": "paragraph",
+                        "text": "Updates available."
+                    },
+                    "No updates available.": {
+                        "type": "paragraph",
+                        "text": "No new updates."
+                    }
+                }
+            },
+            {
+                "type": "button",
+                "text": "Check",
+                "onclick": "checkForUpdates"
+            }
+        ]
+    },
     "footer": [
         {
             "url": "#",

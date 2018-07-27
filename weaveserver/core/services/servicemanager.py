@@ -3,10 +3,11 @@ Contains components that manage services, their sequences and interdependence.
 """
 
 import importlib
+import json
 import logging
 import os
+import sys
 import threading
-from uuid import uuid4
 
 from weavelib.services import Module
 
@@ -49,25 +50,33 @@ class ServiceManager(object):
     """
     Scans for all service modules within the given module.
     """
-    def __init__(self):
+    def __init__(self, debug=False, apps=None):
         unsorted_services = list_modules(weaveserver.services)
+
+        if debug:
+            for module in unsorted_services:
+                logger.info("**DEBUG** App %s: %s", module.name, module.id)
+
+        self.apps = {x.id: x.json() for x in unsorted_services}
+
+        if apps:
+            unsorted_services = [x for x in unsorted_services if x.name in apps]
+
         self.service_modules = topo_sort_modules(unsorted_services)
         self.module_map = {x.name: x for x in unsorted_services}
         self.services = []
         self.active = threading.Event()
 
-        self.apps = {x.id: x.json() for x in unsorted_services}
-
     def run(self):
         """ Sequentially starts all the services."""
 
-        messaging_module = self.module_map["messaging"]
-        if messaging_module in self.service_modules:
-            self.service_modules.remove(messaging_module)
+        core_module = self.module_map["core"]
+        if core_module in self.service_modules:
+            self.service_modules.remove(core_module)
 
         error_modules = set()
 
-        self.start_service(messaging_module, error_modules, apps=self.apps)
+        self.start_service(core_module, error_modules, apps=self.apps)
 
         for module in self.service_modules:
             self.start_service(module, error_modules)
