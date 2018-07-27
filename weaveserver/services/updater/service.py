@@ -189,7 +189,7 @@ class UpdaterService(BackgroundProcessServiceStart, BaseService):
         self.update_scanner = UpdateScanner(self)
         self.updater = Updater(self, self.update_scanner)
         self.shutdown = Event()
-        self.rpc = RPCServer("System Update", "Update the System", [
+        self.rpc = RPCServer("system", "System Utilities", [
             ServerAPI("check_updates", "Check for updates", [],
                       self.check_updates),
             ServerAPI("perform_upgrade", "Perform update", [],
@@ -205,6 +205,7 @@ class UpdaterService(BackgroundProcessServiceStart, BaseService):
     def on_service_start(self, *args, **kwargs):
         super().on_service_start(*args, **kwargs)
         self.rpc.start()
+        self.http.start()
         self.http.register_folder("static", watch=True)
         self.update_scanner.start()
         self.updater.start()
