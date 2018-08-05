@@ -34,6 +34,26 @@ def stop_plugin(service):
     service.service_stop()
 
 
+class GithubRepositoryLister(object):
+    def __init__(self, organization):
+        self.organization = GitHub().organization(organization)
+
+    def list_plugins(self):
+        for repo in self.organization.repositories():
+            contents = repo.directory_contents("/", return_as=dict)
+            plugin_id = get_plugin_id(repo.clone_url)
+
+            if "plugin.json" in contents:
+                yield {
+                    "id": plugin_id,
+                    "name": repo.name,
+                    "url": repo.clone_url,
+                    "description": repo.description,
+                    "enabled": False,
+                    "installed": False,
+                }
+
+
 class PluginManager(object):
     def __init__(self, base_dir, venv_dir, database, appmgr_rpc):
         self.base_dir = base_dir
@@ -43,7 +63,7 @@ class PluginManager(object):
         self.enabled_plugins = set()
         self.running_plugins = {}
         self.all_plugins = {}
-        self.github_weave_org = GitHub().organization('HomeWeave')
+        self.github_weave_org = GithubRepositoryLister('HomeWeave')
 
     def start(self):
         self.init_structure(self.base_dir)
@@ -62,21 +82,11 @@ class PluginManager(object):
         self.enabled_plugins = set(self.all_plugins) & set(enabled_plugins)
 
         # Fetch all repos from HomeWeave
-        for repo in self.github_weave_org.repositories():
-            contents = repo.directory_contents("/", return_as=dict)
-            plugin_id = get_plugin_id(repo.clone_url)
-            if plugin_id in self.all_plugins:
+        for plugin_info in self.github_weave_org.list_plugins():
+            if plugin_info["id"] in self.all_plugins:
                 continue
 
-            if "plugin.json" in contents:
-                self.all_plugins[plugin_id] = {
-                    "id": plugin_id,
-                    "name": repo.name,
-                    "url": repo.clone_url,
-                    "description": repo.description,
-                    "enabled": False,
-                    "installed": False,
-                }
+            self.all_plugins[plugin_info["id"]] = plugin_info
 
         thread = Thread(target=self.start_async, args=(self.enabled_plugins,))
         thread.start()

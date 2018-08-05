@@ -1,6 +1,7 @@
 import os
 import time
 from tempfile import TemporaryDirectory
+from unittest.mock import Mock
 
 import pytest
 from weavelib.exceptions import ObjectNotFound
@@ -8,6 +9,7 @@ from weavelib.messaging import Receiver
 from weavelib.rpc import RPCClient
 from weavelib.services import BackgroundThreadServiceStart
 
+import weaveserver.services.plugins.plugins
 from weaveserver.services.core import CoreService
 from weaveserver.services.simpledb import SimpleDatabaseService
 from weaveserver.services.plugins import PluginService
@@ -87,6 +89,23 @@ class TestPluginService(object):
         cls.http_service.service_start()
         cls.http_service.wait_for_start(30)
 
+        FakeGithubClass = Mock()
+        fake_github = Mock()
+        FakeGithubClass.return_value = fake_github
+        org1 = Mock()
+        repo1 = Mock()
+        repo1.directory_contents.return_value = ["plugin.json"]
+        repo1.clone_url = "clone-url-1"
+        repo1.name = "repo1"
+        repo1.description = "desc"
+        repo2 = Mock()
+        repo2.directory_contents.return_value = ["random-file"]
+        repo2.clone_url = "clone-url-2"
+
+        org1.repositories.return_value = [repo1, repo2]
+
+        fake_github.organization.return_value = org1
+        weaveserver.services.plugins.plugins.GitHub = FakeGithubClass
         cls.temp_dir = TemporaryDirectory()
         plugin_dir = os.path.join(cls.temp_dir.name, 'plugins')
         venv_dir = os.path.join(cls.temp_dir.name, 'venv')
@@ -115,12 +134,9 @@ class TestPluginService(object):
     def test_available_plugins(self):
         rpc_client = RPCClient(self.plugin_service.rpc.info_message, "auth4")
         rpc_client.start()
-        expected = {
-            "https://github.com/HomeWeave/PhilipsHue.git",
-            "https://github.com/HomeWeave/Dashboard.git",
-        }
+        expected = {"clone-url-1"}
         available = rpc_client["list_available"](_block=True)
-        available = {x["url"] for x in available if x["url"].startswith("http")}
+        available = {x["url"] for x in available}
         assert available == expected
         rpc_client.stop()
 
