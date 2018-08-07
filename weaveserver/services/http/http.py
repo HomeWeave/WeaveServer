@@ -44,6 +44,7 @@ class HTTPServer(Bottle):
         self.rpc_handler = RPCHandler(service)
 
         self.route("/")(self.handle_root)
+        self.route("/static/<path:path>")(self.handle_static)
         self.route("/apps/<path:path>")(self.handle_apps)
         self.route("/api/rpc", method="POST")(self.handle_rpc)
 
@@ -51,6 +52,9 @@ class HTTPServer(Bottle):
 
     def handle_root(self):
         return self.handle_static("/index.html")
+
+    def handle_static(self, path):
+        return static_file(path, root=os.path.join(self.static_path))
 
     def handle_apps(self, path):
         return static_file(path, root=os.path.join(self.plugin_path))
