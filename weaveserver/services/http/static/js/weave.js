@@ -155,7 +155,6 @@ function GenericApplication(selector, options) {
         data: options.data,
         watch: watch
     });
-    DEBUG_APPS.push(app);
 
     // Setup actions.
     var appActions = Actions(app, actions);
