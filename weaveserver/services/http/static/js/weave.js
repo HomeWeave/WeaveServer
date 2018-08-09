@@ -11,6 +11,10 @@ function registerComponents() {
       template: '#template-switch',
       props: ['data']
     });
+    Vue.component('weave-loop', {
+      template: '#template-loop',
+      props: ['data']
+    });
     Vue.component('vertical-layout', {
       template: '#template-vertical-layout',
       props: ['data']
@@ -32,6 +36,42 @@ function registerComponents() {
         }
       }
     });
+}
+
+function processUITemplate(template, item) {
+    function evaluateTemplateData(template, context) {
+        if (typeof template === "object" && Array.isArray(template)) {
+            return template.map(function(item) {
+                return evaluateTemplateData(item, context);
+            });
+        } else if (typeof template === "object") {
+            if (template.__vartype && template.__expression) {
+                switch (template.__vartype) {
+                    case "context":
+                        var expr = template.__expression;
+                        return (expr.keys || []).reduce(function(state, value) {
+                            return state[value];
+                        }, context);
+                    case "variables":
+                        var expr = template.__expression;
+                        return (expr.keys || []).reduce(function(state, value) {
+                            return state[value];
+                        }, app.variables);
+                    default:
+                        return null;
+                }
+            }
+            var result = {};
+            Object.keys(template).forEach(function(key) {
+                result[key] = evaluateTemplateData(template[key], context);
+            });
+            return result;
+        } else {
+            return template;
+        }
+    }
+
+    return evaluateTemplateData(template, item);
 }
 
 function Actions(app, actions) {
@@ -138,30 +178,38 @@ function Actions(app, actions) {
     }
 }
 
-function GenericApplication(selector, options) {
-    var variables = options.data["$variables"] || {};
-    var actions = options.data["$actions"] || {};
-    delete options.data["$variables"];
-    delete options.data["$actions"];
+function GenericApplication(selector, appData) {
+    if (registerComponents.called === undefined) {
+        registerComponents();
+        registerComponents.called = true;
+    }
 
-    options.data = options.data || {};
-    options.data.variables = variables;
+    var variables = appData["$variables"] || {};
+    var actions = appData["$actions"] || {};
+    delete appData["$variables"];
+    delete appData["$actions"];
 
     // Setup watch object for all variables and internal 'variables'.
     var watch = {};
-    Object.keys(options.data).forEach(function(key) {
+    Object.keys(appData).forEach(function(key) {
         watch[key] = {handler: function(val) {}, deep: true};
     });
 
     var app = new Vue({
-        template: options.template,
-        data: options.data,
-        watch: watch
+        template: "#template-all-components",
+        data: {
+            "variables": variables,
+            "data": appData["$ui"]
+        },
+        watch: watch,
+        methods: {
+            processUITemplate: processUITemplate
+        }
     });
 
     // Setup actions.
     var appActions = Actions(app, actions);
-    delete options.data["$actions"];
+    delete app["$actions"];
 
     appActions.fire("$load");
 
