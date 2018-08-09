@@ -75,21 +75,81 @@
     </div>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/vue/2.5.16/vue.min.js" integrity="sha256-TaLceMwjWRqe4yhbqPOJH6V7UGt5AvvdNfpaIXJWbFU=" crossorigin="anonymous"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.3.1/jquery.min.js" integrity="sha256-FgpCb/KJQlLNfOu91ta32o/NMZxltwRo8QtmkMRdAu8=" crossorigin="anonymous"></script>
+    <script src="/static/js/weave.js"></script>
     <script>
-        function rpc(package, rpcName, api, args, kwargs) {
-            return $.ajax({
-                url: "/api/rpc",
-                type: 'post',
-                contentType: 'application/json; charset=UTF-8',
-                data: JSON.stringify({
-                    package_name: package,
-                    rpc_name: rpcName,
-                    api_name: api,
-                    args: args,
-                    kwargs: kwargs
-                })
-            });
-        }
+        var app = {
+            "$variables": {},
+            "$actions": {
+                "$load": [
+                    {
+                        "type": "$rpc",
+                        "data": {
+                            "package_name": "weaveserver.services.plugins",
+                            "rpc_name": "plugins",
+                            "api_name": "list_available",
+                            "args": [],
+                            "kwargs": {}
+                        },
+                        "success": [
+                            {
+                                "type": "$store",
+                                "keys": ["variables", "plugins"],
+                                "value": {
+                                    "__vartype": "result",
+                                    "__expression": {
+                                        "index": 0,
+                                        "keys": []
+                                    }
+                                }
+                            }
+                        ]
+                    }
+                ],
+                "install": [
+                    {
+                        "type": "$rpc",
+                        "data": {
+                            "package_name": "weaveserver.services.plugins",
+                            "rpc_name": "plugins",
+                            "api_name": "install_plugin"
+                        }
+                    }
+                ]
+            },
+            "$ui": {
+                "type": "vertical-layout",
+                "columnsLarge": 12,
+                "columnsMedium": 12,
+                "columnsSmall": 12,
+                "items": [
+                    {
+                        "type": "loop",
+                        "variable": ["plugins"],
+                        "template": {
+                            "type": "vertical-layout",
+                            "columnsLarge": 12,
+                            "columnsMedium": 12,
+                            "columnsSmall": 12,
+                            "items": [
+                                {
+                                    "type": "h3",
+                                    "text": {
+                                        "__vartype": "context",
+                                        "__expression": {
+                                            "keys": ["name"]
+                                        }
+                                    }
+                                },
+                                {
+                                    "type": "button",
+                                    "text": "Enable"
+                                }
+                            ]
+                        }
+                    }
+                ]
+            }
+        };
         function install(plugin) {
             return rpc("weaveserver.services.plugins", "plugins", "install_plugin", ["git", plugin.url], {});
         }
@@ -99,13 +159,7 @@
         }
 
         $(document).ready(function() {
-            rpc("weaveserver.services.plugins", "plugins", "list_available", [], {}).then(function(data) {
-                var app = new Vue({
-                    el: '#root',
-                    template: '#template-plugin',
-                    data: {data: data}
-                })
-            });
+            var application = GenericApplication("#root", app);
         });
     </script>
 </body>
