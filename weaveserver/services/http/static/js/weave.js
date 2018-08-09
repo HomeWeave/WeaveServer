@@ -79,6 +79,9 @@ function Actions(app, actions) {
     function store(data, context) {
         if (data.keys && data.keys.length) {
             var obj = (data.keys || []).slice(0, -1).reduce(function(state, value) {
+                if (state[value] == undefined) {
+                    state[value] = {};
+                }
                 return state[value];
             }, app.$data);
             app.$set(obj, data.keys.slice(-1)[0],
