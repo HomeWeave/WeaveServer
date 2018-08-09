@@ -19,7 +19,7 @@ function registerComponents() {
       template: '#template-vertical-layout',
       props: ['data']
     });
-    Vue.component('h3', {
+    Vue.component('header-3', {
       template: '#template-h3',
       props: ['data']
     });
