@@ -108,6 +108,8 @@ function Actions(app, actions) {
     }
 
     function rpc(action, context) {
+        action.data.args = action.data.args || [];
+        action.data.kwargs = action.data.kwargs || {};
         return $.ajax({
             url: "/api/rpc",
             type: 'post',
@@ -132,7 +134,7 @@ function Actions(app, actions) {
 
     function action(data, context) {
         if (data.action) {
-            fireAction(data.action);
+            fireAction(data.action, data.data);
         }
         return $.Deferred().resolve(null).promise();
     }
@@ -166,10 +168,26 @@ function Actions(app, actions) {
         });
     }
 
-    function fireAction(name) {
-        var obj = actions[name];
-        if (obj !== undefined) {
-            return evaluateAll(obj, []);
+    function fireAction(nameOrAction, overrideData) {
+        if (typeof nameOrAction === 'object') {
+            evaluateAll(nameOrAction, []);
+        } else {
+            var obj = actions[nameOrAction];
+            if (obj !== undefined) {
+                obj = JSON.parse(JSON.stringify(obj));
+
+                (overrideData || []).forEach(function(override) {
+                    var lastObj = (override.keys || []).slice(0, -1).reduce(function(state, value) {
+                        if (state[value] == undefined) {
+                            state[value] = {};
+                        }
+                        return state[value];
+                    }, obj);
+                    lastObj[override.keys.slice(-1)[0]] = override.value;
+                });
+
+                return evaluateAll(obj, []);
+            }
         }
     }
 
@@ -203,7 +221,10 @@ function GenericApplication(selector, appData) {
         },
         watch: watch,
         methods: {
-            processUITemplate: processUITemplate
+            processUITemplate: processUITemplate,
+            fireEvent: function(obj) {
+                appActions.fire(obj);
+            }
         }
     });
 

@@ -142,7 +142,27 @@
                                 },
                                 {
                                     "type": "button",
-                                    "text": "Enable"
+                                    "text": "Install",
+                                    "onclick": [
+                                        {
+                                            "type": "$action",
+                                            "action": "install",
+                                            "data": [
+                                                {
+                                                    "keys": [0, "data", "args"],
+                                                    "value": [
+                                                        "git",
+                                                        {
+                                                            "__vartype": "context",
+                                                            "__expression": {
+                                                                "keys": ["url"]
+                                                            }
+                                                        }
+                                                    ]
+                                                }
+                                            ]
+                                        }
+                                    ]
                                 }
                             ]
                         }
