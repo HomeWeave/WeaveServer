@@ -114,6 +114,26 @@
                             "api_name": "install_plugin"
                         }
                     }
+                ],
+                "activate": [
+                    {
+                        "type": "$rpc",
+                        "data": {
+                            "package_name": "weaveserver.services.plugins",
+                            "rpc_name": "plugins",
+                            "api_name": "activate"
+                        }
+                    }
+                ],
+                "deactivate": [
+                    {
+                        "type": "$rpc",
+                        "data": {
+                            "package_name": "weaveserver.services.plugins",
+                            "rpc_name": "plugins",
+                            "api_name": "deactivate"
+                        }
+                    }
                 ]
             },
             "$ui": {
@@ -141,6 +161,32 @@
                                     }
                                 },
                                 {
+                                    "type": "paragraph",
+                                    "text": "Enabled: "
+                                },
+                                {
+                                    "type": "paragraph",
+                                    "text": {
+                                        "__vartype": "context",
+                                        "__expression": {
+                                            "keys": ["enabled"]
+                                        }
+                                    }
+                                },
+                                {
+                                    "type": "paragraph",
+                                    "text": "Installed: "
+                                },
+                                {
+                                    "type": "paragraph",
+                                    "text": {
+                                        "__vartype": "context",
+                                        "__expression": {
+                                            "keys": ["installed"]
+                                        }
+                                    }
+                                },
+                                {
                                     "type": "button",
                                     "text": "Install",
                                     "onclick": [
@@ -156,6 +202,52 @@
                                                             "__vartype": "context",
                                                             "__expression": {
                                                                 "keys": ["url"]
+                                                            }
+                                                        }
+                                                    ]
+                                                }
+                                            ]
+                                        }
+                                    ]
+                                },
+                                {
+                                    "type": "button",
+                                    "text": "Activate",
+                                    "onclick": [
+                                        {
+                                            "type": "$action",
+                                            "action": "activate",
+                                            "data": [
+                                                {
+                                                    "keys": [0, "data", "args"],
+                                                    "value": [
+                                                        {
+                                                            "__vartype": "context",
+                                                            "__expression": {
+                                                                "keys": ["id"]
+                                                            }
+                                                        }
+                                                    ]
+                                                }
+                                            ]
+                                        }
+                                    ]
+                                },
+                                {
+                                    "type": "button",
+                                    "text": "Deactivate",
+                                    "onclick": [
+                                        {
+                                            "type": "$action",
+                                            "action": "deactivate",
+                                            "data": [
+                                                {
+                                                    "keys": [0, "data", "args"],
+                                                    "value": [
+                                                        {
+                                                            "__vartype": "context",
+                                                            "__expression": {
+                                                                "keys": ["id"]
                                                             }
                                                         }
                                                     ]
