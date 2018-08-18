@@ -44,7 +44,7 @@
     <script type="text/x-template" id="template-condition">
         <div>
             <all-components v-if="$root.evaluateCondition(data)"
-                            v-bind:data="condition.value"></all-components>
+                            v-bind:data="data.value"></all-components>
         </div>
     </script>
     <script type="text/x-template" id="template-vertical-layout">
