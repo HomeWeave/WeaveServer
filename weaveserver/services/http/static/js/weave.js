@@ -15,6 +15,10 @@ function registerComponents() {
       template: '#template-loop',
       props: ['data']
     });
+    Vue.component('weave-condition', {
+      template: '#template-condition',
+      props: ['data']
+    });
     Vue.component('vertical-layout', {
       template: '#template-vertical-layout',
       props: ['data']
@@ -38,83 +42,79 @@ function registerComponents() {
     });
 }
 
-function processUITemplate(template, item) {
-    function evaluateTemplateData(template, context) {
+function ExpressionEvaluator(app, contextObj, options) {
+    var defaultOptions = {
+        assumeIntermediateObjects: false
+    }
+
+    var curOpts = Object.assign({}, defaultOptions, options);
+    contextObj.variables = app.variables;
+    return function evaluate(template) {
         if (typeof template === "object" && Array.isArray(template)) {
             return template.map(function(item) {
-                return evaluateTemplateData(item, context);
+                return evaluate(item);
             });
         } else if (typeof template === "object") {
             if (template.__vartype && template.__expression) {
-                switch (template.__vartype) {
-                    case "context":
-                        var expr = template.__expression;
-                        return (expr.keys || []).reduce(function(state, value) {
-                            return state[value];
-                        }, context);
-                    case "variables":
-                        var expr = template.__expression;
-                        return (expr.keys || []).reduce(function(state, value) {
-                            return state[value];
-                        }, app.variables);
-                    default:
-                        return null;
+                var context = contextObj[template.__vartype];
+                if (context === undefined) {
+                    return null;
                 }
+
+                return (template.__expression.keys || []).reduce(function(state, value) {
+                    if (curOpts.assumeIntermediateObjects && state[value] == undefined) {
+                        state[value] = {};
+                    }
+                    return state[value];
+                }, context);
             }
             var result = {};
             Object.keys(template).forEach(function(key) {
-                result[key] = evaluateTemplateData(template[key], context);
+                result[key] = evaluate(template[key], context);
             });
             return result;
         } else {
             return template;
         }
+    };
+}
+
+function ConditionEvaluator(app, context, options) {
+    var expressionEvaluator = ExpressionEvaluator(app, context, options);
+
+    function equals(obj1, obj2) {
+        return expressionEvaluator(obj1) === expressionEvaluator(obj2);
     }
 
-    return evaluateTemplateData(template, item);
+    var comparators = {
+        "eq": {fn: equals, args: 2}
+    };
+
+    return function evaluate(condition) {
+        var comparatorInfo = comparators[condition.op];
+        if (comparatorInfo === undefined) {
+            console.log("Invalid operator: " + condition.op);
+            return false;
+        }
+        if (comparatorInfo.args != condition.operands.length) {
+            console.log("Bad number of operands")
+            return false;
+        }
+
+        return comparatorInfo.fn.apply(null, condition.operands);
+    };
 }
 
 function Actions(app, actions) {
-    function evaluateTemplateData(template, context) {
-        if (typeof template === "object" && Array.isArray(template)) {
-            return template.map(function(item) {
-                return evaluateTemplateData(item, context);
-            });
-        } else if (typeof template === "object") {
-            if (template.__vartype && template.__expression) {
-                switch (template.__vartype) {
-                    case "result":
-                        var expr = template.__expression;
-                        return (expr.keys || []).reduce(function(state, value) {
-                            return state[value];
-                        }, context[expr.index || 0]);
-                    case "app":
-                        var expr = template.__expression;
-                        return (expr.keys || []).reduce(function(state, value) {
-                            return state[value];
-                        }, app);
-                    default:
-                        return null;
-                }
-            }
-            var result = {};
-            Object.keys(template).forEach(function(key) {
-                result[key] = evaluateTemplateData(template[key], context);
-            });
-            return result;
-        } else {
-            return template;
-        }
-    }
-
     function rpc(action, context) {
         action.data.args = action.data.args || [];
         action.data.kwargs = action.data.kwargs || {};
+        var data = ExpressionEvaluator(app, {result: context})(action.data);
         return $.ajax({
             url: "/api/rpc",
             type: 'post',
             contentType: 'application/json; charset=UTF-8',
-            data: JSON.stringify(evaluateTemplateData(action.data, context))
+            data: JSON.stringify(data)
         });
     }
 
@@ -126,8 +126,8 @@ function Actions(app, actions) {
                 }
                 return state[value];
             }, app.$data);
-            app.$set(obj, data.keys.slice(-1)[0],
-                     evaluateTemplateData(data.value, context));
+            var result = ExpressionEvaluator(app, {result: context})(data.value);
+            app.$set(obj, data.keys.slice(-1)[0], result);
         }
         return $.Deferred().resolve(data).promise();
     }
@@ -221,12 +221,19 @@ function GenericApplication(selector, appData) {
         },
         watch: watch,
         methods: {
-            processUITemplate: processUITemplate,
+            processUITemplate: function(template, item) {
+                return ExpressionEvaluator(app, {context: item})(template);
+            },
+            evaluateCondition: function(condition) {
+                var res = ConditionEvaluator(app, {})(condition);
+                return res;
+            },
             fireEvent: function(obj) {
                 appActions.fire(obj);
             }
         }
     });
+    DEBUG = app;
 
     // Setup actions.
     var appActions = Actions(app, actions);

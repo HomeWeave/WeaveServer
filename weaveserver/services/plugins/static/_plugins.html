@@ -23,6 +23,9 @@
         <div v-else-if="data.type == 'loop'">
             <weave-loop v-bind:data="data"></weave-loop>
         </div>
+        <div v-else-if="data.type == 'condition'">
+            <weave-condition v-bind:data="data"></weave-condition>
+        </div>
     </script>
     <script type="text/x-template" id="template-loop">
         <div>
@@ -36,6 +39,12 @@
         <div>
             <all-components v-for="(value, key) in data.cases" v-if="key == $root.variables[data.variable]"
                             v-bind:data="value"></all-components>
+        </div>
+    </script>
+    <script type="text/x-template" id="template-condition">
+        <div>
+            <all-components v-if="$root.evaluateCondition(data)"
+                            v-bind:data="condition.value"></all-components>
         </div>
     </script>
     <script type="text/x-template" id="template-vertical-layout">
@@ -97,8 +106,7 @@
                                 "value": {
                                     "__vartype": "result",
                                     "__expression": {
-                                        "index": 0,
-                                        "keys": []
+                                        "keys": [0]
                                     }
                                 }
                             }
@@ -162,99 +170,145 @@
                                 },
                                 {
                                     "type": "paragraph",
-                                    "text": "Enabled: "
-                                },
-                                {
-                                    "type": "paragraph",
                                     "text": {
                                         "__vartype": "context",
                                         "__expression": {
-                                            "keys": ["enabled"]
+                                            "keys": ["description"]
                                         }
                                     }
                                 },
                                 {
-                                    "type": "paragraph",
-                                    "text": "Installed: "
-                                },
-                                {
-                                    "type": "paragraph",
-                                    "text": {
-                                        "__vartype": "context",
-                                        "__expression": {
-                                            "keys": ["installed"]
-                                        }
+                                    "type": "condition",
+                                    "op": "eq",
+                                    "operands": [
+                                        [
+                                            {
+                                                "__vartype": "context",
+                                                "__expression": {
+                                                    "keys": ["installed"]
+                                                }
+                                            },
+                                            {
+                                                "__vartype": "context",
+                                                "__expression": {
+                                                    "keys": ["enabled"]
+                                                }
+                                            }
+                                        ],
+                                        [false, false]
+                                    ],
+                                    "value": {
+                                        "type": "button",
+                                        "text": "Install",
+                                        "onclick": [
+                                            {
+                                                "type": "$action",
+                                                "action": "install",
+                                                "data": [
+                                                    {
+                                                        "keys": [0, "data", "args"],
+                                                        "value": [
+                                                            "git",
+                                                            {
+                                                                "__vartype": "context",
+                                                                "__expression": {
+                                                                    "keys": ["url"]
+                                                                }
+                                                            }
+                                                        ]
+                                                    }
+                                                ]
+                                            }
+                                        ]
                                     }
                                 },
                                 {
-                                    "type": "button",
-                                    "text": "Install",
-                                    "onclick": [
-                                        {
-                                            "type": "$action",
-                                            "action": "install",
-                                            "data": [
-                                                {
-                                                    "keys": [0, "data", "args"],
-                                                    "value": [
-                                                        "git",
-                                                        {
-                                                            "__vartype": "context",
-                                                            "__expression": {
-                                                                "keys": ["url"]
-                                                            }
-                                                        }
-                                                    ]
+                                    "type": "condition",
+                                    "op": "eq",
+                                    "operands": [
+                                        [
+                                            {
+                                                "__vartype": "context",
+                                                "__expression": {
+                                                    "keys": ["installed"]
                                                 }
-                                            ]
-                                        }
-                                    ]
+                                            },
+                                            {
+                                                "__vartype": "context",
+                                                "__expression": {
+                                                    "keys": ["enabled"]
+                                                }
+                                            }
+                                        ],
+                                        [true, false]
+                                    ],
+                                    "value": {
+                                        "type": "button",
+                                        "text": "Activate",
+                                        "onclick": [
+                                            {
+                                                "type": "$action",
+                                                "action": "activate",
+                                                "data": [
+                                                    {
+                                                        "keys": [0, "data", "args"],
+                                                        "value": [
+                                                            {
+                                                                "__vartype": "context",
+                                                                "__expression": {
+                                                                    "keys": ["id"]
+                                                                }
+                                                            }
+                                                        ]
+                                                    }
+                                                ]
+                                            }
+                                        ]
+                                    }
                                 },
                                 {
-                                    "type": "button",
-                                    "text": "Activate",
-                                    "onclick": [
-                                        {
-                                            "type": "$action",
-                                            "action": "activate",
-                                            "data": [
-                                                {
-                                                    "keys": [0, "data", "args"],
-                                                    "value": [
-                                                        {
-                                                            "__vartype": "context",
-                                                            "__expression": {
-                                                                "keys": ["id"]
-                                                            }
-                                                        }
-                                                    ]
+                                    "type": "condition",
+                                    "op": "eq",
+                                    "operands": [
+                                        [
+                                            {
+                                                "__vartype": "context",
+                                                "__expression": {
+                                                    "keys": ["installed"]
                                                 }
-                                            ]
-                                        }
-                                    ]
-                                },
-                                {
-                                    "type": "button",
-                                    "text": "Deactivate",
-                                    "onclick": [
-                                        {
-                                            "type": "$action",
-                                            "action": "deactivate",
-                                            "data": [
-                                                {
-                                                    "keys": [0, "data", "args"],
-                                                    "value": [
-                                                        {
-                                                            "__vartype": "context",
-                                                            "__expression": {
-                                                                "keys": ["id"]
-                                                            }
-                                                        }
-                                                    ]
+                                            },
+                                            {
+                                                "__vartype": "context",
+                                                "__expression": {
+                                                    "keys": ["enabled"]
                                                 }
-                                            ]
-                                        }
-                                    ]
+                                            }
+                                        ],
+                                        [true, true]
+                                    ],
+                                    "value": {
+                                        "type": "button",
+                                        "text": "Deactivate",
+                                        "onclick": [
+                                            {
+                                                "type": "$action",
+                                                "action": "deactivate",
+                                                "data": [
+                                                    {
+                                                        "keys": [0, "data", "args"],
+                                                        "value": [
+                                                            {
+                                                                "__vartype": "context",
+                                                                "__expression": {
+                                                                    "keys": ["id"]
+                                                                }
+                                                            }
+                                                        ]
+                                                    }
+                                                ]
+                                            }
+                                        ]
+                                    }
                                 }
                             ]
                         }
