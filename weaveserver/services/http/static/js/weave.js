@@ -83,7 +83,7 @@ function ConditionEvaluator(app, context, options) {
     var expressionEvaluator = ExpressionEvaluator(app, context, options);
 
     function equals(obj1, obj2) {
-        return expressionEvaluator(obj1) === expressionEvaluator(obj2);
+        return _.isEqual(expressionEvaluator(obj1), expressionEvaluator(obj2));
     }
 
     var comparators = {
