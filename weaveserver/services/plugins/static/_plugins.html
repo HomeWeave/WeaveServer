@@ -23,6 +23,9 @@
         <div v-else-if="data.type == 'loop'">
             <weave-loop v-bind:data="data"></weave-loop>
         </div>
+        <div v-else-if="data.type == 'condition'">
+            <weave-condition v-bind:data="data"></weave-condition>
+        </div>
     </script>
     <script type="text/x-template" id="template-loop">
         <div>
@@ -36,6 +39,12 @@
         <div>
             <all-components v-for="(value, key) in data.cases" v-if="key == $root.variables[data.variable]"
                             v-bind:data="value"></all-components>
+        </div>
+    </script>
+    <script type="text/x-template" id="template-condition">
+        <div>
+            <all-components v-if="$root.evaluateCondition(data)"
+                            v-bind:data="data.value"></all-components>
         </div>
     </script>
     <script type="text/x-template" id="template-vertical-layout">
@@ -75,6 +84,7 @@
     </div>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/vue/2.5.16/vue.min.js" integrity="sha256-TaLceMwjWRqe4yhbqPOJH6V7UGt5AvvdNfpaIXJWbFU=" crossorigin="anonymous"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.3.1/jquery.min.js" integrity="sha256-FgpCb/KJQlLNfOu91ta32o/NMZxltwRo8QtmkMRdAu8=" crossorigin="anonymous"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/lodash.js/4.17.10/lodash.core.min.js" integrity="sha256-Q+4FYyw42bZJQS9v3+BXNtPLNxKqDLKIEPt50Z4fiYw=" crossorigin="anonymous"></script>
     <script src="/static/js/weave.js"></script>
     <script>
         var app = {
@@ -97,8 +107,7 @@
                                 "value": {
                                     "__vartype": "result",
                                     "__expression": {
-                                        "index": 0,
-                                        "keys": []
+                                        "keys": [0]
                                     }
                                 }
                             }
@@ -112,6 +121,26 @@
                             "package_name": "weaveserver.services.plugins",
                             "rpc_name": "plugins",
                             "api_name": "install_plugin"
+                        }
+                    }
+                ],
+                "activate": [
+                    {
+                        "type": "$rpc",
+                        "data": {
+                            "package_name": "weaveserver.services.plugins",
+                            "rpc_name": "plugins",
+                            "api_name": "activate"
+                        }
+                    }
+                ],
+                "deactivate": [
+                    {
+                        "type": "$rpc",
+                        "data": {
+                            "package_name": "weaveserver.services.plugins",
+                            "rpc_name": "plugins",
+                            "api_name": "deactivate"
                         }
                     }
                 ]
@@ -141,28 +170,146 @@
                                     }
                                 },
                                 {
-                                    "type": "button",
-                                    "text": "Install",
-                                    "onclick": [
-                                        {
-                                            "type": "$action",
-                                            "action": "install",
-                                            "data": [
-                                                {
-                                                    "keys": [0, "data", "args"],
-                                                    "value": [
-                                                        "git",
-                                                        {
-                                                            "__vartype": "context",
-                                                            "__expression": {
-                                                                "keys": ["url"]
-                                                            }
-                                                        }
-                                                    ]
-                                                }
-                                            ]
+                                    "type": "paragraph",
+                                    "text": {
+                                        "__vartype": "context",
+                                        "__expression": {
+                                            "keys": ["description"]
                                         }
-                                    ]
+                                    }
+                                },
+                                {
+                                    "type": "condition",
+                                    "op": "eq",
+                                    "operands": [
+                                        [
+                                            {
+                                                "__vartype": "context",
+                                                "__expression": {
+                                                    "keys": ["installed"]
+                                                }
+                                            },
+                                            {
+                                                "__vartype": "context",
+                                                "__expression": {
+                                                    "keys": ["enabled"]
+                                                }
+                                            }
+                                        ],
+                                        [false, false]
+                                    ],
+                                    "value": {
+                                        "type": "button",
+                                        "text": "Install",
+                                        "onclick": [
+                                            {
+                                                "type": "$action",
+                                                "action": "install",
+                                                "data": [
+                                                    {
+                                                        "keys": [0, "data", "args"],
+                                                        "value": [
+                                                            "git",
+                                                            {
+                                                                "__vartype": "context",
+                                                                "__expression": {
+                                                                    "keys": ["url"]
+                                                                }
+                                                            }
+                                                        ]
+                                                    }
+                                                ]
+                                            }
+                                        ]
+                                    }
+                                },
+                                {
+                                    "type": "condition",
+                                    "op": "eq",
+                                    "operands": [
+                                        [
+                                            {
+                                                "__vartype": "context",
+                                                "__expression": {
+                                                    "keys": ["installed"]
+                                                }
+                                            },
+                                            {
+                                                "__vartype": "context",
+                                                "__expression": {
+                                                    "keys": ["enabled"]
+                                                }
+                                            }
+                                        ],
+                                        [true, false]
+                                    ],
+                                    "value": {
+                                        "type": "button",
+                                        "text": "Activate",
+                                        "onclick": [
+                                            {
+                                                "type": "$action",
+                                                "action": "activate",
+                                                "data": [
+                                                    {
+                                                        "keys": [0, "data", "args"],
+                                                        "value": [
+                                                            {
+                                                                "__vartype": "context",
+                                                                "__expression": {
+                                                                    "keys": ["id"]
+                                                                }
+                                                            }
+                                                        ]
+                                                    }
+                                                ]
+                                            }
+                                        ]
+                                    }
+                                },
+                                {
+                                    "type": "condition",
+                                    "op": "eq",
+                                    "operands": [
+                                        [
+                                            {
+                                                "__vartype": "context",
+                                                "__expression": {
+                                                    "keys": ["installed"]
+                                                }
+                                            },
+                                            {
+                                                "__vartype": "context",
+                                                "__expression": {
+                                                    "keys": ["enabled"]
+                                                }
+                                            }
+                                        ],
+                                        [true, true]
+                                    ],
+                                    "value": {
+                                        "type": "button",
+                                        "text": "Deactivate",
+                                        "onclick": [
+                                            {
+                                                "type": "$action",
+                                                "action": "deactivate",
+                                                "data": [
+                                                    {
+                                                        "keys": [0, "data", "args"],
+                                                        "value": [
+                                                            {
+                                                                "__vartype": "context",
+                                                                "__expression": {
+                                                                    "keys": ["id"]
+                                                                }
+                                                            }
+                                                        ]
+                                                    }
+                                                ]
+                                            }
+                                        ]
+                                    }
                                 }
                             ]
                         }
