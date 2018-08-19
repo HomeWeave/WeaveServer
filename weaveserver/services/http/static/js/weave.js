@@ -1,41 +1,65 @@
-function registerComponents() {
-    Vue.component('card-footer-status', {
-      template: '#template-footer-status',
-      props: ['footer']
+var registerComponent = function(tag, template) {
+    Vue.component(tag, {
+        template: template,
+        props: ['data']
     });
-    Vue.component('all-components', {
-      template: '#template-all-components',
-      props: ['data']
+};
+
+var ALL_COMPONENTS =    '<!-- TODO: Remove one level of hierarchy of div -->' +
+                        '<div v-if="data.type == \'switch\'">' +
+                        '    <weave-switch v-bind:data="data"></weave-switch>' +
+                        '</div>' +
+                        '<div v-else-if="data.type == \'loop\'">' +
+                        '    <weave-loop v-bind:data="data"></weave-loop>' +
+                        '</div>' +
+                        '<div v-else-if="data.type == \'condition\'">' +
+                        '    <weave-condition v-bind:data="data"></weave-condition>' +
+                        '</div>' +
+                        '<div v-else>' +
+                        '    <ui-components v-bind:data="data"></ui-components>' +
+                        '</div>';
+
+var registerCoreComponents = _.once(function() {
+    var coreComponents = [
+        [
+            'weave-switch',
+            '<div>' +
+            '    <all-components v-for="(value, key) in data.cases" ' +
+            '                    v-if="key == $root.variables[data.variable]"' +
+            '                    v-bind:data="value"></all-components>' +
+            '</div>'
+        ],
+        [
+            'weave-condition',
+            '<all-components v-if="$root.evaluateCondition(data)"' +
+            '                v-bind:data="data.value"></all-components>'
+        ],
+        [
+            'weave-loop',
+            '<div>' +
+            '    <div v-for="item in data.variable.reduce(function(s, v) { return s[v] || {}; }, ' +
+            '                                             $root.variables)">' +
+            '        <all-components v-bind:data="$root.processUITemplate(data.template, item)">' +
+            '        </all-components>' +
+            '    </div>' +
+            '</div>'
+        ],
+        [
+            'all-components',
+            ALL_COMPONENTS
+        ],
+        [
+            'ui-components',
+            '#template-ui-components'
+        ]
+    ];
+
+    coreComponents.forEach(function(item) {
+        registerComponent.apply(null, item);
     });
-    Vue.component('weave-switch', {
-      template: '#template-switch',
-      props: ['data']
-    });
-    Vue.component('weave-loop', {
-      template: '#template-loop',
-      props: ['data']
-    });
-    Vue.component('weave-condition', {
-      template: '#template-condition',
-      props: ['data']
-    });
-    Vue.component('vertical-layout', {
-      template: '#template-vertical-layout',
-      props: ['data']
-    });
-    Vue.component('header-3', {
-      template: '#template-h3',
-      props: ['data']
-    });
-    Vue.component('paragraph', {
-      template: '#template-paragraph',
-      props: ['data']
-    });
-    Vue.component('weave-button', {
-      template: '#template-button',
-      props: ['data']
-    });
-}
+});
+
+
 
 function ExpressionEvaluator(app, contextObj, options) {
     var defaultOptions = {
@@ -192,10 +216,7 @@ function Actions(app, actions) {
 }
 
 function GenericApplication(selector, appData) {
-    if (registerComponents.called === undefined) {
-        registerComponents();
-        registerComponents.called = true;
-    }
+    registerCoreComponents();
 
     var variables = appData["$variables"] || {};
     var actions = appData["$actions"] || {};
@@ -209,7 +230,7 @@ function GenericApplication(selector, appData) {
     });
 
     var app = new Vue({
-        template: "#template-all-components",
+        template: ALL_COMPONENTS,
         data: {
             "variables": variables,
             "data": appData["$ui"]

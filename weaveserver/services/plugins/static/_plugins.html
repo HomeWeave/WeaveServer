@@ -3,7 +3,7 @@
     <title>Plugins</title>
 </head>
 <body>
-    <script type="text/x-template" id="template-all-components">
+    <script type="text/x-template" id="template-ui-components">
         <!-- TODO: Remove one level of hierarchy of div -->
         <div v-if="data.type == 'vertical-layout'">
             <vertical-layout v-bind:data="data"></vertical-layout>
@@ -16,35 +16,6 @@
         </div>
         <div v-else-if="data.type == 'button'">
             <weave-button v-bind:data="data"></weave-button>
-        </div>
-        <div v-else-if="data.type == 'switch'">
-            <weave-switch v-bind:data="data"></weave-switch>
-        </div>
-        <div v-else-if="data.type == 'loop'">
-            <weave-loop v-bind:data="data"></weave-loop>
-        </div>
-        <div v-else-if="data.type == 'condition'">
-            <weave-condition v-bind:data="data"></weave-condition>
-        </div>
-    </script>
-    <script type="text/x-template" id="template-loop">
-        <div>
-            <div
-             v-for="item in data.variable.reduce(function(s, v) { return s[v] || {}; }, $root.variables)">
-                <all-components v-bind:data="$root.processUITemplate(data.template, item)"></all-components>
-            </div>
-        </div>
-    </script>
-    <script type="text/x-template" id="template-switch">
-        <div>
-            <all-components v-for="(value, key) in data.cases" v-if="key == $root.variables[data.variable]"
-                            v-bind:data="value"></all-components>
-        </div>
-    </script>
-    <script type="text/x-template" id="template-condition">
-        <div>
-            <all-components v-if="$root.evaluateCondition(data)"
-                            v-bind:data="data.value"></all-components>
         </div>
     </script>
     <script type="text/x-template" id="template-vertical-layout">
@@ -326,6 +297,10 @@
         }
 
         $(document).ready(function() {
+            registerComponent('vertical-layout', '#template-vertical-layout');
+            registerComponent('header-3', '#template-h3');
+            registerComponent('paragraph', '#template-paragraph');
+            registerComponent('weave-button', '#template-button');
             var application = GenericApplication("#root", app);
         });
     </script>
