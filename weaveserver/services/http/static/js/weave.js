@@ -33,12 +33,7 @@ function registerComponents() {
     });
     Vue.component('weave-button', {
       template: '#template-button',
-      props: ['data'],
-      methods: {
-        "onClick": function(event) {
-            this.$root.fireEvent(event);
-        }
-      }
+      props: ['data']
     });
 }
 

@@ -63,7 +63,7 @@
         <h3>{{data}}</h3>
     </script>
     <script type="text/x-template" id="template-button">
-        <button v-on:click="onClick(data.onclick)">
+        <button v-on:click="$root.fireEvent(data.onclick)">
             {{data.text}}
         </button>
     </script>
