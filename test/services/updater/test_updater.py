@@ -75,7 +75,8 @@ class TestUpdateScanner(object):
         UpdateScanner.list_repos = lambda x, y: ["dir"]
         UpdateScanner.get_repo = lambda x, y: mock_repo
 
-        service = ThreadedUpdaterService("auth2", None)
+        service = ThreadedUpdaterService("auth2",
+                                         {"plugins": {"PLUGIN_DIR": ""}})
         service.service_start()
         assert service.wait_for_start(30)
 
@@ -98,7 +99,8 @@ class TestUpdateScanner(object):
         UpdateScanner.list_repos = lambda x, y: ["dir"]
         UpdateScanner.get_repo = lambda x, y: mock_repo
 
-        service = ThreadedUpdaterService("auth2", None)
+        service = ThreadedUpdaterService("auth2",
+                                         {"plugins": {"PLUGIN_DIR": ""}})
         service.service_start()
         assert service.wait_for_start(30)
 
