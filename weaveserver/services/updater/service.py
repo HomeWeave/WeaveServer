@@ -104,6 +104,8 @@ class UpdateScanner(object):
     def check_updates(self):
         res = []
         all_repos = self.list_repos(CODE_DIR)
+        all_repos += self.list_repos(self.service.plugin_path)
+        all_repos = list(set(all_repos))
 
         self.update_status("Checking for updates.")
         for count, path in enumerate(all_repos):
@@ -186,6 +188,7 @@ class Updater(object):
 class UpdaterService(BackgroundProcessServiceStart, BaseService):
     def __init__(self, token, config):
         super().__init__(token)
+        self.plugin_path = config["plugins"]["PLUGIN_DIR"]
         self.update_scanner = UpdateScanner(self)
         self.updater = Updater(self, self.update_scanner)
         self.shutdown = Event()
