@@ -17,7 +17,7 @@ SCRIPTS_DIR = "/home/rpi/scripts"
 CODE_DIR = os.path.expanduser("~/Code")
 
 
-def reboot(self):
+def reboot():
     logger.info("Rebooting..")
     reboot_path = os.path.join(SCRIPTS_DIR, "reboot.sh")
     args = [reboot_path]
@@ -160,13 +160,13 @@ class Updater(object):
         for repo in repos:
             repo.pull(self.send_pull_progress)
 
-        if self.perform_ansible_update():
-            self.update_status("Configuration update failed.")
+        try:
+            self.perform_ansible_update()
+            self.update_status("Configuration complete. Restarting ..")
+            reboot()
+        except:
+            self.update_status("Failed to update configuration.")
             return
-
-        self.update_status("Configuration complete. Restarting ..")
-
-        reboot()
 
     def perform_ansible_update(self):
         logger.info("Running ansible")
