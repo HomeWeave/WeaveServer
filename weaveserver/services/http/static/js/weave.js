@@ -144,7 +144,7 @@ function Actions(app, actions) {
                     state[value] = {};
                 }
                 return state[value];
-            }, app.$data);
+            }, app);
             var result = ExpressionEvaluator(app, {result: context})(data.value);
             app.$set(obj, data.keys.slice(-1)[0], result);
         }
