@@ -45,7 +45,7 @@ class PluginService(BackgroundProcessServiceStart, BaseService):
         self.plugin_manager.start()
         self.rpc.start()
         self.http.start()
-        self.http.register_folder('static', watch=True)
+        self.http.register_folder('static')
         self.notify_start()
         self.shutdown.wait()
 

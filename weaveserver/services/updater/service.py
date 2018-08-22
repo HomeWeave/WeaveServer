@@ -209,7 +209,7 @@ class UpdaterService(BackgroundProcessServiceStart, BaseService):
         super().on_service_start(*args, **kwargs)
         self.rpc.start()
         self.http.start()
-        self.http.register_folder("static", watch=True)
+        self.http.register_folder("static")
         self.update_scanner.start()
         self.updater.start()
         self.notify_start()
