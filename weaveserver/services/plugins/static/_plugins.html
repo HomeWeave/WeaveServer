@@ -3,6 +3,41 @@
     <title>Plugins</title>
 </head>
 <body>
+    <script type="text/x-template" id="template-ui-components">
+        <!-- TODO: Remove one level of hierarchy of div -->
+        <div v-if="data.type == 'vertical-layout'">
+            <vertical-layout v-bind:data="data"></vertical-layout>
+        </div>
+        <div v-else-if="data.type == 'h3'">
+            <header-3 v-bind:data="data.text"></header-3>
+        </div>
+        <div v-else-if="data.type == 'paragraph'">
+            <paragraph v-bind:data="data.text"></paragraph>
+        </div>
+        <div v-else-if="data.type == 'button'">
+            <weave-button v-bind:data="data"></weave-button>
+        </div>
+    </script>
+    <script type="text/x-template" id="template-vertical-layout">
+        <div>
+            <div class="row" v-for="item in data.items">
+                <div v-bind:class="'col-lg-' + data.columnsLarge + ' col-md-' + data.columnsMedium + ' col-sm-' + data.columnsSmall">
+                    <all-components v-bind:data="item"></all-components>
+                </div>
+            </div>
+        <div>
+    </script>
+    <script type="text/x-template" id="template-paragraph">
+        <p>{{data}}</p>
+    </script>
+    <script type="text/x-template" id="template-h3">
+        <h3>{{data}}</h3>
+    </script>
+    <script type="text/x-template" id="template-button">
+        <button v-on:click="$root.fireEvent(data.onclick)">
+            {{data.text}}
+        </button>
+    </script>
     <script id="template-plugin" type="text/x-template">
         <div>
             <div v-for="item in data">
@@ -20,21 +55,239 @@
     </div>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/vue/2.5.16/vue.min.js" integrity="sha256-TaLceMwjWRqe4yhbqPOJH6V7UGt5AvvdNfpaIXJWbFU=" crossorigin="anonymous"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.3.1/jquery.min.js" integrity="sha256-FgpCb/KJQlLNfOu91ta32o/NMZxltwRo8QtmkMRdAu8=" crossorigin="anonymous"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/lodash.js/4.17.10/lodash.core.min.js" integrity="sha256-Q+4FYyw42bZJQS9v3+BXNtPLNxKqDLKIEPt50Z4fiYw=" crossorigin="anonymous"></script>
+    <script src="/static/js/weave.js"></script>
     <script>
-        function rpc(package, rpcName, api, args, kwargs) {
-            return $.ajax({
-                url: "/api/rpc",
-                type: 'post',
-                contentType: 'application/json; charset=UTF-8',
-                data: JSON.stringify({
-                    package_name: package,
-                    rpc_name: rpcName,
-                    api_name: api,
-                    args: args,
-                    kwargs: kwargs
-                })
-            });
-        }
+        var app = {
+            "$variables": {},
+            "$actions": {
+                "$load": [
+                    {
+                        "type": "$rpc",
+                        "data": {
+                            "package_name": "weaveserver.services.plugins",
+                            "rpc_name": "plugins",
+                            "api_name": "list_available",
+                            "args": [],
+                            "kwargs": {}
+                        },
+                        "success": [
+                            {
+                                "type": "$store",
+                                "keys": ["variables", "plugins"],
+                                "value": {
+                                    "__vartype": "result",
+                                    "__expression": {
+                                        "keys": [0]
+                                    }
+                                }
+                            }
+                        ]
+                    }
+                ],
+                "install": [
+                    {
+                        "type": "$rpc",
+                        "data": {
+                            "package_name": "weaveserver.services.plugins",
+                            "rpc_name": "plugins",
+                            "api_name": "install_plugin"
+                        }
+                    }
+                ],
+                "activate": [
+                    {
+                        "type": "$rpc",
+                        "data": {
+                            "package_name": "weaveserver.services.plugins",
+                            "rpc_name": "plugins",
+                            "api_name": "activate"
+                        }
+                    }
+                ],
+                "deactivate": [
+                    {
+                        "type": "$rpc",
+                        "data": {
+                            "package_name": "weaveserver.services.plugins",
+                            "rpc_name": "plugins",
+                            "api_name": "deactivate"
+                        }
+                    }
+                ]
+            },
+            "$ui": {
+                "type": "vertical-layout",
+                "columnsLarge": 12,
+                "columnsMedium": 12,
+                "columnsSmall": 12,
+                "items": [
+                    {
+                        "type": "loop",
+                        "variable": ["plugins"],
+                        "template": {
+                            "type": "vertical-layout",
+                            "columnsLarge": 12,
+                            "columnsMedium": 12,
+                            "columnsSmall": 12,
+                            "items": [
+                                {
+                                    "type": "h3",
+                                    "text": {
+                                        "__vartype": "context",
+                                        "__expression": {
+                                            "keys": ["name"]
+                                        }
+                                    }
+                                },
+                                {
+                                    "type": "paragraph",
+                                    "text": {
+                                        "__vartype": "context",
+                                        "__expression": {
+                                            "keys": ["description"]
+                                        }
+                                    }
+                                },
+                                {
+                                    "type": "condition",
+                                    "op": "eq",
+                                    "operands": [
+                                        [
+                                            {
+                                                "__vartype": "context",
+                                                "__expression": {
+                                                    "keys": ["installed"]
+                                                }
+                                            },
+                                            {
+                                                "__vartype": "context",
+                                                "__expression": {
+                                                    "keys": ["enabled"]
+                                                }
+                                            }
+                                        ],
+                                        [false, false]
+                                    ],
+                                    "value": {
+                                        "type": "button",
+                                        "text": "Install",
+                                        "onclick": [
+                                            {
+                                                "type": "$action",
+                                                "action": "install",
+                                                "data": [
+                                                    {
+                                                        "keys": [0, "data", "args"],
+                                                        "value": [
+                                                            "git",
+                                                            {
+                                                                "__vartype": "context",
+                                                                "__expression": {
+                                                                    "keys": ["url"]
+                                                                }
+                                                            }
+                                                        ]
+                                                    }
+                                                ]
+                                            }
+                                        ]
+                                    }
+                                },
+                                {
+                                    "type": "condition",
+                                    "op": "eq",
+                                    "operands": [
+                                        [
+                                            {
+                                                "__vartype": "context",
+                                                "__expression": {
+                                                    "keys": ["installed"]
+                                                }
+                                            },
+                                            {
+                                                "__vartype": "context",
+                                                "__expression": {
+                                                    "keys": ["enabled"]
+                                                }
+                                            }
+                                        ],
+                                        [true, false]
+                                    ],
+                                    "value": {
+                                        "type": "button",
+                                        "text": "Activate",
+                                        "onclick": [
+                                            {
+                                                "type": "$action",
+                                                "action": "activate",
+                                                "data": [
+                                                    {
+                                                        "keys": [0, "data", "args"],
+                                                        "value": [
+                                                            {
+                                                                "__vartype": "context",
+                                                                "__expression": {
+                                                                    "keys": ["id"]
+                                                                }
+                                                            }
+                                                        ]
+                                                    }
+                                                ]
+                                            }
+                                        ]
+                                    }
+                                },
+                                {
+                                    "type": "condition",
+                                    "op": "eq",
+                                    "operands": [
+                                        [
+                                            {
+                                                "__vartype": "context",
+                                                "__expression": {
+                                                    "keys": ["installed"]
+                                                }
+                                            },
+                                            {
+                                                "__vartype": "context",
+                                                "__expression": {
+                                                    "keys": ["enabled"]
+                                                }
+                                            }
+                                        ],
+                                        [true, true]
+                                    ],
+                                    "value": {
+                                        "type": "button",
+                                        "text": "Deactivate",
+                                        "onclick": [
+                                            {
+                                                "type": "$action",
+                                                "action": "deactivate",
+                                                "data": [
+                                                    {
+                                                        "keys": [0, "data", "args"],
+                                                        "value": [
+                                                            {
+                                                                "__vartype": "context",
+                                                                "__expression": {
+                                                                    "keys": ["id"]
+                                                                }
+                                                            }
+                                                        ]
+                                                    }
+                                                ]
+                                            }
+                                        ]
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                ]
+            }
+        };
         function install(plugin) {
             return rpc("weaveserver.services.plugins", "plugins", "install_plugin", ["git", plugin.url], {});
         }
@@ -44,13 +297,11 @@
         }
 
         $(document).ready(function() {
-            rpc("weaveserver.services.plugins", "plugins", "list_available", [], {}).then(function(data) {
-                var app = new Vue({
-                    el: '#root',
-                    template: '#template-plugin',
-                    data: {data: data}
-                })
-            });
+            registerComponent('vertical-layout', '#template-vertical-layout');
+            registerComponent('header-3', '#template-h3');
+            registerComponent('paragraph', '#template-paragraph');
+            registerComponent('weave-button', '#template-button');
+            var application = GenericApplication("#root", app);
         });
     </script>
 </body>

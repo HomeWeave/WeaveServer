@@ -17,7 +17,7 @@ SCRIPTS_DIR = "/home/rpi/scripts"
 CODE_DIR = os.path.expanduser("~/Code")
 
 
-def reboot(self):
+def reboot():
     logger.info("Rebooting..")
     reboot_path = os.path.join(SCRIPTS_DIR, "reboot.sh")
     args = [reboot_path]
@@ -104,6 +104,8 @@ class UpdateScanner(object):
     def check_updates(self):
         res = []
         all_repos = self.list_repos(CODE_DIR)
+        all_repos += self.list_repos(self.service.plugin_path)
+        all_repos = list(set(all_repos))
 
         self.update_status("Checking for updates.")
         for count, path in enumerate(all_repos):
@@ -158,13 +160,13 @@ class Updater(object):
         for repo in repos:
             repo.pull(self.send_pull_progress)
 
-        if self.perform_ansible_update():
-            self.update_status("Configuration update failed.")
+        try:
+            self.perform_ansible_update()
+            self.update_status("Configuration complete. Restarting ..")
+            reboot()
+        except:
+            self.update_status("Failed to update configuration.")
             return
-
-        self.update_status("Configuration complete. Restarting ..")
-
-        reboot()
 
     def perform_ansible_update(self):
         logger.info("Running ansible")
@@ -186,6 +188,7 @@ class Updater(object):
 class UpdaterService(BackgroundProcessServiceStart, BaseService):
     def __init__(self, token, config):
         super().__init__(token)
+        self.plugin_path = config["plugins"]["PLUGIN_DIR"]
         self.update_scanner = UpdateScanner(self)
         self.updater = Updater(self, self.update_scanner)
         self.shutdown = Event()
@@ -206,7 +209,7 @@ class UpdaterService(BackgroundProcessServiceStart, BaseService):
         super().on_service_start(*args, **kwargs)
         self.rpc.start()
         self.http.start()
-        self.http.register_folder("static", watch=True)
+        self.http.register_folder("static")
         self.update_scanner.start()
         self.updater.start()
         self.notify_start()

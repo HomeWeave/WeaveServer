@@ -83,10 +83,15 @@ class PluginManager(object):
 
         # Fetch all repos from HomeWeave
         for plugin_info in self.github_weave_org.list_plugins():
-            if plugin_info["id"] in self.all_plugins:
+            plugin_id = plugin_info["id"]
+            if plugin_id in self.all_plugins:
+                # Update fields don't have from FS: name, description etc
+                plugin_info["name"] = self.all_plugins[plugin_id]["name"]
+                plugin_info["description"] = \
+                    self.all_plugins[plugin_id]["description"]
                 continue
 
-            self.all_plugins[plugin_info["id"]] = plugin_info
+            self.all_plugins[plugin_id] = plugin_info
 
         thread = Thread(target=self.start_async, args=(self.enabled_plugins,))
         thread.start()
@@ -136,7 +141,14 @@ class PluginManager(object):
 
         plugin_name = os.path.basename(plugin.get_plugin_dir())
         plugin_info = load_plugin_from_path(self.base_dir, plugin_name)
+        plugin_id = plugin.unique_id()
+        if plugin_id in self.all_plugins:
+            remote_info = self.all_plugins[plugin_info]
+            plugin_info["name"] = remote_info["name"]
+            plugin_info["description"] = remote_info["description"]
+
         self.all_plugins[plugin.unique_id()] = plugin_info
+
         return plugin_info["id"]
 
     def activate(self, id):
