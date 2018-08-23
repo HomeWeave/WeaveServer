@@ -143,7 +143,7 @@ class PluginManager(object):
         plugin_info = load_plugin_from_path(self.base_dir, plugin_name)
         plugin_id = plugin.unique_id()
         if plugin_id in self.all_plugins:
-            remote_info = self.all_plugins[plugin_info]
+            remote_info = self.all_plugins[plugin_id]
             plugin_info["name"] = remote_info["name"]
             plugin_info["description"] = remote_info["description"]
 
