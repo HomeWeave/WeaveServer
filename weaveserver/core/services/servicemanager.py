@@ -111,6 +111,8 @@ class ServiceManager(object):
 
     def wait(self):
         self.active.wait()
+        for service in self.services[::-1]:
+            service.service_stop()
 
     def start_services(self, services):
         services = set(services)
@@ -120,5 +122,3 @@ class ServiceManager(object):
 
     def stop(self):
         self.active.set()
-        for service in self.services[::-1]:
-            service.service_stop()
