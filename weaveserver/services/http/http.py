@@ -44,6 +44,7 @@ class HTTPServer(Bottle):
         self.rpc_handler = RPCHandler(service)
 
         self.route("/")(self.handle_root)
+        self.route("/api/status-cards")(self.handle_status_cards)
         self.route("/static/<path:path>")(self.handle_static)
         self.route("/apps/<path:path>")(self.handle_apps)
         self.route("/api/rpc", method="POST")(self.handle_rpc)
@@ -78,3 +79,17 @@ class HTTPServer(Bottle):
             return return_response(400, {"error": "Bad request for API."})
         except:
             return return_response(500, {"error": "Internal Server Error."})
+
+    def handle_status_cards(self):
+        status_cards = []
+        for app_folder in os.listdir(self.plugin_path):
+            status_card_path = os.path.join(self.plugin_path, app_folder,
+                                            "_status-card.json")
+            if os.path.isfile(status_card_path):
+                with open(status_card_path) as inp:
+                    try:
+                        status_cards.append(json.load(inp))
+                    except (IOError, ValueError) as e:
+                        logger.warning("Unable to load %s.", status_card_path)
+                        continue
+        return return_response(200, {"cards": status_cards})
