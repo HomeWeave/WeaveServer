@@ -31,11 +31,11 @@
         <p>{{$root.processUITemplate(data)}}</p>
     </script>
     <script type="text/x-template" id="template-h3">
-        <h3>{{data}}</h3>
+        <h3>{{$root.processUITemplate(data)}}</h3>
     </script>
     <script type="text/x-template" id="template-button">
         <button v-on:click="$root.fireEvent(data.onclick)">
-            {{data.text}}
+            {{$root.processUITemplate(data.text)}}
         </button>
     </script>
     <div id="root">
