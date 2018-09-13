@@ -10,6 +10,7 @@ var ALL_COMPONENTS =    '<weave-switch v-else-if="data.type == \'switch\'" v-bin
                         '<weave-condition v-else-if="data.type == \'condition\'" v-bind:data="data"></weave-condition>\n';
 
 var registerCoreComponents = _.once(function() {
+    ALL_COMPONENTS = $("#template-all-components").html() + ALL_COMPONENTS;
     var coreComponents = [
         [
             'weave-switch',
@@ -40,7 +41,6 @@ var registerCoreComponents = _.once(function() {
         ]
     ];
 
-    ALL_COMPONENTS = $("#template-all-components").html() + ALL_COMPONENTS;
     $("#template-all-components").html(ALL_COMPONENTS);
     coreComponents.forEach(function(item) {
         registerComponent.apply(null, item);
