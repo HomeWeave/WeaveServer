@@ -56,32 +56,70 @@
     },
     "$ui": {
         "type": "medium-card",
-        "cardTitle": {
-            "__vartype": "variables",
-            "__expression": {
-                "keys": ["status"]
-            }
-        },
+        "cardTitle": "HomeWeave Status",
         "cardType": "info",
         "cardContent": {
-            "type": "h3",
-            "text": {
-                "__vartype": "variables",
-                "__expression": {
-                    "keys": ["status"]
+            "type": "vertical-layout",
+            "columnsLarge": 12,
+            "columnsMedium": 12,
+            "columnsSmall": 12,
+            "items": [
+                {
+                    "type": "button",
+                    "text": "Check For Updates",
+                    "onclick": [
+                        {
+                            "type": "$action",
+                            "action": "check_updates",
+                            "data": []
+                        }
+                    ]
+                },
+                {
+                    "type": "condition",
+                    "op": "eq",
+                    "operands": [
+                        {
+                            "__vartype": "variables",
+                            "__expression": {
+                                "keys": ["status"]
+                            }
+                        },
+                        "Updates available."
+                    ],
+                    "value": {
+                        "type": "button",
+                        "text": "Upgrade",
+                        "onclick": [
+                            {
+                                "type": "$action",
+                                "action": "upgrade",
+                                "data": []
+                            }
+                        ]
+                    }
+                },
+                {
+                    "type": "button",
+                    "text": "Reboot",
+                    "onclick": [
+                        {
+                            "type": "$action",
+                            "action": "reboot",
+                            "data": []
+                        }
+                    ]
                 }
-            }
+            ]
         },
         "footer": [
             {
-                "message": "Check for updates",
-                "onclick": [
-                    {
-                        "type": "$action",
-                        "action": "check_updates",
-                        "data": []
+                "message": {
+                    "__vartype": "variables",
+                    "__expression": {
+                        "keys": ["status"]
                     }
-                ]
+                }
             }
         ]
     }
