@@ -231,11 +231,9 @@ class KeyedStickyQueue(BaseQueue):
 
 class MessageHandler(StreamRequestHandler):
     def handle(self):
-        sess = str(uuid4())
         while True:
             try:
                 msg = read_message(self.rfile)
-                msg.headers["SESS"] = sess
                 self.reply(self.server.handle_message(msg))
             except WeaveException as e:
                 self.reply(serialize_message(exception_to_message(e)))
@@ -294,22 +292,26 @@ class MessageServer(ThreadingTCPServer):
         return queue
 
     def handle_message(self, msg):
+        session_id = get_required_field(msg.headers, "SESS")
         self.preprocess(msg)
         if msg.operation == "dequeue":
             task, headers = self.handle_dequeue(msg)
             msg = Message("inform", task)
             msg.headers.update(headers)
+            msg.headers["SESS"] = session_id
             return serialize_message(msg)
         elif msg.operation == "enqueue":
             self.handle_enqueue(msg)
             msg = Message("result")
             msg.headers["RES"] = "OK"
+            msg.headers["SESS"] = session_id
             return serialize_message(msg)
         elif msg.operation == "create":
             queue_name = self.handle_create(msg)
             msg = Message("result")
             msg.headers["RES"] = "OK"
             msg.headers["Q"] = queue_name
+            msg.headers["SESS"] = session_id
             return serialize_message(msg)
         else:
             raise BadOperation(msg.operation)
