@@ -232,11 +232,15 @@ class KeyedStickyQueue(BaseQueue):
 class MessageHandler(StreamRequestHandler):
     def handle(self):
         while True:
+            session_id = "NO-SESSION-ID"
             try:
                 msg = read_message(self.rfile)
+                session_id = msg.headers.get("SESS", session_id)
                 self.reply(self.server.handle_message(msg))
             except WeaveException as e:
-                self.reply(serialize_message(exception_to_message(e)))
+                response = exception_to_message(e)
+                response.headers["SESS"] = session_id
+                self.reply(serialize_message(response))
                 continue
             except IOError:
                 break
