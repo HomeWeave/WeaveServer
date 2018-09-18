@@ -236,7 +236,8 @@ class MessageHandler(StreamRequestHandler):
             try:
                 msg = read_message(self.rfile)
                 session_id = msg.headers.get("SESS", session_id)
-                self.reply(self.server.handle_message(msg))
+                response = self.server.handle_message(msg)
+                self.reply(serialize_message(response))
             except WeaveException as e:
                 response = exception_to_message(e)
                 response.headers["SESS"] = session_id
@@ -303,20 +304,20 @@ class MessageServer(ThreadingTCPServer):
             msg = Message("inform", task)
             msg.headers.update(headers)
             msg.headers["SESS"] = session_id
-            return serialize_message(msg)
+            return msg
         elif msg.operation == "enqueue":
             self.handle_enqueue(msg)
             msg = Message("result")
             msg.headers["RES"] = "OK"
             msg.headers["SESS"] = session_id
-            return serialize_message(msg)
+            return msg
         elif msg.operation == "create":
             queue_name = self.handle_create(msg)
             msg = Message("result")
             msg.headers["RES"] = "OK"
             msg.headers["Q"] = queue_name
             msg.headers["SESS"] = session_id
-            return serialize_message(msg)
+            return msg
         else:
             raise BadOperation(msg.operation)
 
