@@ -126,7 +126,7 @@ class TestMessageServer(object):
 
     def test_bad_structure(self):
         with pytest.raises(ProtocolError):
-            send_raw("sdkhsds-ss!3l")
+            send_raw("sdkhsds\n-ss!3l")
 
     def test_required_fields_missing(self):
         with pytest.raises(ProtocolError):
@@ -403,26 +403,31 @@ class TestMessageServer(object):
         sender2.start()
         sender2.send("diff", headers={"COOKIE": "diff"})
 
+        msgs1 = []
+        sem1 = Semaphore(0)
         receiver1 = Receiver(self.conn, "/test.sessionized2", cookie="xyz")
+        receiver1.on_message = make_receiver(2, msgs1, sem1, receiver1)
         receiver1.start()
+        Thread(target=receiver1.run).start()
 
+        msgs2 = []
+        sem2 = Semaphore(0)
         receiver2 = Receiver(self.conn, "/test.sessionized2", cookie="diff")
+        receiver2.on_message = make_receiver(2, msgs2, sem2, receiver2)
         receiver2.start()
+        Thread(target=receiver2.run).start()
 
-        assert receiver1.receive().task == "test"
-        assert receiver2.receive().task == "diff"
+        assert sem1.acquire(timeout=10)
+        assert sem2.acquire(timeout=10)
+        assert msgs1[0] == "test"
+        assert msgs2[0] == "diff"
 
         # Test retrieving items for the second time.
-        event = Event()
-        receiver2.on_message = lambda x, y: event.set()
-        thread = Thread(target=receiver2.run)
-        thread.start()
-
         sender1.send("test2", headers={"COOKIE": "xyz"})
-        assert receiver1.receive().task == "test2"
+        assert sem1.acquire(timeout=10)
+        assert msgs1[1] == "test2"
 
-        receiver2.stop()
-        thread.join()
+        assert not sem2.acquire(timeout=5)
 
     def test_several_sessionized_queues(self):
         queue_info = {
@@ -589,6 +594,11 @@ class TestMessageServer(object):
 
 
 class TestMessageServerClosure(object):
+    @classmethod
+    def setup_class(cls):
+        cls.conn = WeaveConnection()
+        cls.conn.connect()
+
     @pytest.mark.parametrize("queue_type,cookie",
                              [("fifo", (x for x in ("a", "b"))),
                               ("sticky", (x for x in ("a", "b"))),
