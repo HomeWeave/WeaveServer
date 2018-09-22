@@ -292,9 +292,6 @@ class MessageServer(ThreadingTCPServer):
         self.sent_start_notification = False
         self.queue_map = {}
         self.queue_map_lock = RLock()
-        self.listener_map = {}
-        self.sticky_messages = {}
-        self.clients = {}
         self.apps_auth = apps_auth
 
     def create_queue(self, queue_info, headers):
