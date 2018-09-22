@@ -117,6 +117,7 @@ class TestMessageServer(object):
 
     @classmethod
     def teardown_class(cls):
+        cls.conn.close()
         cls.server.shutdown()
         cls.server_thread.join()
 
@@ -594,10 +595,6 @@ class TestMessageServer(object):
 
 
 class TestMessageServerClosure(object):
-    @classmethod
-    def setup_class(cls):
-        cls.conn = WeaveConnection()
-        cls.conn.connect()
 
     @pytest.mark.parametrize("queue_type,cookie",
                              [("fifo", (x for x in ("a", "b"))),
@@ -611,7 +608,10 @@ class TestMessageServerClosure(object):
         thread.start()
         event.wait()
 
-        creator = Creator(self.conn, auth="auth1")
+        conn = WeaveConnection()
+        conn.connect()
+
+        creator = Creator(conn, auth="auth1")
         creator.start()
         creator.create({
             "queue_name": "/fifo-closure",
@@ -637,14 +637,14 @@ class TestMessageServerClosure(object):
             return run
 
         e1 = Event()
-        r1 = Receiver(self.conn, "/fifo-closure", cookie=next(cookie))
+        r1 = Receiver(conn, "/fifo-closure", cookie=next(cookie))
         r1.start()
         patch_receive(r1, e1)
         t1 = Thread(target=wrap_run(r1))
         t1.start()
 
         e2 = Event()
-        r2 = Receiver(self.conn, "/fifo-closure", cookie=next(cookie))
+        r2 = Receiver(conn, "/fifo-closure", cookie=next(cookie))
         r2.start()
         patch_receive(r2, e2)
         t2 = Thread(target=wrap_run(r2))
