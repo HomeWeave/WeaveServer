@@ -30,6 +30,13 @@ def get_required_field(headers, key):
     return headers[key]
 
 
+def safe_close(obj):
+    try:
+        obj.close()
+    except (IOError, OSError):
+        pass
+
+
 class BaseQueue(object):
     def __init__(self, queue_info):
         self.queue_info = queue_info
@@ -244,6 +251,9 @@ class MessageHandler(StreamRequestHandler):
         response_queue = Queue()
         thread = Thread(target=self.process_queue, args=(response_queue,))
         thread.start()
+        fileno = self.request.fileno()
+        self.server.add_connection(self.request, self.rfile, self.wfile)
+
         try:
             while True:
                 session_id = "NO-SESSION-ID"
@@ -256,12 +266,12 @@ class MessageHandler(StreamRequestHandler):
                     response.headers["SESS"] = session_id
                     response_queue.put(response)
                     continue
-                except IOError:
+                except (IOError, ValueError):
                     break
         finally:
             response_queue.put(None)
-
-        thread.join()
+            thread.join()
+            self.server.remove_connection(fileno)
 
 
     def process_queue(self, response_queue):
@@ -293,6 +303,8 @@ class MessageServer(ThreadingTCPServer):
         self.queue_map = {}
         self.queue_map_lock = RLock()
         self.apps_auth = apps_auth
+        self.active_connections = {}
+        self.active_connections_lock = RLock()
 
     def create_queue(self, queue_info, headers):
         try:
@@ -434,8 +446,23 @@ class MessageServer(ThreadingTCPServer):
             self.notify_start()
             self.sent_start_notification = True
 
+    def add_connection(self, sock, rfile, wfile):
+        with self.active_connections_lock:
+            self.active_connections[sock.fileno()] = sock, rfile, wfile
+
+    def remove_connection(self, fileno):
+        with self.active_connections_lock:
+            self.active_connections.pop(fileno)
+
     def shutdown(self):
         for _, queue in self.queue_map.items():
             queue.disconnect()
+
+        with self.active_connections_lock:
+            for sock, rfile, wfile in self.active_connections.values():
+                safe_close(rfile)
+                safe_close(wfile)
+                safe_close(sock)
+
         super().shutdown()
         super().server_close()
