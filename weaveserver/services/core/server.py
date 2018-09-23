@@ -5,6 +5,7 @@ try:
     from queue import Queue
 except ImportError:
     from Queue import Queue
+import socket
 import time
 from collections import defaultdict
 from socketserver import ThreadingTCPServer, StreamRequestHandler
@@ -458,9 +459,10 @@ class MessageServer(ThreadingTCPServer):
 
         with self.active_connections_lock:
             for sock, rfile, wfile in self.active_connections.values():
+                sock.shutdown(socket.SHUT_RDWR)
+                safe_close(sock)
                 safe_close(rfile)
                 safe_close(wfile)
-                safe_close(sock)
 
         super().shutdown()
         super().server_close()
