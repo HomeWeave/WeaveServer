@@ -9,11 +9,10 @@ import time
 from collections import defaultdict
 from socketserver import ThreadingTCPServer, StreamRequestHandler
 from threading import RLock, Thread
-from uuid import uuid4
 
 from jsonschema import validate, ValidationError, SchemaError
 
-from weavelib.exceptions import WeaveException, ObjectNotFound, ObjectClosed
+from weavelib.exceptions import WeaveException, ObjectNotFound
 from weavelib.exceptions import ObjectAlreadyExists, AuthenticationFailed
 from weavelib.exceptions import ProtocolError, BadOperation, InternalError
 from weavelib.exceptions import SchemaValidationFailed
@@ -273,7 +272,6 @@ class MessageHandler(StreamRequestHandler):
             thread.join()
             self.server.remove_connection(fileno)
 
-
     def process_queue(self, response_queue):
         while True:
             msg = response_queue.get()
@@ -377,7 +375,7 @@ class MessageServer(ThreadingTCPServer):
             queue.enqueue(msg.task, msg.headers)
         except ValidationError:
             msg = "Schema: {}, on instance: {}, for queue: {}".format(
-                    queue.queue_info["request_schema"], msg.task, queue)
+                queue.queue_info["request_schema"], msg.task, queue)
             raise SchemaValidationFailed(msg)
 
     def handle_dequeue(self, msg, out_queue):
