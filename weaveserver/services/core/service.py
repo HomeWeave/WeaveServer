@@ -38,6 +38,7 @@ class CoreService(BackgroundThreadServiceStart, BaseService):
 
     def on_service_stop(self):
         self.registry.stop()
+        self.conn.close()
         self.message_server.shutdown()
         self.message_server_thread.join()
         self.shutdown_event.set()
