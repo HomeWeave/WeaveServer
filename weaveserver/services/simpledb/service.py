@@ -87,7 +87,7 @@ class SimpleDatabaseService(BackgroundProcessServiceStart, BaseService):
                 ArgParameter("key", "Name of the key.", str),
                 ArgParameter("value", "JSON Object", {}),
             ], self.db.insert)
-        ], self)
+        ], self, self.conn)
         self.shutdown = Event()
 
     def on_service_start(self, *args, **kwargs):

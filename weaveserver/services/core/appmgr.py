@@ -21,7 +21,7 @@ class RootRPCServer(RPCServer):
         request_queue = "/_system/root_rpc/request"
         response_queue = "/_system/root_rpc/response"
 
-        creator = Creator(auth=self.service.auth_token)
+        creator = Creator(self.conn, auth=self.service.auth_token)
         creator.start()
         creator.create({
             "queue_name": request_queue,
@@ -46,7 +46,7 @@ class ApplicationRegistry(object):
         "type": "object"
     }
 
-    def __init__(self, service):
+    def __init__(self, conn, service):
         self.rpc = RootRPCServer("app_manager", "Application Manager", [
             ServerAPI("register_rpc", "Register new RPC", [
                 ArgParameter("name", "Name of the RPC", str),
@@ -67,9 +67,9 @@ class ApplicationRegistry(object):
             ], self.rpc_info),
             ServerAPI("build_info", "Get HomeWeave version info.", [],
                       self.build_info),
-        ], service)
+        ], service, conn)
         self.service = service
-        self.queue_creator = Creator(auth=service.auth_token)
+        self.queue_creator = Creator(conn, auth=service.auth_token)
         self.all_rpcs = defaultdict(dict)
         self.all_apps = {}
 

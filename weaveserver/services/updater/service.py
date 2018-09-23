@@ -199,8 +199,8 @@ class UpdaterService(BackgroundProcessServiceStart, BaseService):
                       self.updater.perform_upgrade),
             ServerAPI("reboot", "Reboot the system", [], reboot),
             ServerAPI("status", "Get the current status.", [], self.get_status)
-        ], self)
-        self.http = AppHTTPServer(self)
+        ], self, self.conn)
+        self.http = AppHTTPServer(self.conn, self)
 
         self.status_lock = RLock()
         self.status = "No updates available."

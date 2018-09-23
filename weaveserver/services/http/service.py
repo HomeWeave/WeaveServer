@@ -5,6 +5,7 @@ from collections import defaultdict
 from tempfile import TemporaryDirectory
 from threading import Event, Thread
 
+from weavelib.messaging import WeaveConnection
 from weavelib.rpc import RPCServer, ServerAPI, ArgParameter, get_rpc_caller
 from weavelib.services import BaseService, BackgroundProcessServiceStart
 
@@ -39,14 +40,14 @@ class AppResource(object):
 
 
 class HTTPResourceRegistry(object):
-    def __init__(self, service, plugin_path):
+    def __init__(self, conn, service, plugin_path):
         self.rpc = RPCServer("http", "Manage HTTP server.", [
             ServerAPI("register_view", "Register resources to HTTP server", [
                 ArgParameter("url", "URL to register to.", {"type": "string"}),
                 ArgParameter("content", "Resource content", {"type": "string"}),
                 ArgParameter("mimetype", "Resource MIME", {"type": "string"}),
             ], self.register_view),
-        ], service)
+        ], service, conn)
         self.plugin_path = plugin_path
         self.all_resources = defaultdict(dict)
 
@@ -76,7 +77,8 @@ class HTTPService(BackgroundProcessServiceStart, BaseService):
     def __init__(self, token, config):
         super().__init__(token)
         self.plugin_dir = TemporaryDirectory()
-        self.http_registry = HTTPResourceRegistry(self, self.plugin_dir.name)
+        self.http_registry = HTTPResourceRegistry(self.conn, self,
+                                                  self.plugin_dir.name)
         self.http = HTTPServer(self, self.plugin_dir.name)
         self.exited = Event()
 
