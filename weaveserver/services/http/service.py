@@ -79,7 +79,7 @@ class HTTPService(BackgroundProcessServiceStart, BaseService):
         self.plugin_dir = TemporaryDirectory()
         self.http_registry = HTTPResourceRegistry(self.conn, self,
                                                   self.plugin_dir.name)
-        self.http = HTTPServer(self, self.plugin_dir.name)
+        self.http = HTTPServer(self.conn, self, self.plugin_dir.name)
         self.exited = Event()
 
     def on_service_start(self, *args, **kwargs):
