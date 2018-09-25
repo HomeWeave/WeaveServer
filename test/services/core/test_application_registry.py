@@ -1,6 +1,6 @@
 import time
 
-from weavelib.messaging import Receiver
+from weavelib.messaging import Receiver, WeaveConnection
 from weavelib.rpc import RPCServer, ServerAPI, RPCClient
 from weavelib.services import BaseService
 
@@ -24,7 +24,7 @@ class DummyService(BaseService):
         super(DummyService, self).__init__(token)
         self.rpc_server = RPCServer("name", "desc", [
             ServerAPI("api1", "desc2", [], self.api1),
-        ], self)
+        ], self, self.conn)
 
     def api1(self):
         return "OK"
@@ -43,8 +43,11 @@ class TestApplicationService(object):
         cls.core_service.service_start()
         assert cls.core_service.wait_for_start(30)
 
+        cls.conn = WeaveConnection.local()
+        cls.conn.connect()
+
         # Wait till it starts.
-        receiver = Receiver("/_system/root_rpc/request")
+        receiver = Receiver(cls.conn, "/_system/root_rpc/request")
         while True:
             try:
                 receiver.start()
@@ -61,7 +64,7 @@ class TestApplicationService(object):
         cls.dummy_service.service_stop()
 
     def test_rpc(self):
-        rpc = RPCClient(self.dummy_service.rpc_server.info_message)
+        rpc = RPCClient(self.conn, self.dummy_service.rpc_server.info_message)
         rpc.start()
         assert "OK" == rpc["api1"](_block=True)
         rpc.stop()

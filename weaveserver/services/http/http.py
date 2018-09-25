@@ -17,8 +17,9 @@ def return_response(code, obj):
 
 
 class RPCHandler(object):
-    def __init__(self, service):
+    def __init__(self, conn, service):
         self.rpc_info_cache = {}
+        self.conn = conn
         self.appmgr_client = service.rpc_client
         self.service_token = service.token
 
@@ -26,7 +27,7 @@ class RPCHandler(object):
         rpc_info = self.appmgr_client["rpc_info"](package_name, rpc_name,
                                                   _block=True)
 
-        rpc_client = RPCClient(rpc_info, self.service_token)
+        rpc_client = RPCClient(self.conn, rpc_info, self.service_token)
         rpc_client.start()
         res = rpc_client[api_name](*args, _block=True, **kwargs)
         rpc_client.stop()
@@ -35,13 +36,13 @@ class RPCHandler(object):
 
 
 class HTTPServer(Bottle):
-    def __init__(self, service, plugin_path):
+    def __init__(self, conn, service, plugin_path):
         super().__init__()
         self.service = service
 
         self.static_path = os.path.join(os.path.dirname(__file__), "static")
         self.plugin_path = plugin_path
-        self.rpc_handler = RPCHandler(service)
+        self.rpc_handler = RPCHandler(conn, service)
 
         self.route("/")(self.handle_root)
         self.route("/api/status-cards")(self.handle_status_cards)

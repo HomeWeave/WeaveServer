@@ -1,11 +1,10 @@
 import os
-import time
 from tempfile import TemporaryDirectory
 from unittest.mock import Mock
 
 import pytest
 from weavelib.exceptions import ObjectNotFound
-from weavelib.messaging import Receiver
+from weavelib.messaging import WeaveConnection
 from weavelib.rpc import RPCClient
 from weavelib.services import BackgroundThreadServiceStart
 
@@ -63,17 +62,8 @@ class TestPluginService(object):
         cls.core_service.service_start()
         cls.core_service.wait_for_start(30)
 
-        # cls.core_service.message_server.register_application(AUTH["auth2"])
-        # cls.core_service.message_server.register_application(AUTH["auth3"])
-
-        # Wait till it starts.
-        receiver = Receiver("/_system/root_rpc/request")
-        while True:
-            try:
-                receiver.start()
-                break
-            except IOError:
-                time.sleep(1)
+        cls.conn = WeaveConnection.local()
+        cls.conn.connect()
 
         cls.db_dir = TemporaryDirectory()
         db_config = {
@@ -132,7 +122,8 @@ class TestPluginService(object):
         cls.temp_dir.cleanup()
 
     def test_available_plugins(self):
-        rpc_client = RPCClient(self.plugin_service.rpc.info_message, "auth4")
+        rpc_client = RPCClient(self.conn, self.plugin_service.rpc.info_message,
+                               "auth4")
         rpc_client.start()
         expected = {"clone-url-1"}
         available = rpc_client["list_available"](_block=True)
@@ -141,14 +132,16 @@ class TestPluginService(object):
         rpc_client.stop()
 
     def test_supported_plugins(self):
-        rpc_client = RPCClient(self.plugin_service.rpc.info_message, "auth4")
+        rpc_client = RPCClient(self.conn, self.plugin_service.rpc.info_message,
+                               "auth4")
         rpc_client.start()
         expected = ["git", "file"]
         assert rpc_client["supported_plugin_types"](_block=True) == expected
         rpc_client.stop()
 
     def test_install_plugin(self):
-        rpc_client = RPCClient(self.plugin_service.rpc.info_message, "auth4")
+        rpc_client = RPCClient(self.conn, self.plugin_service.rpc.info_message,
+                               "auth4")
         rpc_client.start()
 
         path = os.path.join(os.path.dirname(__file__), 'test_dir/plugin1')
@@ -163,7 +156,7 @@ class TestPluginService(object):
         info = self.plugin_service.rpc_client["rpc_info"](package,
                                                           "test_plugin",
                                                           _block=True)
-        plugin_rpc = RPCClient(info, "auth4")
+        plugin_rpc = RPCClient(self.conn, info, "auth4")
         plugin_rpc.start()
         assert plugin_rpc["test"](_block=True) == "test"
 

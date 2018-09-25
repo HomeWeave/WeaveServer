@@ -17,7 +17,7 @@ class PluginService(BackgroundProcessServiceStart, BaseService):
         super().__init__(token)
         plugin_path = config["plugins"]["PLUGIN_DIR"]
         venv_path = config["plugins"]["VENV_DIR"]
-        self.db = AppDBConnection(self)
+        self.db = AppDBConnection(self.conn, self)
         self.plugin_manager = PluginManager(plugin_path, venv_path, self.db,
                                             self.rpc_client)
         self.rpc = RPCServer("plugins", "External Plugins Manager.", [
@@ -35,8 +35,8 @@ class PluginService(BackgroundProcessServiceStart, BaseService):
                 ArgParameter("type", "Type of plugin", str),
                 ArgParameter("src", "URI to the plugin.", str),
             ], self.plugin_manager.install_plugin)
-        ], self)
-        self.http = AppHTTPServer(self)
+        ], self, self.conn)
+        self.http = AppHTTPServer(self.conn, self)
         self.shutdown = Event()
 
     def on_service_start(self, *args, **kwargs):
