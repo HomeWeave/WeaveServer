@@ -9,7 +9,7 @@ class TestPluginService(BasePlugin):
         super(TestPluginService, self).__init__(*args, **kwargs)
         self.rpc = RPCServer("test_plugin", "", [
             ServerAPI("test", "", [], self.test)
-        ], self)
+        ], self, self.conn)
         self.exited = Event()
 
     def test(self):

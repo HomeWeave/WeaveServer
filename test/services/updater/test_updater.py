@@ -1,7 +1,7 @@
 import time
 from unittest.mock import Mock
 
-from weavelib.messaging import Receiver
+from weavelib.messaging import WeaveConnection
 from weavelib.rpc import RPCClient
 from weavelib.services import BackgroundThreadServiceStart
 
@@ -50,18 +50,12 @@ class TestUpdateScanner(object):
         self.core_service.message_server.register_application(AUTH["auth2"])
         self.core_service.message_server.register_application(AUTH["auth3"])
 
-        # Wait till it starts.
-        receiver = Receiver("/_system/root_rpc/request")
-        while True:
-            try:
-                receiver.start()
-                break
-            except:
-                time.sleep(1)
-
         self.http_service = ThreadedHTTPService("auth3", None)
         self.http_service.service_start()
         self.http_service.wait_for_start(30)
+
+        self.conn = WeaveConnection.local()
+        self.conn.connect()
 
     def teardown_method(self):
         UpdateScanner.UPDATE_CHECK_FREQ = self.update_check_freq_backup
@@ -106,7 +100,7 @@ class TestUpdateScanner(object):
 
         service.update_status("dummy")
 
-        rpc = RPCClient(service.rpc.info_message)
+        rpc = RPCClient(self.conn, service.rpc.info_message)
         rpc.start()
 
         rpc["perform_upgrade"](_block=True)

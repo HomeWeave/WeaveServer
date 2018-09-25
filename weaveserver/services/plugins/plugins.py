@@ -143,7 +143,7 @@ class PluginManager(object):
         plugin_info = load_plugin_from_path(self.base_dir, plugin_name)
         plugin_id = plugin.unique_id()
         if plugin_id in self.all_plugins:
-            remote_info = self.all_plugins[plugin_info]
+            remote_info = self.all_plugins[plugin_id]
             plugin_info["name"] = remote_info["name"]
             plugin_info["description"] = remote_info["description"]
 
@@ -176,6 +176,9 @@ class PluginManager(object):
         self.running_plugins[id] = service
         plugin["enabled"] = True
 
+        # Write to the DB.
+        self.enabled_plugins.add(id)
+        self.database["ENABLED_PLUGINS"] = list(self.enabled_plugins)
         return True
 
     def deactivate(self, id):
@@ -184,7 +187,7 @@ class PluginManager(object):
         except KeyError:
             raise ObjectNotFound(id)
 
-        if not plugin["enabled"]:
+        if id not in self.enabled_plugins:
             raise BadArguments("Plugin not active.")
 
         service = self.running_plugins.get(id)
@@ -197,4 +200,7 @@ class PluginManager(object):
         self.appmgr_rpc["unregister_plugin"](service.token, _block=True)
         del self.running_plugins[id]
         plugin["enabled"] = False
+
+        self.enabled_plugins.discard(id)
+        self.database["ENABLED_PLUGINS"] = list(self.enabled_plugins)
         return True

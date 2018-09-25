@@ -1,10 +1,9 @@
 import hashlib
 import os
-import time
 
 import requests
 from weavelib.http import AppHTTPServer
-from weavelib.messaging import Receiver
+from weavelib.messaging import WeaveConnection
 from weavelib.rpc import RPCServer, ServerAPI, RPCClient
 from weavelib.services import BaseService, BackgroundThreadServiceStart
 
@@ -44,8 +43,8 @@ class DummyService(BaseService):
         super(DummyService, self).__init__(token)
         self.rpc_server = RPCServer("name", "desc", [
             ServerAPI("api1", "desc2", [], self.api1),
-        ], self)
-        self.http = AppHTTPServer(self)
+        ], self, self.conn)
+        self.http = AppHTTPServer(self.conn, self)
 
     def api1(self):
         return [200, "OK"]
@@ -70,14 +69,8 @@ class TestHTTPService(object):
         cls.core_service.message_server.register_application(AUTH["auth2"])
         cls.core_service.message_server.register_application(AUTH["auth3"])
 
-        # Wait till it starts.
-        receiver = Receiver("/_system/root_rpc/request")
-        while True:
-            try:
-                receiver.start()
-                break
-            except:
-                time.sleep(1)
+        cls.conn = WeaveConnection.local()
+        cls.conn.connect()
 
         cls.service = ThreadedHTTPService("auth2", None)
         cls.service.service_start()
@@ -95,7 +88,7 @@ class TestHTTPService(object):
         self.dummy_service.service_stop()
 
     def test_simple_rpc(self):
-        rpc = RPCClient(self.dummy_service.rpc_server.info_message)
+        rpc = RPCClient(self.conn, self.dummy_service.rpc_server.info_message)
         rpc.start()
         assert [200, "OK"] == rpc["api1"](_block=True)
         rpc.stop()
@@ -124,7 +117,6 @@ class TestHTTPService(object):
         url = "http://localhost:5000/api/rpc"
         res = requests.post(url, json=obj).json()
         assert res == {"error": "RPC not found."}
-
 
     def test_http_simple_request(self):
         base_url = "http://localhost:5000" + self.dummy_service.relative_url

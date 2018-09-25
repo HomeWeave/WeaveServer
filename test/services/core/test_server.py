@@ -9,7 +9,7 @@ from weavelib.exceptions import SchemaValidationFailed, ProtocolError
 from weavelib.exceptions import BadOperation, InternalError, ObjectClosed
 from weavelib.exceptions import AuthenticationFailed
 from weavelib.messaging import Sender, Receiver, Creator, read_message
-from weavelib.messaging import ensure_ok_message
+from weavelib.messaging import ensure_ok_message, WeaveConnection
 
 from weaveserver.services.core.server import MessageServer
 from weaveserver.core.logger import configure_logging
@@ -74,9 +74,9 @@ configure_logging()
 
 def send_raw(msg):
     sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    sock.connect(("localhost", Sender.PORT))
-    wfile = sock.makefile('wb', Sender.WRITE_BUF_SIZE)
-    rfile = sock.makefile('rb', Sender.READ_BUF_SIZE)
+    sock.connect(("localhost", WeaveConnection.PORT))
+    wfile = sock.makefile('wb', WeaveConnection.WRITE_BUF_SIZE)
+    rfile = sock.makefile('rb', WeaveConnection.READ_BUF_SIZE)
 
     wfile.write(msg.encode())
     wfile.flush()
@@ -107,14 +107,17 @@ class TestMessageServer(object):
         cls.server = MessageServer(11023, CONFIG["apps"], event.set)
         cls.server_thread = Thread(target=cls.server.run)
         cls.server_thread.start()
+        cls.conn = WeaveConnection()
+        cls.conn.connect()
         event.wait()
-        creator = Creator()
+        creator = Creator(cls.conn)
         creator.start()
         for queue_info in TEST_QUEUES:
             creator.create(queue_info, headers={"AUTH": "auth1"})
 
     @classmethod
     def teardown_class(cls):
+        cls.conn.close()
         cls.server.shutdown()
         cls.server_thread.join()
 
@@ -124,7 +127,7 @@ class TestMessageServer(object):
 
     def test_bad_structure(self):
         with pytest.raises(ProtocolError):
-            send_raw("sdkhsds-ss!3l")
+            send_raw("sdkhsds\n-ss!3l")
 
     def test_required_fields_missing(self):
         with pytest.raises(ProtocolError):
@@ -132,7 +135,7 @@ class TestMessageServer(object):
 
     def test_bad_operation(self):
         with pytest.raises(BadOperation):
-            send_raw('MSG {"a": "b"}\nOP bad-operation\nQ a.b.c\n\n')
+            send_raw('MSG {"a": "b"}\nSESS 1\nOP bad-operation\nQ a.b.c\n\n')
 
     def test_bad_json(self):
         with pytest.raises(ProtocolError):
@@ -143,19 +146,19 @@ class TestMessageServer(object):
             send_raw('MSG {"a": "b"}\nOP enqueue\n\n')
 
     def test_enqueue_without_task(self):
-        s = Sender("/a.b.c")
+        s = Sender(self.conn, "/a.b.c")
         s.start()
         with pytest.raises(ProtocolError):
             s.send(None)
 
     def test_enqueue_to_unknown_queue(self):
-        s = Sender("unknown.queue")
+        s = Sender(self.conn, "unknown.queue")
         s.start()
         with pytest.raises(ObjectNotFound):
             s.send({"a": "b"})
 
     def test_dequeue_from_unknown_queue(self):
-        r = Receiver("unknown.queue")
+        r = Receiver(self.conn, "unknown.queue")
         r.start()
         with pytest.raises(ObjectNotFound):
             r.receive()
@@ -165,7 +168,7 @@ class TestMessageServer(object):
             send_raw('OP dequeue\n\n')
 
     def test_enqueue_with_bad_schema(self):
-        s = Sender("/a.b.c")
+        s = Sender(self.conn, "/a.b.c")
         s.start()
         with pytest.raises(SchemaValidationFailed):
             s.send({"foo": [1, 2]})
@@ -173,8 +176,8 @@ class TestMessageServer(object):
     def test_simple_enqueue_dequeue(self):
         msgs = []
 
-        s = Sender("/a.b.c")
-        r = Receiver("/a.b.c")
+        s = Sender(self.conn, "/a.b.c")
+        r = Receiver(self.conn, "/a.b.c")
         s.start()
         r.start()
         r.on_message = lambda msg, hdrs: msgs.append(msg) or r.stop()
@@ -190,8 +193,8 @@ class TestMessageServer(object):
     def test_multiple_enqueue_dequeue(self):
         obj = {"foo": "bar"}
 
-        s = Sender("/a.b.c")
-        r = Receiver("/a.b.c")
+        s = Sender(self.conn, "/a.b.c")
+        r = Receiver(self.conn, "/a.b.c")
 
         s.start()
         for _ in range(10):
@@ -219,9 +222,9 @@ class TestMessageServer(object):
         msgs2 = []
         op = {"foo": "bar"}
 
-        s = Sender("/a.sticky")
+        s = Sender(self.conn, "/a.sticky")
         s.start()
-        r1 = Receiver("/a.sticky")
+        r1 = Receiver(self.conn, "/a.sticky")
         r1.on_message = make_receiver(2, msgs1, sem1, r1)
         r1.start()
         Thread(target=r1.run).start()
@@ -236,7 +239,7 @@ class TestMessageServer(object):
         assert not sem1.acquire(timeout=2)  # This should timeout again.
         assert len(msgs1) == 1
 
-        r2 = Receiver("/a.sticky")
+        r2 = Receiver(self.conn, "/a.sticky")
         r2.on_message = make_receiver(2, msgs2, sem2, r2)
         r2.start()
         Thread(target=r2.run).start()
@@ -254,20 +257,20 @@ class TestMessageServer(object):
         assert len(msgs2) == 2
 
     def test_keyed_enqueue_without_key_header(self):
-        s = Sender("/x.keyedsticky")
+        s = Sender(self.conn, "/x.keyedsticky")
         s.start()
         with pytest.raises(ProtocolError):
             s.send({"foo": "bar"})
 
     def test_keyed_sticky(self):
-        s1 = Sender("/x.keyedsticky")
-        s2 = Sender("/x.keyedsticky")
+        s1 = Sender(self.conn, "/x.keyedsticky")
+        s2 = Sender(self.conn, "/x.keyedsticky")
         obj1 = []
         obj2 = []
         sem1 = Semaphore(0)
         sem2 = Semaphore(0)
-        r1 = Receiver("/x.keyedsticky")
-        r2 = Receiver("/x.keyedsticky")
+        r1 = Receiver(self.conn, "/x.keyedsticky")
+        r2 = Receiver(self.conn, "/x.keyedsticky")
 
         r1.on_message = make_receiver(4, obj1, sem1, r1)
         r1.start()
@@ -310,7 +313,7 @@ class TestMessageServer(object):
             "queue_name": "dummy",
             "request_schema": {"type": "object"}
         }
-        creator = Creator()
+        creator = Creator(self.conn)
         creator.start()
         creator.create(queue_info, headers={"AUTH": "auth1"})
 
@@ -322,7 +325,7 @@ class TestMessageServer(object):
             "queue_name": "bad-schema",
             "request_schema": [1, 2, 3]
         }
-        creator = Creator()
+        creator = Creator(self.conn)
         creator.start()
         with pytest.raises(SchemaValidationFailed):
             creator.create(queue_info, headers={"AUTH": "auth1"})
@@ -332,7 +335,7 @@ class TestMessageServer(object):
             "queue_name": "bad-schema",
             "request_schema": {"type": "wrong"}
         }
-        creator = Creator()
+        creator = Creator(self.conn)
         creator.start()
         with pytest.raises(SchemaValidationFailed):
             creator.create(queue_info, headers={"AUTH": "auth1"})
@@ -341,7 +344,7 @@ class TestMessageServer(object):
         queue_info = {
             "queue_name": "bad-schema",
         }
-        creator = Creator()
+        creator = Creator(self.conn)
         creator.start()
         with pytest.raises(SchemaValidationFailed):
             creator.create(queue_info, headers={"AUTH": "auth1"})
@@ -349,14 +352,14 @@ class TestMessageServer(object):
     def test_system_app_queue_create(self):
         queue = "/system/app/queue/create"
         queue_info = {"queue_name": queue, "request_schema": {"type": "string"}}
-        creator = Creator()
+        creator = Creator(self.conn)
         creator.start()
         assert creator.create(queue_info, headers={"AUTH": "auth1"}) == queue
 
     def test_plugin_queue_create(self):
         queue = "/app/queue/create"
         queue_info = {"queue_name": queue, "request_schema": {"type": "string"}}
-        creator = Creator()
+        creator = Creator(self.conn)
         creator.start()
 
         res = "/plugins/com.plugin/plugin/app/queue/create"
@@ -368,16 +371,16 @@ class TestMessageServer(object):
             "queue_type": "sessionized",
             "request_schema": {"type": "string"}
         }
-        creator = Creator()
+        creator = Creator(self.conn)
         creator.start()
         creator.create(queue_info, headers={"AUTH": "auth1"})
 
-        sender = Sender("/test.sessionized")
+        sender = Sender(self.conn, "/test.sessionized")
         sender.start()
         with pytest.raises(ProtocolError):
             sender.send("test")
 
-        receiver = Receiver("/test.sessionized")
+        receiver = Receiver(self.conn, "/test.sessionized")
         receiver.start()
 
         with pytest.raises(ProtocolError):
@@ -389,38 +392,43 @@ class TestMessageServer(object):
             "queue_type": "sessionized",
             "request_schema": {"type": "string"}
         }
-        creator = Creator()
+        creator = Creator(self.conn)
         creator.start()
         creator.create(queue_info, headers={"AUTH": "auth1"})
 
-        sender1 = Sender("/test.sessionized2")
+        sender1 = Sender(self.conn, "/test.sessionized2")
         sender1.start()
         sender1.send("test", headers={"COOKIE": "xyz"})
 
-        sender2 = Sender("/test.sessionized2")
+        sender2 = Sender(self.conn, "/test.sessionized2")
         sender2.start()
         sender2.send("diff", headers={"COOKIE": "diff"})
 
-        receiver1 = Receiver("/test.sessionized2", cookie="xyz")
+        msgs1 = []
+        sem1 = Semaphore(0)
+        receiver1 = Receiver(self.conn, "/test.sessionized2", cookie="xyz")
+        receiver1.on_message = make_receiver(2, msgs1, sem1, receiver1)
         receiver1.start()
+        Thread(target=receiver1.run).start()
 
-        receiver2 = Receiver("/test.sessionized2", cookie="diff")
+        msgs2 = []
+        sem2 = Semaphore(0)
+        receiver2 = Receiver(self.conn, "/test.sessionized2", cookie="diff")
+        receiver2.on_message = make_receiver(2, msgs2, sem2, receiver2)
         receiver2.start()
+        Thread(target=receiver2.run).start()
 
-        assert receiver1.receive().task == "test"
-        assert receiver2.receive().task == "diff"
+        assert sem1.acquire(timeout=10)
+        assert sem2.acquire(timeout=10)
+        assert msgs1[0] == "test"
+        assert msgs2[0] == "diff"
 
         # Test retrieving items for the second time.
-        event = Event()
-        receiver2.on_message = lambda x, y: event.set()
-        thread = Thread(target=receiver2.run)
-        thread.start()
-
         sender1.send("test2", headers={"COOKIE": "xyz"})
-        assert receiver1.receive().task == "test2"
+        assert sem1.acquire(timeout=10)
+        assert msgs1[1] == "test2"
 
-        receiver2.stop()
-        thread.join()
+        assert not sem2.acquire(timeout=5)
 
     def test_several_sessionized_queues(self):
         queue_info = {
@@ -428,7 +436,7 @@ class TestMessageServer(object):
             "queue_type": "sessionized",
             "request_schema": {"type": "string"}
         }
-        creator = Creator()
+        creator = Creator(self.conn)
         creator.start()
         creator.create(queue_info, headers={"AUTH": "auth1"})
 
@@ -441,11 +449,12 @@ class TestMessageServer(object):
             cookie = "c-" + str(i)
             cookies.append(cookie)
 
-            sender = Sender("/test.sessionized/several")
+            sender = Sender(self.conn, "/test.sessionized/several")
             sender.start()
             senders.append(sender)
 
-            receiver = Receiver("/test.sessionized/several", cookie=cookie)
+            receiver = Receiver(self.conn, "/test.sessionized/several",
+                                cookie=cookie)
             receiver.start()
             receivers.append(receiver)
 
@@ -468,25 +477,25 @@ class TestMessageServer(object):
             "queue_type": "fifo",
             "request_schema": {"type": "string"}
         }
-        creator = Creator()
+        creator = Creator(self.conn)
         creator.start()
         creator.create(queue_info, headers={"AUTH": "auth1"})
 
         msgs1 = []
         sem1 = Semaphore(0)
-        receiver1 = Receiver("/test.fifo/simple")
+        receiver1 = Receiver(self.conn, "/test.fifo/simple")
         receiver1.on_message = make_receiver(2, msgs1, sem1, receiver1)
         receiver1.start()
         Thread(target=receiver1.run).start()
 
         msgs2 = []
         sem2 = Semaphore(0)
-        receiver2 = Receiver("/test.fifo/simple")
+        receiver2 = Receiver(self.conn, "/test.fifo/simple")
         receiver2.on_message = make_receiver(2, msgs2, sem2, receiver2)
         receiver2.start()
         Thread(target=receiver2.run).start()
 
-        sender1 = Sender("/test.fifo/simple")
+        sender1 = Sender(self.conn, "/test.fifo/simple")
         sender1.start()
 
         sender1.send("test")
@@ -513,13 +522,12 @@ class TestMessageServer(object):
         assert msgs2[-1] == "test4"
         assert not sem1.acquire(timeout=2)
 
-
     def test_no_auth_create(self):
         queue_info = {
             "queue_name": "/test.auth/1",
             "request_schema": {"type": "string"}
         }
-        creator = Creator()
+        creator = Creator(self.conn)
         creator.start()
         with pytest.raises(ProtocolError):
             creator.create(queue_info)
@@ -531,10 +539,10 @@ class TestMessageServer(object):
         sys_queue = "/system/queue"
         queue_postfix = "/test_plugin"
 
-        sys_creator = Creator(auth="auth1")
+        sys_creator = Creator(self.conn, auth="auth1")
         sys_creator.start()
 
-        plugin_creator = Creator(auth="auth2")
+        plugin_creator = Creator(self.conn, auth="auth2")
         plugin_creator.start()
 
         plugin_queue = plugin_creator.create({
@@ -553,16 +561,19 @@ class TestMessageServer(object):
 
         # auth5 doesn't exist (last iteration).
         for i in range(1, 6):
-            senders.append(Sender(sys_queue, auth="auth" + str(i)))
+            senders.append(Sender(self.conn, sys_queue, auth="auth" + str(i)))
             senders[-1].start()
 
-            senders.append(Sender(plugin_queue, auth="auth" + str(i)))
+            senders.append(Sender(self.conn, plugin_queue,
+                                  auth="auth" + str(i)))
             senders[-1].start()
 
-            receivers.append(Receiver(sys_queue, auth="auth" + str(i)))
+            receivers.append(Receiver(self.conn, sys_queue,
+                                      auth="auth" + str(i)))
             receivers[-1].start()
 
-            receivers.append(Receiver(plugin_queue, auth="auth" + str(i)))
+            receivers.append(Receiver(self.conn, plugin_queue,
+                                      auth="auth" + str(i)))
             receivers[-1].start()
 
         success_indices = set(range(8))
@@ -584,6 +595,7 @@ class TestMessageServer(object):
 
 
 class TestMessageServerClosure(object):
+
     @pytest.mark.parametrize("queue_type,cookie",
                              [("fifo", (x for x in ("a", "b"))),
                               ("sticky", (x for x in ("a", "b"))),
@@ -596,7 +608,10 @@ class TestMessageServerClosure(object):
         thread.start()
         event.wait()
 
-        creator = Creator(auth="auth1")
+        conn = WeaveConnection()
+        conn.connect()
+
+        creator = Creator(conn, auth="auth1")
         creator.start()
         creator.create({
             "queue_name": "/fifo-closure",
@@ -606,9 +621,11 @@ class TestMessageServerClosure(object):
 
         def patch_receive(receiver, event):
             original = receiver.receive
+
             def receive():
                 event.set()
                 original()
+
             receiver.receive = receive
 
         def wrap_run(receiver):
@@ -620,14 +637,14 @@ class TestMessageServerClosure(object):
             return run
 
         e1 = Event()
-        r1 = Receiver("/fifo-closure", cookie=next(cookie))
+        r1 = Receiver(conn, "/fifo-closure", cookie=next(cookie))
         r1.start()
         patch_receive(r1, e1)
         t1 = Thread(target=wrap_run(r1))
         t1.start()
 
         e2 = Event()
-        r2 = Receiver("/fifo-closure", cookie=next(cookie))
+        r2 = Receiver(conn, "/fifo-closure", cookie=next(cookie))
         r2.start()
         patch_receive(r2, e2)
         t2 = Thread(target=wrap_run(r2))

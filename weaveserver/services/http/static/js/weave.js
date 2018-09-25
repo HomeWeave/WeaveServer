@@ -5,21 +5,12 @@ var registerComponent = function(tag, template) {
     });
 };
 
-var ALL_COMPONENTS =    '<!-- TODO: Remove one level of hierarchy of div -->' +
-                        '<div v-if="data.type == \'switch\'">' +
-                        '    <weave-switch v-bind:data="data"></weave-switch>' +
-                        '</div>' +
-                        '<div v-else-if="data.type == \'loop\'">' +
-                        '    <weave-loop v-bind:data="data"></weave-loop>' +
-                        '</div>' +
-                        '<div v-else-if="data.type == \'condition\'">' +
-                        '    <weave-condition v-bind:data="data"></weave-condition>' +
-                        '</div>' +
-                        '<div v-else>' +
-                        '    <ui-components v-bind:data="data"></ui-components>' +
-                        '</div>';
+var ALL_COMPONENTS =    '<weave-switch v-else-if="data.type == \'switch\'" v-bind:data="data"></weave-switch>\n' +
+                        '<weave-loop v-else-if="data.type == \'loop\'" v-bind:data="data"></weave-loop>\n' +
+                        '<weave-condition v-else-if="data.type == \'condition\'" v-bind:data="data"></weave-condition>\n';
 
 var registerCoreComponents = _.once(function() {
+    ALL_COMPONENTS = $("#template-all-components").html() + ALL_COMPONENTS;
     var coreComponents = [
         [
             'weave-switch',
@@ -47,13 +38,10 @@ var registerCoreComponents = _.once(function() {
         [
             'all-components',
             ALL_COMPONENTS
-        ],
-        [
-            'ui-components',
-            '#template-ui-components'
         ]
     ];
 
+    $("#template-all-components").html(ALL_COMPONENTS);
     coreComponents.forEach(function(item) {
         registerComponent.apply(null, item);
     });

@@ -36,8 +36,6 @@ def setup_signals(app):
     def make_new_handler(prev_handler_func):
         def new_handler(var1, var2):
             app.shutdown()
-            if prev_handler_func:
-                prev_handler_func(var1, var2)
         return new_handler
 
     for sig in (signal.SIGTERM, signal.SIGINT):
