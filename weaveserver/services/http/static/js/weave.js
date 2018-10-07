@@ -226,7 +226,7 @@ function GenericApplication(selector, appData) {
         watch: watch,
         methods: {
             processUITemplate: function(template, item) {
-                return ExpressionEvaluator(app, {context: item})(template);
+                return ExpressionEvaluator(app, {context: item})(template || "");
             },
             evaluateCondition: function(condition) {
                 var res = ConditionEvaluator(app, {})(condition);
