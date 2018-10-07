@@ -120,6 +120,28 @@
                             "api_name": "deactivate"
                         }
                     }
+                ],
+                "register_remote_plugin": [
+                    {
+                        "type": "$rpc",
+                        "data": {
+                            "package_name": "weaveserver.services.plugins",
+                            "rpc_name": "plugins",
+                            "api_name": "register_remote_plugin"
+                        },
+                        "success": [
+                            {
+                                "type": "$store",
+                                "keys": ["variables", "new_app_token"],
+                                "value": {
+                                    "__vartype": "result",
+                                    "__expression": {
+                                        "keys": [0]
+                                    }
+                                }
+                            }
+                        ]
+                    }
                 ]
             },
             "$ui": {
@@ -290,6 +312,86 @@
                                 }
                             ]
                         }
+                    },
+                    {
+                        "type": "vertical-layout",
+                        "columnsLarge": 12,
+                        "columnsMedium": 12,
+                        "columnsSmall": 12,
+                        "items": [
+                            {
+                                "type": "h3",
+                                "text": "Add Remote Plugins"
+                            },
+                            {
+                                "type": "paragraph",
+                                "text": "Name of the plugin"
+                            },
+                            {
+                                "type": "textbox",
+                                "variable": ["variables", "remote_plugin", "name"]
+                            },
+                            {
+                                "type": "paragraph",
+                                "text": "Description of the plugin."
+                            },
+                            {
+                                "type": "textbox",
+                                "variable": ["variables", "remote_plugin", "description"],
+                            },
+                            {
+                                "type": "paragraph",
+                                "text": "Unique Package name."
+                            },
+                            {
+                                "type": "textbox",
+                                "variable": ["variables", "remote_plugin", "package_name"],
+                            },
+                            {
+                                "type": "button",
+                                "text": "Submit",
+                                "onclick": [
+                                    {
+                                        "type": "$action",
+                                        "action": "register_remote_plugin",
+                                        "data": [
+                                            {
+                                                "keys": [0, "data", "args"],
+                                                "value": [
+                                                    {
+                                                        "__vartype": "variables",
+                                                        "__expression": {
+                                                            "keys": ["remote_plugin", "name"]
+                                                        }
+                                                    },
+                                                    {
+                                                        "__vartype": "variables",
+                                                        "__expression": {
+                                                            "keys": ["remote_plugin", "description"]
+                                                        }
+                                                    },
+                                                    {
+                                                        "__vartype": "variables",
+                                                        "__expression": {
+                                                            "keys": ["remote_plugin", "package_name"]
+                                                        }
+                                                    },
+                                                ]
+                                            }
+                                        ]
+                                    }
+                                ]
+                            },
+                            {
+                                "type": "paragraph",
+                                "text": {
+                                    "__vartype": "variables",
+                                    "__expression": {
+                                        "keys": ["new_app_token"]
+                                    }
+                                }
+                            }
+                        ]
                     }
                 ]
             }
