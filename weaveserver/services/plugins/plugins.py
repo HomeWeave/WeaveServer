@@ -1,6 +1,7 @@
 import logging
 import os
 from threading import Thread
+from uuid import uuid4
 
 from github3 import GitHub
 
@@ -55,6 +56,9 @@ class GithubRepositoryLister(object):
 
 
 class PluginManager(object):
+    ENABLED_PLUGINS = "ENABLED_PLUGINS"
+    REMOTE_PLUGINS = "REMOTE_PLUGINS"
+
     def __init__(self, base_dir, venv_dir, database, appmgr_rpc):
         self.base_dir = base_dir
         self.venv_dir = venv_dir
@@ -62,6 +66,7 @@ class PluginManager(object):
         self.appmgr_rpc = appmgr_rpc
         self.enabled_plugins = set()
         self.running_plugins = {}
+        self.remote_plugins = {}
         self.all_plugins = {}
         self.github_weave_org = GithubRepositoryLister('HomeWeave')
 
@@ -70,10 +75,16 @@ class PluginManager(object):
         self.init_structure(self.venv_dir)
 
         try:
-            enabled_plugins = self.database["ENABLED_PLUGINS"]
+            enabled_plugins = self.database[self.ENABLED_PLUGINS]
         except KeyError:
-            self.database["ENABLED_PLUGINS"] = []
+            self.database[self.ENABLED_PLUGINS] = []
             enabled_plugins = []
+
+        try:
+            self.remote_plugins = self.database[self.REMOTE_PLUGINS]
+        except KeyError:
+            self.database[self.REMOTE_PLUGINS] = {}
+            self.remote_plugins = {}
 
         for plugin in list_plugins(self.base_dir):
             plugin["enabled"] = plugin["id"] in enabled_plugins
@@ -93,15 +104,21 @@ class PluginManager(object):
 
             self.all_plugins[plugin_id] = plugin_info
 
-        thread = Thread(target=self.start_async, args=(self.enabled_plugins,))
+        thread = Thread(target=self.start_async,
+                        args=(self.enabled_plugins, self.remote_plugins))
         thread.start()
 
-    def start_async(self, enabled_plugins):
+    def start_async(self, enabled_plugins, remote_plugins):
         for plugin_id in enabled_plugins:
             self.activate(plugin_id)
 
-        logger.info("Started %d of %d plugins.", len(self.running_plugins),
-                    len(self.all_plugins))
+        for plugin_id, plugin_info in remote_plugins.items():
+            token = self.appmgr_rpc["register_plugin"](plugin_info, _block=True)
+            self.all_plugins[plugin_id] = plugin_info
+
+        logger.info("Registered %d remote plugins.", len(remote_plugins))
+        logger.info("Started %d of %d local plugins.",
+                    len(self.running_plugins), len(self.all_plugins))
 
     def stop(self):
         for id, service in self.running_plugins.items():
@@ -117,8 +134,8 @@ class PluginManager(object):
                 raise Exception("Unable to create directory: " + path)
 
     def list_plugins(self):
-        subset = {"id", "name", "description", "enabled", "installed", "url"}
-        return [{k: x[k] for k in subset} for x in self.all_plugins.values()]
+        keys = {"id", "name", "description", "enabled", "installed", "url"}
+        return [{k: x.get(k) for k in keys} for x in self.all_plugins.values()]
 
     def supported_types(self):
         return ["git", "file"]
@@ -178,7 +195,7 @@ class PluginManager(object):
 
         # Write to the DB.
         self.enabled_plugins.add(id)
-        self.database["ENABLED_PLUGINS"] = list(self.enabled_plugins)
+        self.database[self.ENABLED_PLUGINS] = list(self.enabled_plugins)
         return True
 
     def deactivate(self, id):
@@ -202,5 +219,31 @@ class PluginManager(object):
         plugin["enabled"] = False
 
         self.enabled_plugins.discard(id)
-        self.database["ENABLED_PLUGINS"] = list(self.enabled_plugins)
+        self.database[self.ENABLED_PLUGINS] = list(self.enabled_plugins)
         return True
+
+    def register_remote_plugin(self, name, description, package):
+        plugin_info = {
+            "name": name,
+            "package": package,
+            "description": description,
+            "type": "REMOTE",
+        }
+        plugin_id = "remote-plugin-" + str(uuid4())
+        token = self.appmgr_rpc["register_plugin"](plugin_info, _block=True)
+
+        self.all_plugins[plugin_id] = plugin_info
+        self.remote_plugins[plugin_id] = plugin_info
+
+        self.database[self.REMOTE_PLUGINS] = self.remote_plugins
+
+        return token
+
+    def unregister_remote_plugin(self, plugin_id):
+        try:
+            del self.remote_plugins[plugin_id]
+        except KeyError:
+            raise ObjectNotFound(id)
+
+        self.database[self.REMOTE_PLUGINS] = self.remote_plugins
+        self.all_plugins.pop(plugin_id)
