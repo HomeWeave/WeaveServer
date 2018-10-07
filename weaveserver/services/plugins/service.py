@@ -34,7 +34,12 @@ class PluginService(BackgroundProcessServiceStart, BaseService):
             ServerAPI("install_plugin", "Install a plugin of supported type", [
                 ArgParameter("type", "Type of plugin", str),
                 ArgParameter("src", "URI to the plugin.", str),
-            ], self.plugin_manager.install_plugin)
+            ], self.plugin_manager.install_plugin),
+            ServerAPI("register_remote_plugin", "Register a remote plugin.", [
+                ArgParameter("name", "Name of the plugin", str),
+                ArgParameter("description", "Description of the plugin", str),
+                ArgParameter("package", "Unique package of the plugin", str),
+            ], self.plugin_manager.register_remote_plugin)
         ], self, self.conn)
         self.http = AppHTTPServer(self.conn, self)
         self.shutdown = Event()

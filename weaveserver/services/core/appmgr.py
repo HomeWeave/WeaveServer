@@ -58,6 +58,10 @@ class ApplicationRegistry(object):
                 ArgParameter("plugin_info", "Plugin Information",
                              self.PLUGIN_INFO_SCHEMA)
             ], self.register_plugin),
+            ServerAPI("register_remote_plugin", "Register Remote Plugin", [
+                ArgParameter("plugin_info", "Plugin Information",
+                             self.PLUGIN_INFO_SCHEMA)
+            ], self.register_remote_plugin),
             ServerAPI("unregister_plugin", "Unregister Plugin", [
                 ArgParameter("token", "Plugin Token", str)
             ], self.unregister_plugin),
@@ -145,6 +149,14 @@ class ApplicationRegistry(object):
 
         token = "app-token-" + str(uuid4())
         plugin_info["type"] = "PLUIGIN"
+        plugin_info["appid"] = token
+        self.service.message_server.register_application(plugin_info)
+
+        return token
+
+    def register_remote_plugin(self, plugin_info):
+        token = "app-token-" + str(uuid4())
+        plugin_info["type"] = "REMOTE-PLUGIN"
         plugin_info["appid"] = token
         self.service.message_server.register_application(plugin_info)
 
