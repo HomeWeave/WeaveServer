@@ -55,6 +55,8 @@ class GithubRepositoryLister(object):
 
 
 class PluginManager(object):
+    REMOTE_PLUGINS = "REMOTE_PLUGINS"
+
     def __init__(self, base_dir, venv_dir, database, appmgr_rpc):
         self.base_dir = base_dir
         self.venv_dir = venv_dir
@@ -70,9 +72,9 @@ class PluginManager(object):
         self.init_structure(self.venv_dir)
 
         try:
-            enabled_plugins = self.database["ENABLED_PLUGINS"]
+            enabled_plugins = self.database[self.ENABLED_PLUGINS]
         except KeyError:
-            self.database["ENABLED_PLUGINS"] = []
+            self.database[self.ENABLED_PLUGINS] = []
             enabled_plugins = []
 
         for plugin in list_plugins(self.base_dir):
@@ -178,7 +180,7 @@ class PluginManager(object):
 
         # Write to the DB.
         self.enabled_plugins.add(id)
-        self.database["ENABLED_PLUGINS"] = list(self.enabled_plugins)
+        self.database[self.ENABLED_PLUGINS] = list(self.enabled_plugins)
         return True
 
     def deactivate(self, id):
@@ -202,5 +204,5 @@ class PluginManager(object):
         plugin["enabled"] = False
 
         self.enabled_plugins.discard(id)
-        self.database["ENABLED_PLUGINS"] = list(self.enabled_plugins)
+        self.database[self.ENABLED_PLUGINS] = list(self.enabled_plugins)
         return True
