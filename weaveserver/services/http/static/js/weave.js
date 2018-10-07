@@ -234,6 +234,15 @@ function GenericApplication(selector, appData) {
             },
             fireEvent: function(obj) {
                 appActions.fire(obj);
+            },
+            updateVariable: function(keys, value) {
+                appActions.fire([
+                    {
+                        type: "$store",
+                        keys: keys,
+                        value: value
+                    }
+                ]);
             }
         }
     });

@@ -17,6 +17,9 @@
         <div v-else-if="data.type == 'button'">
             <weave-button v-bind:data="data"></weave-button>
         </div>
+        <div v-else-if="data.type == 'textbox'">
+            <weave-textbox v-bind:data="data"></weave-textbox>
+        </div>
     </script>
     <script type="text/x-template" id="template-vertical-layout">
         <div>
@@ -37,6 +40,9 @@
         <button v-on:click="$root.fireEvent(data.onclick)">
             {{data.text}}
         </button>
+    </script>
+    <script type="text/x-template" id="template-textbox">
+        <input type="text" v-on:input="$root.updateVariable(data.variable, $event.target.value)">
     </script>
     <script id="template-plugin" type="text/x-template">
         <div>
@@ -301,6 +307,7 @@
             registerComponent('header-3', '#template-h3');
             registerComponent('paragraph', '#template-paragraph');
             registerComponent('weave-button', '#template-button');
+            registerComponent('weave-textbox', '#template-textbox');
             var application = GenericApplication("#root", app);
         });
     </script>
