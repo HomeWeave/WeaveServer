@@ -99,7 +99,7 @@ class ServiceManager(object):
         service = module.meta["class"](module.id, config)
         service.service_start()
 
-        if not service.wait_for_start(config.get("start_timeout", 10)):
+        if not service.wait_for_start(config.get("start_timeout", 30)):
             service.service_stop()
             error_modules.add(module.name)
             logger.info("Failed to start service: %s", module.name)
