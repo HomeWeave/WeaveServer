@@ -50,8 +50,8 @@ class Repository(object):
         self.repo = Repo(self.path)
 
     def clean_untracked(self):
-        """ Does git clean -dfx """
-        self.repo.git.clean("-dfx")
+        """ Does git clean -df """
+        self.repo.git.clean("-df")
 
     def reset_hard(self):
         """" Does git reset --hard """
