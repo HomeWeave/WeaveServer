@@ -1,4 +1,16 @@
+from distutils.command.clean import clean
 from setuptools import setup, find_packages
+from setuptools.command.install import install
+
+
+class CleanInstall(install):
+    def run(self):
+        super(CleanInstall, self).run()
+        c = clean(self.distribution)
+        c.all = True
+        c.finalize_options()
+        c.run()
+
 
 setup(
     name='weaveserver',
@@ -25,5 +37,6 @@ setup(
             'weave-launch = app:handle_launch',
             'weave-main = app:handle_main'
         ]
-    }
+    },
+    cmdclass={'install': CleanInstall}
 )
