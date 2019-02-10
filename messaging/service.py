@@ -1,10 +1,3 @@
-"""
-The main module for HomePiServer. Initializes SocketIO, ServiceManager,
-NavigationChannel, View Manager.
-"""
-
-import argparse
-import signal
 import sys
 
 from .core.services import ServiceManager
