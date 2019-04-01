@@ -23,10 +23,9 @@ class DiscoveryServer(object):
     SERVER_PORT = 23034
     ACTIVE_POLL_TIME = 15
 
-    def __init__(self):
+    def __init__(self, message_server_port):
         self.sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         self.active = True
-        self.exited = Event()
 
     def run(self, success_callback=None):
         self.sock.bind(('', self.SERVER_PORT))
@@ -54,16 +53,4 @@ class DiscoveryServer(object):
 
     def stop(self):
         self.active = False
-        self.exited.wait()
 
-
-class DiscoveryService(BackgroundProcessServiceStart, BaseService):
-    def __init__(self, token, config):
-        super().__init__(token)
-        self.server = DiscoveryServer()
-
-    def on_service_start(self, *args, **kwargs):
-        self.server.run(lambda: self.notify_start())
-
-    def on_service_stop(self):
-        self.server.stop()
