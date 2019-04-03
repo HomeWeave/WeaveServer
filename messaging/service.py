@@ -3,9 +3,9 @@ from threading import Thread, Event
 from weavelib.messaging import WeaveConnection
 from weavelib.services import BaseService, BackgroundThreadServiceStart
 
-from messaging.messaging.server import MessageServer
-from messaging.discovery.service import DiscoveryServer
-from messaging.messaging.appmgr import ApplicationRegistry
+from messaging.server import MessageServer
+from messaging.discovery import DiscoveryServer
+from messaging.appmgr import ApplicationRegistry
 
 
 PORT = 11023
