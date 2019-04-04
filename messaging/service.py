@@ -1,7 +1,7 @@
 from threading import Thread, Event
 
 from weavelib.messaging import WeaveConnection
-from weavelib.services import BaseService, BackgroundThreadServiceStart
+from weavelib.services import BasePlugin, MessagingEnabled
 
 from messaging.server import MessageServer
 from messaging.discovery import DiscoveryServer
@@ -11,12 +11,17 @@ from messaging.appmgr import ApplicationRegistry
 PORT = 11023
 
 
-class CoreService(BackgroundThreadServiceStart, BaseService):
-    def __init__(self, token):
-        super(CoreService, self).__init__(token)
+class CoreService(BasePlugin, MessagingEnabled):
+    def __init__(self, **kwargs):
+        super(CoreService, self).__init__(**kwargs)
         self.message_server_started = Event()
         self.shutdown_event = Event()
 
+        apps_auth = {
+            self.get_auth_token(): {
+                "type": "SYSTEM",
+            }
+        }
         self.message_server = MessageServer(PORT, apps_auth,
                                             self.message_server_started.set)
         self.message_server_thread = Thread(target=self.message_server.run)
