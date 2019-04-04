@@ -6,7 +6,6 @@ from threading import Event
 from ipaddress import IPv4Network
 
 import weavelib.netutils as netutils
-from weavelib.services import BaseService, BackgroundProcessServiceStart
 
 
 logger = logging.getLogger(__name__)
