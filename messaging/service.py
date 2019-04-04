@@ -24,6 +24,7 @@ class CoreService(BasePlugin, MessagingEnabled):
                                             self.message_server_started.set)
         self.message_server_thread = Thread(target=self.message_server.run)
         self.discovery_server = DiscoveryServer(PORT)
+        self.discovery_server_thread = Thread(target=self.discovery_server.run)
 
     def before_service_start(self):
         """Need to override to prevent rpc_client connecting."""
@@ -31,6 +32,7 @@ class CoreService(BasePlugin, MessagingEnabled):
     def on_service_start(self, *args, **kwargs):
         self.message_server_thread.start()
         self.message_server_started.wait()
+        self.discovery_server_thread.start()
         self.notify_start()
         self.shutdown_event.wait()
 
