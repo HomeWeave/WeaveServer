@@ -12,11 +12,11 @@ class QueueInfo(object):
     def __init__(self, queue_name, request_schema, response_schema,
                  is_sessionized=False, force_auth=False):
         try:
-            Draft4Validator.validate(request_schema)
+            Draft4Validator.check_schema(request_schema)
         except SchemaError:
             raise SchemaValidationFailed(request_schema)
         try:
-            Draft4Validator.validate(response_schema)
+            Draft4Validator.check_schema(response_schema)
         except SchemaError:
             raise SchemaValidationFailed(response_schema)
 
@@ -27,7 +27,7 @@ class QueueInfo(object):
         self.force_auth = force_auth
 
     def create_queue(self):
-        self.queue_cls(self)
+        return self.queue_cls(self)
 
 
 class QueueRegistry(object):
@@ -43,7 +43,7 @@ class QueueRegistry(object):
         with self.queue_map_lock:
             if queue_info.queue_name in self.queue_map:
                 raise ObjectAlreadyExists(queue_info.queue_name)
-            queue = queue_info.create()
+            queue = queue_info.create_queue()
             self.queue_map[queue_info.queue_name] = queue
 
         if not queue.connect():
