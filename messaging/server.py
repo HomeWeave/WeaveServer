@@ -92,36 +92,6 @@ class MessageServer(ThreadingTCPServer):
         self.active_connections = {}
         self.active_connections_lock = RLock()
 
-    def create_queue(self, queue_info, headers):
-        try:
-            schema = queue_info["request_schema"]
-            if not isinstance(schema, dict):
-                raise SchemaValidationFailed(json.dumps(schema))
-            validate({}, schema)
-        except KeyError:
-            raise SchemaValidationFailed("'request_schema' required.")
-        except SchemaError:
-            raise SchemaValidationFailed(json.dumps(schema))
-        except ValidationError:
-            pass
-
-        queue_types = {
-            "fifo": FIFOQueue,
-            "sticky": StickyQueue,
-            "keyedsticky": KeyedStickyQueue,
-            "sessionized": SessionizedQueue
-        }
-        queue_name = queue_info["queue_name"]
-
-        creator_id = headers["AUTH"]["appid"]
-        queue_info.setdefault("auth_whitelist", set()).add(creator_id)
-
-        cls = queue_types[queue_info.get("queue_type", "fifo")]
-        queue = cls(queue_info)
-        self.queue_map[queue_name] = queue
-        logger.info("Connecting to %s", queue)
-        return queue
-
     def handle_message(self, msg, out_queue):
         session_id = get_required_field(msg.headers, "SESS")
         self.preprocess(msg)
@@ -139,13 +109,6 @@ class MessageServer(ThreadingTCPServer):
             self.handle_enqueue(msg)
             msg = Message("result")
             msg.headers["RES"] = "OK"
-            msg.headers["SESS"] = session_id
-            out_queue.put(msg)
-        elif msg.operation == "create":
-            queue_name = self.handle_create(msg)
-            msg = Message("result")
-            msg.headers["RES"] = "OK"
-            msg.headers["Q"] = queue_name
             msg.headers["SESS"] = session_id
             out_queue.put(msg)
         else:
@@ -173,42 +136,6 @@ class MessageServer(ThreadingTCPServer):
         except KeyError:
             raise ObjectNotFound(queue_name)
         queue.dequeue(msg.headers, out_queue)
-
-    def handle_create(self, msg):
-        if msg.task is None:
-            raise ProtocolError("QueueInfo is required for create.")
-
-        app_info = get_required_field(msg.headers, "AUTH")
-        if app_info is None:
-            raise AuthenticationFailed("AUTH header missing/invalid.")
-
-        if app_info.get("type") == "SYSTEM":
-            queue_name = os.path.join("/", msg.task["queue_name"].lstrip("/"))
-        else:
-            queue_name = os.path.join("/plugins",
-                                      app_info["package"].strip("/"),
-                                      app_info["appid"],
-                                      msg.task["queue_name"].lstrip("/"))
-
-        msg.task["queue_name"] = queue_name
-
-        if msg.task.get("queue_type") == "keyedsticky" and \
-                msg.task.get("force_auth"):
-            raise BadOperation("KeyedSticky can not force AUTH.")
-
-        with self.queue_map_lock:
-            if queue_name in self.queue_map:
-                raise ObjectAlreadyExists(queue_name)
-            queue = self.create_queue(msg.task, msg.headers)
-
-        if not queue.connect():
-            raise InternalError("Cant connect: " + queue_name)
-
-        self.queue_map[msg.task["queue_name"]] = queue
-
-        logger.info("Connected: %s", queue)
-
-        return queue_name
 
     def preprocess(self, msg):
         if "AUTH" in msg.headers:
