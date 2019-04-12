@@ -20,14 +20,10 @@ from weavelib.exceptions import SchemaValidationFailed
 from weavelib.messaging import read_message, serialize_message, Message
 from weavelib.messaging import exception_to_message
 
+from .messaging_utils import get_required_field
+
 
 logger = logging.getLogger(__name__)
-
-
-def get_required_field(headers, key):
-    if key not in headers:
-        raise ProtocolError("'{}' is required.".format(key))
-    return headers[key]
 
 
 def safe_close(obj):
