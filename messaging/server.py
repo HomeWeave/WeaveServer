@@ -7,7 +7,6 @@ except ImportError:
     from Queue import Queue
 import socket
 import time
-from collections import defaultdict
 from socketserver import ThreadingTCPServer, StreamRequestHandler
 from threading import RLock, Thread
 
@@ -21,6 +20,7 @@ from weavelib.messaging import read_message, serialize_message, Message
 from weavelib.messaging import exception_to_message
 
 from .messaging_utils import get_required_field
+from .queue_manager import QueueRegistry
 
 
 logger = logging.getLogger(__name__)
@@ -86,8 +86,7 @@ class MessageServer(ThreadingTCPServer):
         super().__init__(("", port), MessageHandler)
         self.notify_start = notify_start
         self.sent_start_notification = False
-        self.queue_map = {}
-        self.queue_map_lock = RLock()
+        self.registry = QueueRegistry()
         self.apps_auth = apps_auth
         self.active_connections = {}
         self.active_connections_lock = RLock()
@@ -118,10 +117,8 @@ class MessageServer(ThreadingTCPServer):
         if msg.task is None:
             raise ProtocolError("Task is required for enqueue.")
         queue_name = get_required_field(msg.headers, "Q")
-        try:
-            queue = self.queue_map[queue_name]
-        except KeyError:
-            raise ObjectNotFound(queue_name)
+        queue = self.registry.get_queue(queue_name)
+
         try:
             queue.enqueue(msg.task, msg.headers)
         except ValidationError:
@@ -131,10 +128,7 @@ class MessageServer(ThreadingTCPServer):
 
     def handle_dequeue(self, msg, out_queue):
         queue_name = get_required_field(msg.headers, "Q")
-        try:
-            queue = self.queue_map[queue_name]
-        except KeyError:
-            raise ObjectNotFound(queue_name)
+        queue = self.registry.get_queue(queue_name)
         queue.dequeue(msg.headers, out_queue)
 
     def preprocess(self, msg):
