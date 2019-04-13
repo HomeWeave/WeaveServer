@@ -1,7 +1,7 @@
 import pytest
 
 from weavelib.exceptions import SchemaValidationFailed, ObjectAlreadyExists
-from weavelib.exceptions import ObjectNotFound, InternalError
+from weavelib.exceptions import ObjectNotFound, InternalError, ObjectClosed
 
 from messaging.queue_manager import QueueRegistry
 from messaging.queues import SessionizedQueue, FIFOQueue
@@ -48,3 +48,22 @@ class TestQueueRegistry(object):
             registry.create_queue("queue_name", {}, {}, False)
 
         FIFOQueue.connect = backup
+
+    def test_shutdown(self):
+        registry = QueueRegistry()
+        queue1 = registry.create_queue("queue1", {}, {}, is_sessionized=True)
+        queue2 = registry.create_queue("queue2", {}, {}, is_sessionized=False)
+
+        flag = []
+        def disconnect_fn():
+            flag.append(None)
+
+        queue1.disconnect = disconnect_fn
+        queue2.disconnect = disconnect_fn
+
+        registry.shutdown()
+
+        assert len(flag) == 2
+
+        with pytest.raises(ObjectClosed):
+            registry.create_queue("queue3", {}, {})

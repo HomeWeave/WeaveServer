@@ -3,7 +3,8 @@ from threading import RLock
 from jsonschema import Draft4Validator, SchemaError
 
 from weavelib.exceptions import ObjectNotFound, ObjectAlreadyExists
-from weavelib.exceptions import SchemaValidationFailed, InternalError
+from weavelib.exceptions import ObjectClosed, SchemaValidationFailed
+from weavelib.exceptions import InternalError
 
 from .queues import FIFOQueue, SessionizedQueue
 
@@ -34,6 +35,7 @@ class QueueRegistry(object):
     def __init__(self):
         self.queue_map = {}
         self.queue_map_lock = RLock()
+        self.active = True
 
     def create_queue(self, queue_name, request_schema, response_schema,
                      is_sessionized=False, force_auth=False):
@@ -41,8 +43,12 @@ class QueueRegistry(object):
                                is_sessionized, force_auth)
 
         with self.queue_map_lock:
+            if not self.active:
+                raise ObjectClosed("Server shutting down.")
+
             if queue_info.queue_name in self.queue_map:
                 raise ObjectAlreadyExists(queue_info.queue_name)
+
             queue = queue_info.create_queue()
             self.queue_map[queue_info.queue_name] = queue
 
@@ -58,3 +64,9 @@ class QueueRegistry(object):
                 return self.queue_map[queue_name]
             except KeyError:
                 raise ObjectNotFound(queue_name)
+
+    def shutdown(self):
+        with self.queue_map_lock:
+            self.active = False
+            for queue in self.queue_map.values():
+                queue.disconnect()
