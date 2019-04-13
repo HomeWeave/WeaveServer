@@ -1,6 +1,7 @@
 import pytest
 
-from weavelib.exceptions import SchemaValidationFailed
+from weavelib.exceptions import SchemaValidationFailed, ObjectAlreadyExists
+from weavelib.exceptions import ObjectNotFound, InternalError
 
 from messaging.queue_manager import QueueRegistry
 from messaging.queues import SessionizedQueue, FIFOQueue
@@ -24,3 +25,26 @@ class TestQueueRegistry(object):
 
         with pytest.raises(SchemaValidationFailed):
             registry.create_queue("queue_name", {}, "test")
+
+    def test_queue_already_exists(self):
+        registry = QueueRegistry()
+        queue = registry.create_queue("queue_name", {}, {}, True)
+        assert isinstance(queue, SessionizedQueue)
+
+        with pytest.raises(ObjectAlreadyExists):
+            registry.create_queue("queue_name", {}, {}, False)
+
+    def test_get_queue_invalid(self):
+        registry = QueueRegistry()
+        with pytest.raises(ObjectNotFound):
+            registry.get_queue("test_queue")
+
+    def test_queue_connect_fail(self):
+        backup = FIFOQueue.connect
+        FIFOQueue.connect = lambda self: False
+
+        registry = QueueRegistry()
+        with pytest.raises(InternalError):
+            registry.create_queue("queue_name", {}, {}, False)
+
+        FIFOQueue.connect = backup
