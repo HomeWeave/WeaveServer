@@ -52,7 +52,7 @@ class BaseQueue(object):
 
     def __repr__(self):
         return (self.__class__.__name__ +
-                "({})".format(self.queue_info["queue_name"]))
+                "({})".format(self.queue_info.queue_name))
 
 
 class SynchronousQueue(BaseQueue):

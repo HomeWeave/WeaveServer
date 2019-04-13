@@ -123,7 +123,7 @@ class MessageServer(ThreadingTCPServer):
             queue.enqueue(msg.task, msg.headers)
         except ValidationError:
             msg = "Schema: {}, on instance: {}, for queue: {}".format(
-                queue.queue_info["request_schema"], msg.task, queue)
+                queue.queue_info.request_schema, msg.task, queue)
             raise SchemaValidationFailed(msg)
 
     def handle_dequeue(self, msg, out_queue):
@@ -142,10 +142,6 @@ class MessageServer(ThreadingTCPServer):
         self.apps_auth[auth_info["appid"]] = auth_info
 
     def run(self):
-        for queue in self.queue_map.values():
-            if not queue.connect():
-                logger.error("Unable to connect to: %s", queue)
-                return
         self.serve_forever()
 
     def service_actions(self):
@@ -162,8 +158,7 @@ class MessageServer(ThreadingTCPServer):
             self.active_connections.pop(fileno)
 
     def shutdown(self):
-        for _, queue in self.queue_map.items():
-            queue.disconnect()
+        self.registry.shutdown()
 
         with self.active_connections_lock:
             for sock, rfile, wfile in self.active_connections.values():
