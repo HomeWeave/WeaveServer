@@ -86,7 +86,7 @@ class MessageServer(ThreadingTCPServer):
         super().__init__(("", port), MessageHandler)
         self.notify_start = notify_start
         self.sent_start_notification = False
-        self.registry = ChannelRegistry()
+        self.channel_registry = ChannelRegistry()
         self.apps_auth = apps_auth
         self.active_connections = {}
         self.active_connections_lock = RLock()
@@ -117,7 +117,7 @@ class MessageServer(ThreadingTCPServer):
         if msg.task is None:
             raise ProtocolError("Task is required for enqueue.")
         queue_name = get_required_field(msg.headers, "Q")
-        queue = self.registry.get_queue(queue_name)
+        queue = self.channel_registry.get_queue(queue_name)
 
         try:
             queue.enqueue(msg.task, msg.headers)
@@ -128,7 +128,7 @@ class MessageServer(ThreadingTCPServer):
 
     def handle_dequeue(self, msg, out_queue):
         queue_name = get_required_field(msg.headers, "Q")
-        queue = self.registry.get_queue(queue_name)
+        queue = self.channel_registry.get_queue(queue_name)
         queue.dequeue(msg.headers, out_queue)
 
     def preprocess(self, msg):
@@ -158,7 +158,7 @@ class MessageServer(ThreadingTCPServer):
             self.active_connections.pop(fileno)
 
     def shutdown(self):
-        self.registry.shutdown()
+        self.channel_registry.shutdown()
 
         with self.active_connections_lock:
             for sock, rfile, wfile in self.active_connections.values():
