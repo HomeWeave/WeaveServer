@@ -68,18 +68,16 @@ class TestMessageServer(object):
             },
             "required": ["foo"]
         }
-        cls.server.registry.create_queue("/a.b.c", schema, {})
+        cls.server.registry.create_queue("/a.b.c", schema, {}, 'fifo')
         cls.server.registry.create_queue("/test.sessionized",
-                                         {"type": "string"}, {},
-                                         is_sessionized=True)
+                                         {"type": "string"}, {}, 'sessionized')
         cls.server.registry.create_queue("/test.sessionized2",
-                                         {"type": "string"}, {},
-                                         is_sessionized=True)
+                                         {"type": "string"}, {}, 'sessionized')
         cls.server.registry.create_queue("/test.sessionized/several",
-                                         {"type": "string"}, {},
-                                         is_sessionized=True)
+                                         {"type": "string"}, {}, 'sessionized')
         cls.server.registry.create_queue("/test.fifo/simple",
-                                         {"type": "string"}, {})
+                                         {"type": "string"}, {}, 'fifo')
+
     @classmethod
     def teardown_class(cls):
         cls.conn.close()
@@ -314,8 +312,8 @@ class TestMessageServerClosure(object):
         thread.start()
         event.wait()
 
-        server.registry.create_queue("/fifo-closure", {"type": "string"}, {})
-
+        server.registry.create_queue("/fifo-closure", {"type": "string"}, {},
+                                     queue_type)
 
         conn = WeaveConnection()
         conn.connect()

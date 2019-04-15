@@ -20,7 +20,7 @@ from weavelib.messaging import read_message, serialize_message, Message
 from weavelib.messaging import exception_to_message
 
 from .messaging_utils import get_required_field
-from .queue_manager import QueueRegistry
+from .queue_manager import ChannelRegistry
 
 
 logger = logging.getLogger(__name__)
@@ -86,7 +86,7 @@ class MessageServer(ThreadingTCPServer):
         super().__init__(("", port), MessageHandler)
         self.notify_start = notify_start
         self.sent_start_notification = False
-        self.registry = QueueRegistry()
+        self.registry = ChannelRegistry()
         self.apps_auth = apps_auth
         self.active_connections = {}
         self.active_connections_lock = RLock()
