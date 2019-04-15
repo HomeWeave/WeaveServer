@@ -82,12 +82,12 @@ class MessageServer(ThreadingTCPServer):
     allow_reuse_address = True
     daemon_threads = True
 
-    def __init__(self, port, apps_auth, notify_start):
+    def __init__(self, port, apps_registry, channel_registry, notify_start):
         super().__init__(("", port), MessageHandler)
         self.notify_start = notify_start
         self.sent_start_notification = False
-        self.channel_registry = ChannelRegistry()
-        self.apps_auth = apps_auth
+        self.channel_registry = channel_registry
+        self.apps_registry = apps_registry
         self.active_connections = {}
         self.active_connections_lock = RLock()
 
@@ -133,13 +133,11 @@ class MessageServer(ThreadingTCPServer):
 
     def preprocess(self, msg):
         if "AUTH" in msg.headers:
-            msg.headers["AUTH"] = self.apps_auth.get(msg.headers["AUTH"])
-
-    def unregister_application(self, token):
-        return self.apps_auth.pop(token, None)
-
-    def register_application(self, auth_info):
-        self.apps_auth[auth_info["appid"]] = auth_info
+            app_id = msg.headers["AUTH"]
+            try:
+                msg.headers["AUTH"] = self.app_registry.get_app_info(app_id)
+            except ObjectNotFound:
+                raise AuthenticationFailed()
 
     def run(self):
         self.serve_forever()

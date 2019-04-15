@@ -12,6 +12,8 @@ from weavelib.messaging import Sender, Receiver, read_message
 from weavelib.messaging import ensure_ok_message, WeaveConnection
 
 from messaging.server import MessageServer
+from messaging.application_registry import ApplicationRegistry
+from messaging.queue_manager import ChannelRegistry
 
 
 import logging
@@ -52,12 +54,6 @@ class TestMessageServer(object):
     @classmethod
     def setup_class(cls):
         event = Event()
-        cls.server = MessageServer(11023, {}, event.set)
-        cls.server_thread = Thread(target=cls.server.run)
-        cls.server_thread.start()
-        event.wait()
-        cls.conn = WeaveConnection.local()
-        cls.conn.connect()
 
         schema = {
             "type": "object",
@@ -68,15 +64,26 @@ class TestMessageServer(object):
             },
             "required": ["foo"]
         }
-        cls.server.registry.create_queue("/a.b.c", schema, {}, 'fifo')
-        cls.server.registry.create_queue("/test.sessionized",
-                                         {"type": "string"}, {}, 'sessionized')
-        cls.server.registry.create_queue("/test.sessionized2",
-                                         {"type": "string"}, {}, 'sessionized')
-        cls.server.registry.create_queue("/test.sessionized/several",
-                                         {"type": "string"}, {}, 'sessionized')
-        cls.server.registry.create_queue("/test.fifo/simple",
-                                         {"type": "string"}, {}, 'fifo')
+
+        registry = ChannelRegistry()
+        registry.create_queue("/a.b.c", schema, {}, 'fifo')
+        registry.create_queue("/test.sessionized", {"type": "string"}, {},
+                              'sessionized')
+        registry.create_queue("/test.sessionized2", {"type": "string"}, {},
+                              'sessionized')
+        registry.create_queue("/test.sessionized/several", {"type": "string"},
+                              {}, 'sessionized')
+        registry.create_queue("/test.fifo/simple", {"type": "string"}, {},
+                              'fifo')
+
+        apps = ApplicationRegistry()
+
+        cls.server = MessageServer(11023, apps, registry, event.set)
+        cls.server_thread = Thread(target=cls.server.run)
+        cls.server_thread.start()
+        event.wait()
+        cls.conn = WeaveConnection.local()
+        cls.conn.connect()
 
     @classmethod
     def teardown_class(cls):
@@ -307,13 +314,15 @@ class TestMessageServerClosure(object):
                               ("sessionized", (x for x in ("a", "b")))])
     def test_queue_closure(self, queue_type, cookie):
         event = Event()
-        server = MessageServer(11023, {}, event.set)
+        registry = ChannelRegistry()
+        registry.create_queue("/fifo-closure", {"type": "string"}, {},
+                              queue_type)
+
+        server = MessageServer(11023, ApplicationRegistry(), registry,
+                               event.set)
         thread = Thread(target=server.run)
         thread.start()
         event.wait()
-
-        server.registry.create_queue("/fifo-closure", {"type": "string"}, {},
-                                     queue_type)
 
         conn = WeaveConnection()
         conn.connect()
