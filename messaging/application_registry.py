@@ -1,13 +1,14 @@
 from threading import RLock
 from uuid import uuid4
 
-from weavelib.exceptions import ObjectAlreadyExists, ObjectNotFound
+from weavelib.exceptions import ObjectNotFound
 
 
 class BaseApplication(object):
-    def __init__(self, name, url, app_token):
+    def __init__(self, name, url, app_id, app_token):
         self.name = name
         self.url = url
+        self.app_id = app_id
         self.app_token = app_token
 
 
@@ -24,13 +25,14 @@ class ApplicationRegistry(object):
         self.apps_by_token = {}
         self.apps_lock = RLock()
 
-        for name, url, token in (apps or []):
-            self.apps_by_token[token] = SystemApplication(name, url, token)
+        for name, url, app_id, token in (apps or []):
+            self.apps_by_token[token] = SystemApplication(name, url, app_id,
+                                                          token)
 
-    def register_plugin(self, name, url):
+    def register_plugin(self, app_id, name, url):
         with self.apps_lock:
             token = "app-token-" + str(uuid4())
-            self.apps_by_token[token] = Plugin(name, url, token)
+            self.apps_by_token[token] = Plugin(name, url, app_id, token)
             return token
 
     def unregister_plugin(self, token):
@@ -50,5 +52,6 @@ class ApplicationRegistry(object):
         return {
             "app_name": app.name,
             "app_type": "plugin" if isinstance(app, Plugin) else "system",
-            "app_url": app.url if isinstance(app, Plugin) else "WEAVE-ENV"
+            "app_url": app.url if isinstance(app, Plugin) else "WEAVE-ENV",
+            "app_id": app.app_id,
         }
