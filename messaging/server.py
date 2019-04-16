@@ -133,9 +133,9 @@ class MessageServer(ThreadingTCPServer):
 
     def preprocess(self, msg):
         if "AUTH" in msg.headers:
-            app_id = msg.headers["AUTH"]
+            app_token = msg.headers["AUTH"]
             try:
-                msg.headers["AUTH"] = self.app_registry.get_app_info(app_id)
+                msg.headers["AUTH"] = self.app_registry.get_app_info(app_token)
             except ObjectNotFound:
                 raise AuthenticationFailed()
 
