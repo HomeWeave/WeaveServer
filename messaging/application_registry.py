@@ -1,12 +1,14 @@
 from threading import RLock
+from uuid import uuid4
 
 from weavelib.exceptions import ObjectAlreadyExists, ObjectNotFound
 
 
 class BaseApplication(object):
-    def __init__(self, name, app_id):
+    def __init__(self, name, url, app_token):
         self.name = name
-        self.app_id = app_id
+        self.url = url
+        self.app_token = app_token
 
 
 class SystemApplication(BaseApplication):
@@ -14,41 +16,39 @@ class SystemApplication(BaseApplication):
 
 
 class Plugin(BaseApplication):
-    def __init__(self, name, app_id, url):
-        super(Plugin, self).__init__(name, app_id)
-        self.url = url
+    pass
 
 
 class ApplicationRegistry(object):
     def __init__(self, apps=None):
-        self.apps = {x: SystemApplication(x, y) for x, y in (apps or [])}
+        self.apps_by_token = {}
         self.apps_lock = RLock()
 
-    def register_plugin(self, name, app_id, url):
+        for name, url, token in (apps or []):
+            self.apps_by_token[token] = SystemApplication(name, url, token)
+
+    def register_plugin(self, name, url):
         with self.apps_lock:
-            if app_id in self.apps:
-                raise ObjectAlreadyExists(name)
+            token = "app-token-" + str(uuid4())
+            self.apps_by_token[token] = Plugin(name, url, token)
+            return token
 
-            plugin = Plugin(name, app_id, url)
-            self.apps[app_id] = plugin
-
-    def unregister_plugin(self, app_id):
-        with self.apps_lock:
-            try:
-                self.apps.pop(app_id)
-            except KeyError:
-                raise ObjectNotFound(app_id)
-
-    def get_app_info(self, app_id):
+    def unregister_plugin(self, token):
         with self.apps_lock:
             try:
-                app = self.apps[app_id]
+                self.apps_by_token.pop(token)
             except KeyError:
-                raise ObjectNotFound(app_id)
+                raise ObjectNotFound(token)
+
+    def get_app_info(self, app_token):
+        with self.apps_lock:
+            try:
+                app = self.apps[app_token]
+            except KeyError:
+                raise ObjectNotFound(app_token)
 
         return {
             "app_name": app.name,
             "app_type": "plugin" if isinstance(app, Plugin) else "system",
-            "app_id": app_id,
-            "app_url": app.url if isinstance(app, Plugin) else None
+            "app_url": app.url if isinstance(app, Plugin) else "WEAVE-ENV"
         }
