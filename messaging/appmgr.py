@@ -75,12 +75,7 @@ class RootRPCServer(RPCServer):
 
 
 class MessagingRPCHub(object):
-    APIS_SCHEMA = {
-        "type": "object",
-    }
-    PLUGIN_INFO_SCHEMA = {
-        "type": "object"
-    }
+    APIS_SCHEMA = {"type": "object"}
 
     def __init__(self, conn, channel_registry, app_registry):
         self.rpc = RootRPCServer("app_manager", "Application Manager", [
@@ -90,14 +85,15 @@ class MessagingRPCHub(object):
                 ArgParameter("apis", "Maps of all APIs", self.APIS_SCHEMA),
             ], self.register_rpc),
             ServerAPI("register_plugin", "Register Plugin", [
-                ArgParameter("plugin_info", "Plugin Information",
-                             self.PLUGIN_INFO_SCHEMA)
+                ArgParameter("app_id", "Plugin ID (within WeaveEnv)", str),
+                ArgParameter("name", "Plugin Name", str),
+                ArgParameter("url", "Plugin URL (GitHub)", str),
             ], self.register_plugin),
             ServerAPI("unregister_plugin", "Unregister Plugin", [
                 ArgParameter("token", "Plugin Token", str)
             ], self.unregister_plugin),
             ServerAPI("rpc_info", "Get RPCInfo object.", [
-                ArgParameter("package_name", "Package Name", str),
+                ArgParameter("app_id", "Plugin ID (within WeaveEnv)", str),
                 ArgParameter("rpc_name", "RPC Name", str),
             ], self.rpc_info),
         ], service, conn)
