@@ -13,9 +13,15 @@ from .application import RPCInfo, Application
 logger = logging.getLogger(__name__)
 
 
+def get_rpc_request_queue(base_queue):
+    return base_queue.rstrip('/') + "/request"
+
+def get_rpc_response_queue(base_queue):
+    return base_queue.rstrip('/') + "/response"
+
 def create_rpc_queues(base_queue, request_schema, response_schema, registry):
-        request_queue = base_queue.rstrip('/') + "/request"
-        response_queue = base_queue.rstrip('/') + "/response"
+        request_queue = get_rpc_response_queue(base_queue)
+        response_queue = get_rpc_response_queue(base_queue)
 
         registry.create_queue(request_queue, request_schema, {}, 'fifo',
                               force_auth=True)
@@ -25,18 +31,27 @@ def create_rpc_queues(base_queue, request_schema, response_schema, registry):
 
 
 class RPCInfo(object):
-    def __init__(self, name, desc, apis, req_queue, res_queue, req_schema,
+    def __init__(self, app_id, name, desc, apis, base_queue, req_schema,
                  res_schema):
+        self.app_id = app_id
         self.name = name
         self.description = desc
         self.apis = apis
-        self.request_queue = req_queue
-        self.response_queue = res_queue
+        self.base_queue = base_queue
         self.request_schema = req_schema
         self.response_schema = res_schema
 
+    @property
+    def request_queue(self):
+        return get_rpc_request_queue(self.base_queue)
+
+    @property
+    def response_queue(self):
+        return get_rpc_response_queue(self.base_queue)
+
     def to_json(self):
         return {
+            "app_id": self.app_id,
             "name": self.name,
             "description": self.description,
             "apis": self.apis,
@@ -88,6 +103,7 @@ class MessagingRPCHub(object):
         ], service, conn)
         self.channel_registry = channel_registry
         self.app_registry = app_registry
+        self.rpc_registry = {}
 
     def start(self):
         self.rpc.start()
@@ -96,10 +112,14 @@ class MessagingRPCHub(object):
         self.rpc.stop()
 
     def register_rpc(self, name, description, apis):
-        caller_app = get_rpc_caller()
-        caller_app_id = caller_app["appid"]
-        base_queue = "/components/{}/rpcs/{}".format(caller_app_id,
-                                                     str(uuid4()))
+        try:
+            caller_app = self.app_registry.get_app_info(get_rpc_caller())
+        except ObjectNotFound:
+            raise AuthenticationFailed("Can not identify caller.")
+
+        app_id = caller_app["app_id"]
+        rpc_id = "rpc-" + str(uuid4())
+        base_queue = "/plugins/{}/rpcs/rpc-{}".format(app_id, rpc_id)
         request_schema = {
             "type": "object",
             "properties": {
@@ -109,50 +129,35 @@ class MessagingRPCHub(object):
                 }
             }
         }
-        response_schema = {"type": "object"}
+        response_schema = {}
         res = create_rpc_queues(base_queue, request_schema, response_schema,
                                 self.channel_registry)
 
-        rpc_info = RPCInfo(name, description, apis, request_queue,
-                           response_queue, request_schema, response_schema)
+        rpc_info = RPCInfo(app_id, name, description, apis, base_queue,
+                           request_schema, response_schema)
 
-        self.all_apps[caller_app_id].register_rpc(rpc_info)
+        # Thread safe because MAX_RPC_WORKERS == 1.
+        self.rpc_registry[rpc_id] = rpc_info
 
         return dict(request_queue=request_queue, response_queue=response_queue)
 
-    def register_plugin(self, name, url):
+    def register_plugin(self, app_id, name, url):
         caller_app = get_rpc_caller()
         if caller_app["app_type"] != "SYSTEM":
             raise AuthenticationFailed("Only system apps can register plugins.")
 
-        self.app_registry.register_application()
-
-        return token
+        return self.app_registry.register_application(app_id, name, url)
 
     def unregister_plugin(self, token):
         caller_app = get_rpc_caller()
         if caller_app.get("type") != "SYSTEM":
-            raise ObjectNotFound("No such RPC.")
-
-        # This works because token == plugin["appid"].
-        self.all_apps.pop(token, None)
-        # TODO: Remove RPC calls,m close queues etc.
+            raise AuthenticationFailed("Only system apps can stop plugins.")
 
         self.app_registry.unregister_application(token)
-
         return True
 
-    def rpc_info(self, package_name, rpc_name):
-        found_app = None
-        for app in self.all_apps.values():
-            if app.package_name == package_name:
-                found_app = app
-                break
-
-        if not found_app:
-            raise ObjectNotFound("Package not found: " + package_name)
-
-        rpc_info = found_app.rpcs.get(rpc_name)
-        if not rpc_info:
-            raise ObjectNotFound("RPC not found: " + rpc_name)
-        return rpc_info.to_json()
+    def rpc_info(self, app_id, rpc_name):
+        for rpc_info in self.rpc_registry.values():
+            if rpc_info.app_id == app_id and rpc_info.name == rpc_name:
+                return rpc_info.to_json()
+        raise ObjectNotFound("Package not found: " + package_name)
