@@ -43,7 +43,6 @@ class DiscoveryServer(object):
                 self.sock.sendto(res, address)
 
         self.sock.close()
-        self.exited.set()
 
     def process(self, address, msg):
         if msg == "QUERY":
@@ -52,4 +51,3 @@ class DiscoveryServer(object):
 
     def stop(self):
         self.active = False
-

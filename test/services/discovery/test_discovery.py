@@ -5,23 +5,21 @@ from threading import Event, Thread
 import pytest
 import weavelib.netutils as netutils
 
-from weaveserver.services.discovery import DiscoveryService
-from weaveserver.services.discovery.service import DiscoveryServer
+from messaging.discovery import DiscoveryServer
 
 
 class TestDiscoveryService(object):
     @classmethod
     def setup_class(cls):
         DiscoveryServer.ACTIVE_POLL_TIME = 1
-        cls.service = DiscoveryService("abc", None)
+        cls.server = DiscoveryServer(11023)
         event = Event()
-        cls.service.notify_start = event.set
-        Thread(target=cls.service.on_service_start).start()
+        Thread(target=cls.server.run, args=(event.set,)).start()
         event.wait()
 
     @classmethod
     def teardown_class(cls):
-        cls.service.on_service_stop()
+        cls.server.stop()
 
     def test_bad_query(self):
         ip_addr, port = "<broadcast>", 23034
