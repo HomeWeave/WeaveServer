@@ -7,8 +7,6 @@ from jsonschema import Draft4Validator
 from weavelib.exceptions import ObjectNotFound, AuthenticationFailed
 from weavelib.rpc import RPCServer, ServerAPI, ArgParameter, get_rpc_caller
 
-from .application import RPCInfo, Application
-
 
 logger = logging.getLogger(__name__)
 
@@ -65,8 +63,8 @@ class RPCInfo(object):
 class RootRPCServer(RPCServer):
     MAX_RPC_WORKERS = 1  # Ensures single-thread to create all queues.
 
-    def __init__(self, name, desc, apis, service, conn, channel_registry):
-        super(RootRPCServer, self).__init__(name, desc, apis, service, conn)
+    def __init__(self, name, desc, apis, service, channel_registry):
+        super(RootRPCServer, self).__init__(name, desc, apis, service)
         self.channel_registry = channel_registry
 
     def register_rpc(self):
@@ -77,7 +75,7 @@ class RootRPCServer(RPCServer):
 class MessagingRPCHub(object):
     APIS_SCHEMA = {"type": "object"}
 
-    def __init__(self, conn, channel_registry, app_registry):
+    def __init__(self, service, channel_registry, app_registry):
         self.rpc = RootRPCServer("app_manager", "Application Manager", [
             ServerAPI("register_rpc", "Register new RPC", [
                 ArgParameter("name", "Name of the RPC", str),
@@ -96,7 +94,7 @@ class MessagingRPCHub(object):
                 ArgParameter("app_id", "Plugin ID (within WeaveEnv)", str),
                 ArgParameter("rpc_name", "RPC Name", str),
             ], self.rpc_info),
-        ], service, conn)
+        ], service, channel_registry)
         self.channel_registry = channel_registry
         self.app_registry = app_registry
         self.rpc_registry = {}
