@@ -18,7 +18,7 @@ def get_rpc_response_queue(base_queue):
     return base_queue.rstrip('/') + "/response"
 
 def create_rpc_queues(base_queue, request_schema, response_schema, registry):
-        request_queue = get_rpc_response_queue(base_queue)
+        request_queue = get_rpc_request_queue(base_queue)
         response_queue = get_rpc_response_queue(base_queue)
 
         registry.create_queue(request_queue, request_schema, {}, 'fifo',
