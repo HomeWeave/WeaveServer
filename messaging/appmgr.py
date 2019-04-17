@@ -29,9 +29,10 @@ def create_rpc_queues(base_queue, request_schema, response_schema, registry):
 
 
 class RPCInfo(object):
-    def __init__(self, app_id, name, desc, apis, base_queue, req_schema,
-                 res_schema):
+    def __init__(self, app_id, app_url, name, desc, apis, base_queue,
+                 req_schema, res_schema):
         self.app_id = app_id
+        self.app_url = app_url
         self.name = name
         self.description = desc
         self.apis = apis
@@ -50,6 +51,7 @@ class RPCInfo(object):
     def to_json(self):
         return {
             "app_id": self.app_id,
+            "app_url": self.app_url,
             "name": self.name,
             "description": self.description,
             "apis": self.apis,
@@ -112,6 +114,7 @@ class MessagingRPCHub(object):
             raise AuthenticationFailed("Can not identify caller.")
 
         app_id = caller_app["app_id"]
+        app_url = caller_app["app_url"]
         rpc_id = "rpc-" + str(uuid4())
         base_queue = "/plugins/{}/rpcs/rpc-{}".format(app_id, rpc_id)
         request_schema = {
@@ -127,7 +130,7 @@ class MessagingRPCHub(object):
         res = create_rpc_queues(base_queue, request_schema, response_schema,
                                 self.channel_registry)
 
-        rpc_info = RPCInfo(app_id, name, description, apis, base_queue,
+        rpc_info = RPCInfo(app_id, app_url, name, description, apis, base_queue,
                            request_schema, response_schema)
 
         # Thread safe because MAX_RPC_WORKERS == 1.
@@ -150,8 +153,8 @@ class MessagingRPCHub(object):
         self.app_registry.unregister_application(token)
         return True
 
-    def rpc_info(self, app_id, rpc_name):
+    def rpc_info(self, url, rpc_name):
         for rpc_info in self.rpc_registry.values():
-            if rpc_info.app_id == app_id and rpc_info.name == rpc_name:
+            if rpc_info.app_url == url and rpc_info.name == rpc_name:
                 return rpc_info.to_json()
-        raise ObjectNotFound("Package not found: " + package_name)
+        raise ObjectNotFound("RPC not found: " + package_name)
