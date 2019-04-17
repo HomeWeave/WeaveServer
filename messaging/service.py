@@ -14,7 +14,7 @@ from messaging.appmgr import MessagingRPCHub
 PORT = 11023
 
 
-class CoreService(BasePlugin, MessagingEnabled):
+class CoreService(MessagingEnabled, BasePlugin):
     def __init__(self, **kwargs):
         messaging_token = "app-token-" + str(uuid4())
         weave_env_token = kwargs.pop('auth_token')
