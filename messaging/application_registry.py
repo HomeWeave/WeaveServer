@@ -45,7 +45,7 @@ class ApplicationRegistry(object):
     def get_app_info(self, app_token):
         with self.apps_lock:
             try:
-                app = self.apps[app_token]
+                app = self.apps_by_token[app_token]
             except KeyError:
                 raise ObjectNotFound(app_token)
 

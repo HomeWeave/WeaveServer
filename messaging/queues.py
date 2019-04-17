@@ -30,10 +30,10 @@ class BaseQueue(object):
         if not headers.get("AUTH"):
             raise AuthenticationFailed("Invalid AUTH header.")
 
-        if headers["AUTH"].get("type") == "SYSTEM":
+        if headers["AUTH"].get("app_type") == "system":
             return
 
-        appid = headers["AUTH"]["appid"]
+        appid = headers["AUTH"]["app_id"]
 
         if self.queue_info.get("authorization") and\
                 appid not in self.queue_info["authorization"]["auth_whitelist"]:
