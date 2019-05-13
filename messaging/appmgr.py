@@ -11,6 +11,8 @@ from weavelib.rpc import RPCServer, ServerAPI, ArgParameter, get_rpc_caller
 logger = logging.getLogger(__name__)
 
 
+SYSTEM_REGISTRY_BASE_QUEUE = "/_system/registry"
+
 def get_rpc_request_queue(base_queue):
     return base_queue.rstrip('/') + "/request"
 
@@ -70,7 +72,7 @@ class RootRPCServer(RPCServer):
         self.channel_registry = channel_registry
 
     def register_rpc(self):
-        return create_rpc_queues("/_system/registry", {}, {},
+        return create_rpc_queues(SYSTEM_REGISTRY_BASE_QUEUE, {}, {},
                                  self.channel_registry)
 
 
@@ -102,6 +104,13 @@ class MessagingRPCHub(object):
         self.rpc_registry = {}
 
     def start(self):
+        # TODO: Fix request and response schema everywhere.
+        rpc_info = RPCInfo("dummy_app_id",
+                           "https://github.com/HomeWeave/WeaveServer.git",
+                           "WeaveServer",
+                           [x.info for x in self.rpc.apis.values()],
+                           SYSTEM_REGISTRY_BASE_QUEUE, {}, {});
+        self.rpc_registry["rpc-" + str(uuid4())] = rpc_info
         self.rpc.start()
 
     def stop(self):
