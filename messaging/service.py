@@ -58,7 +58,7 @@ class CoreService(BackgroundProcessServiceStart, BaseService):
         self.message_server_thread.start()
         self.message_server_started.wait()
         self.discovery_server_thread.start()
-        self.dummy_service.get_connection().connect()
+        self.dummy_service.start()
         self.rpc_hub.start()
         self.notify_start()
         self.shutdown_event.wait()
