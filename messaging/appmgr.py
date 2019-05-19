@@ -107,7 +107,7 @@ class MessagingRPCHub(object):
         # TODO: Fix request and response schema everywhere.
         rpc_info = RPCInfo("dummy_app_id",
                            "https://github.com/HomeWeave/WeaveServer.git",
-                           "WeaveServer",
+                           "WeaveServer", "dummy description",
                            [x.info for x in self.rpc.apis.values()],
                            SYSTEM_REGISTRY_BASE_QUEUE, {}, {});
         self.rpc_registry["rpc-" + str(uuid4())] = rpc_info
