@@ -95,7 +95,7 @@ class MessagingRPCHub(object):
                 ArgParameter("token", "Plugin Token", str)
             ], self.unregister_plugin),
             ServerAPI("rpc_info", "Get RPCInfo object.", [
-                ArgParameter("app_id", "Plugin ID (within WeaveEnv)", str),
+                ArgParameter("app_url", "Plugin URL", str),
                 ArgParameter("rpc_name", "RPC Name", str),
             ], self.rpc_info),
         ], service, channel_registry)
