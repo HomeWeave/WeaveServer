@@ -1,3 +1,4 @@
+import logging
 from threading import RLock
 
 from jsonschema import Draft4Validator, SchemaError
@@ -7,6 +8,9 @@ from weavelib.exceptions import ObjectClosed, SchemaValidationFailed
 from weavelib.exceptions import InternalError, BadArguments
 
 from .queues import FIFOQueue, SessionizedQueue
+
+
+logger = logging.getLogger(__name__)
 
 
 class ChannelInfo(object):
@@ -65,6 +69,7 @@ class ChannelRegistry(object):
         if not queue.connect():
             raise InternalError("Can't connect to queue: " + queue_name)
 
+        logger.info("Created queue: %s", queue_name)
         return queue
 
     def get_queue(self, queue_name):
