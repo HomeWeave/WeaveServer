@@ -166,4 +166,4 @@ class MessagingRPCHub(object):
         for rpc_info in self.rpc_registry.values():
             if rpc_info.app_url == url and rpc_info.name == rpc_name:
                 return rpc_info.to_json()
-        raise ObjectNotFound("RPC not found: " + package_name)
+        raise ObjectNotFound("RPC not found: " + rpc_name)
