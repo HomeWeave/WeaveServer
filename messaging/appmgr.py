@@ -117,15 +117,11 @@ class MessagingRPCHub(object):
         self.rpc.stop()
 
     def register_rpc(self, name, description, apis):
-        try:
-            caller_app = self.app_registry.get_app_info(get_rpc_caller())
-        except ObjectNotFound:
-            raise AuthenticationFailed("Can not identify caller.")
-
+        caller_app = get_rpc_caller()
         app_id = caller_app["app_id"]
         app_url = caller_app["app_url"]
         rpc_id = "rpc-" + str(uuid4())
-        base_queue = "/plugins/{}/rpcs/rpc-{}".format(app_id, rpc_id)
+        base_queue = "/plugins/{}/rpcs/{}".format(caller_app["app_id"], rpc_id)
         request_schema = {
             "type": "object",
             "properties": {
@@ -145,7 +141,7 @@ class MessagingRPCHub(object):
         # Thread safe because MAX_RPC_WORKERS == 1.
         self.rpc_registry[rpc_id] = rpc_info
 
-        return dict(request_queue=request_queue, response_queue=response_queue)
+        return res
 
     def register_plugin(self, app_id, name, url):
         caller_app = get_rpc_caller()
