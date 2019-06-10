@@ -3,8 +3,6 @@ import logging
 import socket
 from threading import Event
 
-from ipaddress import IPv4Network
-
 import weavelib.netutils as netutils
 
 
@@ -25,6 +23,7 @@ class DiscoveryServer(object):
     def __init__(self, message_server_port):
         self.sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         self.active = True
+        self.dead_event = Event()
 
     def run(self, success_callback=None):
         self.sock.bind(('', self.SERVER_PORT))
@@ -43,6 +42,7 @@ class DiscoveryServer(object):
                 self.sock.sendto(res, address)
 
         self.sock.close()
+        self.dead_event.set()
 
     def process(self, address, msg):
         if msg == "QUERY":
@@ -51,3 +51,4 @@ class DiscoveryServer(object):
 
     def stop(self):
         self.active = False
+        self.dead_event.wait()
