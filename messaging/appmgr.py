@@ -107,8 +107,8 @@ class MessagingRPCHub(object):
         # TODO: Fix request and response schema everywhere.
         rpc_info = RPCInfo("dummy_app_id",
                            "https://github.com/HomeWeave/WeaveServer.git",
-                           "WeaveServer", "dummy description",
-                           [x.info for x in self.rpc.apis.values()],
+                           self.rpc.name, self.rpc.description,
+                           {x: y.info for x, y in self.rpc.apis.items()},
                            SYSTEM_REGISTRY_BASE_QUEUE, {}, {});
         self.rpc_registry["rpc-" + str(uuid4())] = rpc_info
         self.rpc.start()
@@ -117,15 +117,11 @@ class MessagingRPCHub(object):
         self.rpc.stop()
 
     def register_rpc(self, name, description, apis):
-        try:
-            caller_app = self.app_registry.get_app_info(get_rpc_caller())
-        except ObjectNotFound:
-            raise AuthenticationFailed("Can not identify caller.")
-
+        caller_app = get_rpc_caller()
         app_id = caller_app["app_id"]
         app_url = caller_app["app_url"]
         rpc_id = "rpc-" + str(uuid4())
-        base_queue = "/plugins/{}/rpcs/rpc-{}".format(app_id, rpc_id)
+        base_queue = "/plugins/{}/rpcs/{}".format(caller_app["app_id"], rpc_id)
         request_schema = {
             "type": "object",
             "properties": {
@@ -145,7 +141,7 @@ class MessagingRPCHub(object):
         # Thread safe because MAX_RPC_WORKERS == 1.
         self.rpc_registry[rpc_id] = rpc_info
 
-        return dict(request_queue=request_queue, response_queue=response_queue)
+        return res
 
     def register_plugin(self, app_id, name, url):
         caller_app = get_rpc_caller()
@@ -166,4 +162,4 @@ class MessagingRPCHub(object):
         for rpc_info in self.rpc_registry.values():
             if rpc_info.app_url == url and rpc_info.name == rpc_name:
                 return rpc_info.to_json()
-        raise ObjectNotFound("RPC not found: " + package_name)
+        raise ObjectNotFound("RPC not found: " + rpc_name)
