@@ -26,8 +26,8 @@ class ApplicationRegistry(object):
         self.apps_lock = RLock()
 
         for name, url, app_id, token in (apps or []):
-            self.apps_by_token[token] = SystemApplication(name, url, app_id,
-                                                          token)
+            self.apps_by_token[token] = SystemApplication(name, "WEAVE-ENV",
+                                                          app_id, token)
 
     def register_plugin(self, app_id, name, url):
         with self.apps_lock:
@@ -52,6 +52,6 @@ class ApplicationRegistry(object):
         return {
             "app_name": app.name,
             "app_type": "plugin" if isinstance(app, Plugin) else "system",
-            "app_url": app.url if isinstance(app, Plugin) else "WEAVE-ENV",
+            "app_url": app.url,
             "app_id": app.app_id,
         }
