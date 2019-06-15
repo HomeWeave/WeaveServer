@@ -11,7 +11,7 @@ class TestApplicationService(object):
         expected = {
             "app_name": "name",
             "app_type": "system",
-            "app_url": "WEAVE-ENV",
+            "app_url": "url",
             "app_id": "app_id"
         }
 
