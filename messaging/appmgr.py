@@ -140,7 +140,7 @@ class MessagingRPCHub(object):
 
         # Thread safe because MAX_RPC_WORKERS == 1.
         self.rpc_registry[rpc_id] = rpc_info
-
+        logger.info("Registered RPC: %s(%s)", name, app_url)
         return res
 
     def register_plugin(self, app_id, name, url):
