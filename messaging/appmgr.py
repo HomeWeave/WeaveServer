@@ -1,23 +1,21 @@
 import logging
-from collections import defaultdict
 from uuid import uuid4
-
-from jsonschema import Draft4Validator
 
 from weavelib.exceptions import ObjectNotFound, AuthenticationFailed
 from weavelib.rpc import RPCServer, ServerAPI, ArgParameter, get_rpc_caller
 
 
 logger = logging.getLogger(__name__)
-
-
 SYSTEM_REGISTRY_BASE_QUEUE = "/_system/registry"
+
 
 def get_rpc_request_queue(base_queue):
     return base_queue.rstrip('/') + "/request"
 
+
 def get_rpc_response_queue(base_queue):
     return base_queue.rstrip('/') + "/response"
+
 
 def create_rpc_queues(base_queue, request_schema, response_schema, registry):
         request_queue = get_rpc_request_queue(base_queue)
@@ -109,7 +107,7 @@ class MessagingRPCHub(object):
                            "https://github.com/HomeWeave/WeaveServer.git",
                            self.rpc.name, self.rpc.description,
                            {x: y.info for x, y in self.rpc.apis.items()},
-                           SYSTEM_REGISTRY_BASE_QUEUE, {}, {});
+                           SYSTEM_REGISTRY_BASE_QUEUE, {}, {})
         self.rpc_registry["rpc-" + str(uuid4())] = rpc_info
         self.rpc.start()
 
