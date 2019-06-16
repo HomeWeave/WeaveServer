@@ -1,26 +1,22 @@
-import json
 import logging
-import os
 try:
     from queue import Queue
 except ImportError:
     from Queue import Queue
 import socket
-import time
 from socketserver import ThreadingTCPServer, StreamRequestHandler
 from threading import RLock, Thread
 
-from jsonschema import validate, ValidationError, SchemaError
+from jsonschema import ValidationError
 
 from weavelib.exceptions import WeaveException, ObjectNotFound
-from weavelib.exceptions import ObjectAlreadyExists, AuthenticationFailed
-from weavelib.exceptions import ProtocolError, BadOperation, InternalError
+from weavelib.exceptions import AuthenticationFailed
+from weavelib.exceptions import ProtocolError, BadOperation
 from weavelib.exceptions import SchemaValidationFailed
 from weavelib.messaging import read_message, serialize_message, Message
 from weavelib.messaging import exception_to_message
 
 from .messaging_utils import get_required_field
-from .queue_manager import ChannelRegistry
 
 
 logger = logging.getLogger(__name__)
