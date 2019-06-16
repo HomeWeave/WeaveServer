@@ -14,6 +14,7 @@ from messaging.appmgr import MessagingRPCHub
 
 PORT = 11023
 
+
 class DummyMessagingService(MessagingEnabled):
     def __init__(self, auth_token, conn):
         super(DummyMessagingService, self).__init__(auth_token=auth_token,
@@ -35,7 +36,7 @@ class CoreService(BackgroundProcessServiceStart, BaseService):
         self.message_server_started = Event()
         self.shutdown_event = Event()
         app_registry = ApplicationRegistry([
-            ("WeaveEnv", "http://github.com/HomeWeave/WeaveEnv.git",
+            ("WeaveEnv", "https://github.com/HomeWeave/WeaveEnv.git",
              "app-id-weave-env", weave_env_token),
             ("MessagingServer", "http://github.com/HomeWeave/WeaveServer.git",
              "app-id-messaging", messaging_token),
