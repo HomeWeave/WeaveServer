@@ -143,14 +143,14 @@ class MessagingRPCHub(object):
 
     def register_plugin(self, app_id, name, url):
         caller_app = get_rpc_caller()
-        if caller_app["app_type"] != "SYSTEM":
+        if caller_app["app_type"] != "system":
             raise AuthenticationFailed("Only system apps can register plugins.")
 
         return self.app_registry.register_application(app_id, name, url)
 
     def unregister_plugin(self, token):
         caller_app = get_rpc_caller()
-        if caller_app.get("type") != "SYSTEM":
+        if caller_app.get("type") != "system":
             raise AuthenticationFailed("Only system apps can stop plugins.")
 
         self.app_registry.unregister_application(token)
