@@ -33,12 +33,6 @@ class BaseQueue(object):
         if headers["AUTH"].get("app_type") == "system":
             return
 
-        appid = headers["AUTH"]["app_id"]
-
-        if self.queue_info.get("authorization") and\
-                appid not in self.queue_info["authorization"]["auth_whitelist"]:
-            raise AuthenticationFailed("Unauthorized.")
-
     def pack_message(self, task, headers):
         reqd = {"AUTH": json.dumps}
         headers = {x: f(headers[x]) for x, f in reqd.items() if x in headers}
