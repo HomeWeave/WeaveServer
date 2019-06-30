@@ -15,7 +15,7 @@ logger = logging.getLogger(__name__)
 
 class ChannelInfo(object):
     def __init__(self, channel_name, request_schema, response_schema,
-                 force_auth=False):
+                 authorizers=None):
         try:
             Draft4Validator.check_schema(request_schema)
         except SchemaError:
@@ -28,14 +28,15 @@ class ChannelInfo(object):
         self.channel_name = channel_name
         self.request_schema = request_schema
         self.response_schema = response_schema
-        self.force_auth = force_auth
+        self.authorizers = authorizers or {}
 
 
 class QueueInfo(ChannelInfo):
     def __init__(self, queue_name, request_schema, response_schema, queue_type,
-                 force_auth=True):
+                 authorizers=None):
         super(QueueInfo, self).__init__(queue_name, request_schema,
-                                        response_schema, force_auth=force_auth)
+                                        response_schema,
+                                        authorizers=authorizers)
         channel_map = {"fifo": FIFOQueue, "sessionized": SessionizedQueue}
         self.queue_cls = channel_map.get(queue_type)
         if not self.queue_cls:
@@ -52,9 +53,9 @@ class ChannelRegistry(object):
         self.active = True
 
     def create_queue(self, queue_name, request_schema, response_schema,
-                     queue_type, force_auth=False):
+                     queue_type, authorizers=None):
         queue_info = QueueInfo(queue_name, request_schema, response_schema,
-                               queue_type, force_auth)
+                               queue_type, authorizers)
 
         with self.channel_map_lock:
             if not self.active:

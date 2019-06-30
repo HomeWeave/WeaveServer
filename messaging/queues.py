@@ -4,9 +4,10 @@ from collections import defaultdict
 
 from jsonschema import validate
 
-from weavelib.exceptions import AuthenticationFailed
+from weavelib.exceptions import AuthenticationFailed, Unauthorized
 
 from .messaging_utils import get_required_field
+from .authorizers import AllowAllAuthorizer
 
 
 class BaseQueue(object):
@@ -22,16 +23,20 @@ class BaseQueue(object):
     def validate_schema(self, msg):
         validate(msg, self.queue_info.request_schema)
 
-    def check_auth(self, task, headers):
-        if not self.queue_info.force_auth:
-            return
+    def check_auth(self, headers):
+        op = headers.get("OP")
+        authorizer = self.queue_info.authorizers.get(op, AllowAllAuthorizer())
 
-        # TODO: Clean this up. Use a separate extensible authorization module.
-        if not headers.get("AUTH"):
-            raise AuthenticationFailed("Invalid AUTH header.")
+        # headers.get("AUTH") == ApplicationRegistry.get_app_info().
+        app_info = headers.get("AUTH", {})
 
-        if headers["AUTH"].get("app_type") == "system":
-            return
+        default_app_url = object()
+        app_url = app_info.get("app_url", default_app_url)
+        res = authorizer.authorize(app_url, op, self.queue_info.channel_name)
+        if not res:
+            if app_url is default_app_url:
+                raise AuthenticationFailed()
+            raise Unauthorized("Action is not authorized.")
 
     def pack_message(self, task, headers):
         reqd = {"AUTH": json.dumps}
@@ -69,7 +74,7 @@ class SynchronousQueue(BaseQueue):
 
     def enqueue(self, task, headers):
         self.validate_schema(task)
-        self.check_auth(task, headers)
+        self.check_auth(headers)
 
         msg = self.pack_message(task, headers)
         msg.update(self.pack_attributes(task, headers))
@@ -96,7 +101,7 @@ class SynchronousQueue(BaseQueue):
 
     def dequeue(self, headers, out):
         requestor_id = get_required_field(headers, self.REQUESTOR_ID_FIELD)
-        self.check_auth(None, headers)
+        self.check_auth(headers)
 
         self.current_requestors[requestor_id] = out
         self.before_dequeue(requestor_id)

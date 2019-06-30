@@ -22,9 +22,9 @@ def create_rpc_queues(base_queue, request_schema, response_schema, registry):
         response_queue = get_rpc_response_queue(base_queue)
 
         registry.create_queue(request_queue, request_schema, {}, 'fifo',
-                              force_auth=True)
+                              authorizers=None)
         registry.create_queue(response_queue, response_schema, {},
-                              'sessionized', force_auth=False)
+                              'sessionized', authorizers=None)
         return dict(request_queue=request_queue, response_queue=response_queue)
 
 
