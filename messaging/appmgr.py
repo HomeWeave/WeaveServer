@@ -17,10 +17,12 @@ def get_rpc_response_queue(base_queue):
     return base_queue.rstrip('/') + "/response"
 
 
-def create_rpc_queues(base_queue, request_schema, response_schema, registry):
+def create_rpc_queues(base_queue, request_schema, response_schema, registry,
+                      allowed_requestor_urls):
         request_queue = get_rpc_request_queue(base_queue)
         response_queue = get_rpc_response_queue(base_queue)
 
+        # World enqueues into the request queue:
         registry.create_queue(request_queue, request_schema, {}, 'fifo',
                               authorizers=None)
         registry.create_queue(response_queue, response_schema, {},
@@ -71,7 +73,7 @@ class RootRPCServer(RPCServer):
 
     def register_rpc(self):
         return create_rpc_queues(SYSTEM_REGISTRY_BASE_QUEUE, {}, {},
-                                 self.channel_registry)
+                                 self.channel_registry, [])
 
 
 class MessagingRPCHub(object):
@@ -83,6 +85,10 @@ class MessagingRPCHub(object):
                 ArgParameter("name", "Name of the RPC", str),
                 ArgParameter("description", "Description of RPC", str),
                 ArgParameter("apis", "Maps of all APIs", self.APIS_SCHEMA),
+                ArgParameter("allowed_requestors",
+                             "List of app_urls that can call this RPC. Empty " +
+                             "list to allow everyone.",
+                             {"type": "array", "items": {"type": "string"}})
             ], self.register_rpc),
             ServerAPI("register_plugin", "Register Plugin", [
                 ArgParameter("app_id", "Plugin ID (within WeaveEnv)", str),
@@ -114,7 +120,7 @@ class MessagingRPCHub(object):
     def stop(self):
         self.rpc.stop()
 
-    def register_rpc(self, name, description, apis):
+    def register_rpc(self, name, description, apis, allowed_requestors):
         caller_app = get_rpc_caller()
         app_id = caller_app["app_id"]
         app_url = caller_app["app_url"]
@@ -131,7 +137,7 @@ class MessagingRPCHub(object):
         }
         response_schema = {}
         res = create_rpc_queues(base_queue, request_schema, response_schema,
-                                self.channel_registry)
+                                self.channel_registry, allowed_requestors)
 
         rpc_info = RPCInfo(app_id, app_url, name, description, apis, base_queue,
                            request_schema, response_schema)
