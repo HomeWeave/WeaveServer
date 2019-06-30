@@ -66,6 +66,8 @@ class CoreService(BackgroundProcessServiceStart, BaseService):
 
     def on_service_stop(self):
         self.dummy_service.get_connection().close()
+        self.discovery_server.stop()
+        self.discovery_server_thread.join()
         self.message_server.shutdown()
         self.message_server_thread.join()
         self.shutdown_event.set()
