@@ -29,6 +29,7 @@ class ApplicationRegistry(object):
             self.apps_by_token[token] = SystemApplication(name, url, app_id,
                                                           token)
 
+    # TODO: Get rid of app_id here. Don't need it -- url should be enough.
     def register_plugin(self, app_id, name, url):
         with self.apps_lock:
             token = "app-token-" + str(uuid4())
