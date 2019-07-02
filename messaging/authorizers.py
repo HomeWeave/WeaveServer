@@ -1,5 +1,3 @@
-
-
 class BaseAuthorizer(object):
     def authorize(self, app_url, operation, channel):
         raise NotImplementedError
@@ -15,15 +13,7 @@ class WhitelistAuthorizer(BaseAuthorizer):
         self.allowed_app_urls = whitelisted_urls
 
     def authorize(self, app_url, operation, channel):
-        return operation == "enqueue" and app_url in self.allowed_app_urls
-
-
-class DequeueAuthorizer(BaseAuthorizer):
-    def __init__(self, whitelisted_urls):
-        self.allowed_app_urls = whitelisted_urls
-
-    def authorize(self, app_url, operation, channel):
-        return operation == "dequeue" and app_url in self.allowed_app_urls
+        return app_url in self.allowed_app_urls
 
 
 class ChainedAuthorizer(BaseAuthorizer):
