@@ -9,6 +9,7 @@ from messaging.authorizers import WhitelistAuthorizer, AllowAllAuthorizer
 
 logger = logging.getLogger(__name__)
 SYSTEM_REGISTRY_BASE_QUEUE = "/_system/registry"
+MESSAGING_SERVER_URL = "https://github.com/HomeWeave/WeaveServer.git"
 
 
 def get_rpc_request_queue(base_queue):
@@ -90,7 +91,8 @@ class RootRPCServer(RPCServer):
 
     def register_rpc(self):
         return create_rpc_queues(SYSTEM_REGISTRY_BASE_QUEUE, {}, {},
-                                 self.channel_registry, [])
+                                 self.channel_registry, MESSAGING_SERVER_URL,
+                                 [])
 
 
 class MessagingRPCHub(object):
@@ -126,9 +128,8 @@ class MessagingRPCHub(object):
 
     def start(self):
         # TODO: Fix request and response schema everywhere.
-        rpc_info = RPCInfo("dummy_app_id",
-                           "https://github.com/HomeWeave/WeaveServer.git",
-                           self.rpc.name, self.rpc.description,
+        rpc_info = RPCInfo("dummy_app_id", MESSAGING_SERVER_URL, self.rpc.name,
+                           self.rpc.description,
                            {x: y.info for x, y in self.rpc.apis.items()},
                            SYSTEM_REGISTRY_BASE_QUEUE, {}, {})
         self.rpc_registry["rpc-" + str(uuid4())] = rpc_info
@@ -154,7 +155,8 @@ class MessagingRPCHub(object):
         }
         response_schema = {}
         res = create_rpc_queues(base_queue, request_schema, response_schema,
-                                self.channel_registry, allowed_requestors)
+                                self.channel_registry, app_url,
+                                allowed_requestors)
 
         rpc_info = RPCInfo(app_id, app_url, name, description, apis, base_queue,
                            request_schema, response_schema)
