@@ -4,6 +4,8 @@ from uuid import uuid4
 from weavelib.exceptions import ObjectNotFound, AuthenticationFailed
 from weavelib.rpc import RPCServer, ServerAPI, ArgParameter, get_rpc_caller
 
+from messaging.authorizers import WhitelistAuthorizer, AllowAllAuthorizer
+
 
 logger = logging.getLogger(__name__)
 SYSTEM_REGISTRY_BASE_QUEUE = "/_system/registry"
@@ -18,15 +20,30 @@ def get_rpc_response_queue(base_queue):
 
 
 def create_rpc_queues(base_queue, request_schema, response_schema, registry,
-                      allowed_requestor_urls):
+                      app_url, allowed_requestor_urls):
         request_queue = get_rpc_request_queue(base_queue)
         response_queue = get_rpc_response_queue(base_queue)
 
+        # Request Queue: allowed_requestor_urls can enqueue but only the app can
+        # dequeue.
+        request_authorizers = {
+            "enqueue": WhitelistAuthorizer(allowed_requestor_urls)
+                       if allowed_requestor_urls else AllowAllAuthorizer(),
+            "dequeue": WhitelistAuthorizer([app_url])
+        }
+
+        # Response Queue: This is a sessionized queue, so anyone can dequeue,
+        # but only the app can enqueue.
+        response_authorizers = {
+            "enqueue": WhitelistAuthorizer(app_url),
+            "dequeue": AllowAllAuthorizer(),
+        }
+
         # World enqueues into the request queue:
         registry.create_queue(request_queue, request_schema, {}, 'fifo',
-                              authorizers=None)
+                              authorizers=request_authorizers)
         registry.create_queue(response_queue, response_schema, {},
-                              'sessionized', authorizers=None)
+                              'sessionized', authorizers=response_authorizers)
         return dict(request_queue=request_queue, response_queue=response_queue)
 
 
