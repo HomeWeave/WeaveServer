@@ -38,7 +38,7 @@ class CoreService(BackgroundProcessServiceStart, BaseService):
         app_registry = ApplicationRegistry([
             ("WeaveEnv", "https://github.com/HomeWeave/WeaveEnv.git",
              "app-id-weave-env", weave_env_token),
-            ("MessagingServer", "http://github.com/HomeWeave/WeaveServer.git",
+            ("MessagingServer", "https://github.com/HomeWeave/WeaveServer.git",
              "app-id-messaging", messaging_token),
         ])
         channel_registry = ChannelRegistry()
