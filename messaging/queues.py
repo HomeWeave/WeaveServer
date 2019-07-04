@@ -23,8 +23,7 @@ class BaseQueue(object):
     def validate_schema(self, msg):
         validate(msg, self.queue_info.request_schema)
 
-    def check_auth(self, headers):
-        op = headers.get("OP")
+    def check_auth(self, op, headers):
         authorizer = self.queue_info.authorizers.get(op, AllowAllAuthorizer())
 
         # headers.get("AUTH") == ApplicationRegistry.get_app_info().
@@ -74,7 +73,7 @@ class SynchronousQueue(BaseQueue):
 
     def enqueue(self, task, headers):
         self.validate_schema(task)
-        self.check_auth(headers)
+        self.check_auth('enqueue', headers)
 
         msg = self.pack_message(task, headers)
         msg.update(self.pack_attributes(task, headers))
@@ -101,7 +100,7 @@ class SynchronousQueue(BaseQueue):
 
     def dequeue(self, headers, out):
         requestor_id = get_required_field(headers, self.REQUESTOR_ID_FIELD)
-        self.check_auth(headers)
+        self.check_auth('dequeue', headers)
 
         self.current_requestors[requestor_id] = out
         self.before_dequeue(requestor_id)
