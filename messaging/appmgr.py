@@ -175,7 +175,8 @@ class MessagingRPCHub(object):
 
     def unregister_plugin(self, token):
         caller_app = get_rpc_caller()
-        if caller_app.get("type") != "system":
+
+        if caller_app.get("app_type") != "system":
             raise AuthenticationFailed("Only system apps can stop plugins.")
 
         self.app_registry.unregister_plugin(token)
