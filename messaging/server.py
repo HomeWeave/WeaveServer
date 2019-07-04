@@ -156,7 +156,10 @@ class MessageServer(ThreadingTCPServer):
 
         with self.active_connections_lock:
             for sock, rfile, wfile in self.active_connections.values():
-                sock.shutdown(socket.SHUT_RDWR)
+                try:
+                    sock.shutdown(socket.SHUT_RDWR)
+                except (IOError, OSError):
+                    pass
                 safe_close(sock)
                 safe_close(rfile)
                 safe_close(wfile)
