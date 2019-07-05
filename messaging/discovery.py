@@ -16,6 +16,13 @@ def get_message_server_address(request_addr):
     return None
 
 
+def safe_close(sock):
+    try:
+        sock.close()
+    except (IOError, OSError):
+        pass
+
+
 class DiscoveryServer(object):
     SERVER_PORT = 23034
     ACTIVE_POLL_TIME = 15
@@ -26,23 +33,25 @@ class DiscoveryServer(object):
         self.dead_event = Event()
 
     def run(self, success_callback=None):
+        import pdb; pdb.set_trace()
         self.sock.bind(('', self.SERVER_PORT))
         self.sock.settimeout(self.ACTIVE_POLL_TIME)
         if success_callback:
             success_callback()
 
-        while self.active:
-            try:
-                data, address = self.sock.recvfrom(1024)
-            except socket.timeout:
-                continue
-            msg = data.decode()
-            res = self.process(address, msg)
-            if res:
-                self.sock.sendto(res, address)
-
-        self.sock.close()
-        self.dead_event.set()
+        try:
+            while self.active:
+                try:
+                    data, address = self.sock.recvfrom(1024)
+                except socket.timeout:
+                    continue
+                msg = data.decode()
+                res = self.process(address, msg)
+                if res:
+                    self.sock.sendto(res, address)
+        finally:
+            safe_close(self.sock)
+            self.dead_event.set()
 
     def process(self, address, msg):
         if msg == "QUERY":
@@ -51,4 +60,5 @@ class DiscoveryServer(object):
 
     def stop(self):
         self.active = False
+        safe_close(self.sock)
         self.dead_event.wait()
