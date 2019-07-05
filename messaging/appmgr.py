@@ -49,9 +49,8 @@ def create_rpc_queues(base_queue, request_schema, response_schema, registry,
 
 
 class RPCInfo(object):
-    def __init__(self, app_id, app_url, name, desc, apis, base_queue,
-                 req_schema, res_schema):
-        self.app_id = app_id
+    def __init__(self, app_url, name, desc, apis, base_queue, req_schema,
+                 res_schema):
         self.app_url = app_url
         self.name = name
         self.description = desc
@@ -70,7 +69,6 @@ class RPCInfo(object):
 
     def to_json(self):
         return {
-            "app_id": self.app_id,
             "app_url": self.app_url,
             "name": self.name,
             "description": self.description,
@@ -110,7 +108,6 @@ class MessagingRPCHub(object):
                              {"type": "array", "items": {"type": "string"}})
             ], self.register_rpc),
             ServerAPI("register_plugin", "Register Plugin", [
-                ArgParameter("app_id", "Plugin ID (within WeaveEnv)", str),
                 ArgParameter("name", "Plugin Name", str),
                 ArgParameter("url", "Plugin URL (GitHub)", str),
             ], self.register_plugin),
@@ -128,7 +125,7 @@ class MessagingRPCHub(object):
 
     def start(self):
         # TODO: Fix request and response schema everywhere.
-        rpc_info = RPCInfo("dummy_app_id", MESSAGING_SERVER_URL, self.rpc.name,
+        rpc_info = RPCInfo(MESSAGING_SERVER_URL, self.rpc.name,
                            self.rpc.description,
                            {x: y.info for x, y in self.rpc.apis.items()},
                            SYSTEM_REGISTRY_BASE_QUEUE, {}, {})
@@ -140,10 +137,9 @@ class MessagingRPCHub(object):
 
     def register_rpc(self, name, description, apis, allowed_requestors):
         caller_app = get_rpc_caller()
-        app_id = caller_app["app_id"]
         app_url = caller_app["app_url"]
         rpc_id = "rpc-" + str(uuid4())
-        base_queue = "/plugins/{}/rpcs/{}".format(caller_app["app_id"], rpc_id)
+        base_queue = "/plugins/{}/rpcs/{}".format(app_url, rpc_id)
         request_schema = {
             "type": "object",
             "properties": {
@@ -158,7 +154,7 @@ class MessagingRPCHub(object):
                                 self.channel_registry, app_url,
                                 allowed_requestors)
 
-        rpc_info = RPCInfo(app_id, app_url, name, description, apis, base_queue,
+        rpc_info = RPCInfo(app_url, name, description, apis, base_queue,
                            request_schema, response_schema)
 
         # Thread safe because MAX_RPC_WORKERS == 1.
@@ -166,12 +162,12 @@ class MessagingRPCHub(object):
         logger.info("Registered RPC: %s(%s)", name, app_url)
         return res
 
-    def register_plugin(self, app_id, name, url):
+    def register_plugin(self, name, url):
         caller_app = get_rpc_caller()
         if caller_app["app_type"] != "system":
             raise AuthenticationFailed("Only system apps can register plugins.")
 
-        return self.app_registry.register_plugin(app_id, name, url)
+        return self.app_registry.register_plugin(name, url)
 
     def unregister_plugin(self, token):
         caller_app = get_rpc_caller()

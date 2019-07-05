@@ -37,9 +37,9 @@ class CoreService(BackgroundProcessServiceStart, BaseService):
         self.shutdown_event = Event()
         app_registry = ApplicationRegistry([
             ("WeaveEnv", "https://github.com/HomeWeave/WeaveEnv.git",
-             "app-id-weave-env", weave_env_token),
+             weave_env_token),
             ("MessagingServer", "https://github.com/HomeWeave/WeaveServer.git",
-             "app-id-messaging", messaging_token),
+             messaging_token),
         ])
         channel_registry = ChannelRegistry()
 

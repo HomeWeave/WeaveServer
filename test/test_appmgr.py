@@ -26,9 +26,8 @@ class TestMessagingRPCHub(object):
                                                    WeaveConnection.local())
         message_server_started = Event()
         app_registry = ApplicationRegistry([
-            ("Test", "Test URL", "Test-app-id", TEST_APP_TOKEN),
-            ("MessagingServer", MESSAGING_SERVER_URL,
-             "app-id-messaging", messaging_token),
+            ("Test", "Test URL", TEST_APP_TOKEN),
+            ("MessagingServer", MESSAGING_SERVER_URL, messaging_token),
         ])
         channel_registry = ChannelRegistry()
 
@@ -62,7 +61,7 @@ class TestMessagingRPCHub(object):
         conn.connect()
         client = RPCClient(conn, self.appmgr_rpc_info, TEST_APP_TOKEN)
         client.start()
-        token = client["register_plugin"]("app1", "name", "url1", _block=True)
+        token = client["register_plugin"]("name", "url1", _block=True)
         assert token
 
         assert client["unregister_plugin"](token, _block=True)
@@ -75,12 +74,12 @@ class TestMessagingRPCHub(object):
         conn.connect()
         client = RPCClient(conn, self.appmgr_rpc_info, TEST_APP_TOKEN)
         client.start()
-        token = client["register_plugin"]("app1", "name", "url1", _block=True)
+        token = client["register_plugin"]("name", "url1", _block=True)
         plugin_client = RPCClient(conn, self.appmgr_rpc_info, token)
         plugin_client.start()
 
         with pytest.raises(AuthenticationFailed):
-            plugin_client["register_plugin"]("a", "b", "c", _block=True)
+            plugin_client["register_plugin"]("a", "b", _block=True)
 
         plugin_client.stop()
         client.stop()
@@ -94,21 +93,18 @@ class TestMessagingRPCHub(object):
 
         data = {
             "1": {
-                "app_id": "app1",
                 "name": "name1",
                 "url": "url1",
                 "rpc_name": "rpc1",
                 "allowed_requestors": []
             },
             "2": {
-                "app_id": "app2",
                 "name": "name2",
                 "url": "url2",
                 "rpc_name": "rpc2",
                 "allowed_requestors": ["url1"]
             },
             "3": {
-                "app_id": "app3",
                 "name": "name3",
                 "url": "url3",
                 "rpc_name": "rpc3",
@@ -117,8 +113,7 @@ class TestMessagingRPCHub(object):
         }
 
         for info in data.values():
-            info["token"] = client["register_plugin"](info["app_id"],
-                                                      info["name"], info["url"],
+            info["token"] = client["register_plugin"](info["name"], info["url"],
                                                       _block=True)
 
             service = DummyMessagingService(info["token"], conn)
