@@ -33,7 +33,6 @@ class DiscoveryServer(object):
         self.dead_event = Event()
 
     def run(self, success_callback=None):
-        import pdb; pdb.set_trace()
         self.sock.bind(('', self.SERVER_PORT))
         self.sock.settimeout(self.ACTIVE_POLL_TIME)
         if success_callback:
