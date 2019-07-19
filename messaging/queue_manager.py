@@ -14,7 +14,7 @@ logger = logging.getLogger(__name__)
 
 
 class ChannelInfo(object):
-    def __init__(self, channel_name, request_schema, response_schema,
+    def __init__(self, channel_name, owner_app, request_schema, response_schema,
                  authorizers=None):
         try:
             Draft4Validator.check_schema(request_schema)
@@ -29,17 +29,17 @@ class ChannelInfo(object):
         self.request_schema = request_schema
         self.response_schema = response_schema
         self.authorizers = authorizers or {}
+        self.owner_app = owner_app
 
     def create_channel(self):
         raise NotImplementedError
 
 
 class QueueInfo(ChannelInfo):
-    def __init__(self, queue_name, request_schema, response_schema, queue_type,
-                 authorizers=None):
-        super(QueueInfo, self).__init__(queue_name, request_schema,
-                                        response_schema,
-                                        authorizers=authorizers)
+    def __init__(self, queue_name, owner_app, request_schema, response_schema,
+                 queue_type, authorizers=None):
+        super().__init__(queue_name, owner_app, request_schema, response_schema,
+                         authorizers=authorizers)
         channel_map = {"fifo": FIFOQueue, "sessionized": SessionizedQueue}
         self.queue_cls = channel_map.get(queue_type)
         if not self.queue_cls:
@@ -50,62 +50,52 @@ class QueueInfo(ChannelInfo):
 
 
 class MulticastInfo(ChannelInfo):
-    def __init__(self, multicast_name, request_schema, response_schema,
-                 authorizers=None):
-        super().__init__(multicast_name, request_schema, response_schema,
-                         authorizers=authorizers)
+    def __init__(self, multicast_name, owner_app, request_schema,
+                 response_schema, authorizers=None):
+        super().__init__(multicast_name, owner_app, request_schema,
+                         response_schema, authorizers=authorizers)
 
     def create_channel(self):
         return Multicast(self)
 
 
 class ChannelRegistry(object):
-    def __init__(self):
+    def __init__(self, app_registry):
         self.channel_map = {}
         self.channel_map_lock = RLock()
+        self.app_registry = app_registry
         self.active = True
 
-    def create_queue(self, queue_name, request_schema, response_schema,
-                     queue_type, authorizers=None):
-        queue_info = QueueInfo(queue_name, request_schema, response_schema,
-                               queue_type, authorizers)
+    def create_queue(self, queue_name, owner_app, request_schema,
+                     response_schema, queue_type, authorizers=None):
+        queue_info = QueueInfo(queue_name, owner_app, request_schema,
+                               response_schema, queue_type, authorizers)
 
+        return self.create_channel_internal(queue_info)
+
+    def create_multicast(self, multicast_name, owner_app, request_schema,
+                         response_schema, authorizers=None):
+        multicast_info = MulticastInfo(multicast_name, owner_app,
+                                       request_schema, response_schema,
+                                       authorizers)
+        return self.create_channel_internal(multicast_info)
+
+    def create_channel_internal(self, channel_info):
         with self.channel_map_lock:
             if not self.active:
                 raise ObjectClosed("Server shutting down.")
 
-            if queue_info.channel_name in self.channel_map:
-                raise ObjectAlreadyExists(queue_info.channel_name)
+            if channel_info.channel_name in self.channel_map:
+                raise ObjectAlreadyExists(channel_info.channel_name)
 
-            queue = queue_info.create_channel()
-            self.channel_map[queue_info.channel_name] = queue
+            channel = channel_info.create_channel()
+            self.channel_map[channel_info.channel_name] = channel
 
-        if not queue.connect():
-            raise InternalError("Can't connect to queue: " + queue_name)
+        if not channel.connect():
+            raise InternalError("Can't connect to channel: " + str(channel))
 
-        logger.info("Created queue: %s", queue_name)
-        return queue
-
-    def create_multicast(self, multicast_name, request_schema, response_schema,
-                         authorizers=None):
-        multicast_info = MulticastInfo(multicast_name, request_schema,
-                                       response_schema, authorizers)
-
-        with self.channel_map_lock:
-            if not self.active:
-                raise ObjectClosed("Server shutting down.")
-
-            if multicast_name in self.channel_map:
-                raise ObjectAlreadyExists(multicast_name)
-
-            multicast = multicast_info.create_channel()
-            self.channel_map[multicast_name] = multicast
-
-        if not multicast.connect():
-            raise InternalError("Can't connect to multicast: " + multicast_name)
-
-        logger.info("Created multicast: %s", multicast_name)
-        return multicast
+        logger.info("Created channel: %s", channel)
+        return channel
 
     def get_channel(self, channel_name):
         # TODO: Change to reader-writer lock.
