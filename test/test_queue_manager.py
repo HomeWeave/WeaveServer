@@ -4,6 +4,7 @@ from weavelib.exceptions import SchemaValidationFailed, ObjectAlreadyExists
 from weavelib.exceptions import ObjectNotFound, InternalError, ObjectClosed
 from weavelib.exceptions import BadArguments
 
+from messaging.application_registry import ApplicationRegistry, Plugin
 from messaging.queue_manager import ChannelRegistry
 from messaging.queues import SessionizedQueue, FIFOQueue
 
@@ -13,35 +14,47 @@ class TestChannelRegistry(object):
                              [("sessionized", SessionizedQueue),
                               ("fifo", FIFOQueue)])
     def test_create_queue_simple(self, queue_type, expected_cls):
-        registry = ChannelRegistry()
-        queue = registry.create_queue("queue_name", {}, {}, queue_type)
+        test_app = Plugin("test", "test", "test-token")
+        apps = ApplicationRegistry()
+        registry = ChannelRegistry(apps)
+        queue = registry.create_queue("queue_name", test_app, {}, {},
+                                      queue_type)
 
         assert isinstance(queue, expected_cls)
         assert registry.get_channel("queue_name") is queue
 
     def test_create_queue_bad_queue_type(self):
-        registry = ChannelRegistry()
+        test_app = Plugin("test", "test", "test-token")
+        apps = ApplicationRegistry()
+        registry = ChannelRegistry(apps)
         with pytest.raises(BadArguments):
-            registry.create_queue("queue_name", {}, {}, "bad-type")
+            registry.create_queue("queue_name", test_app, {}, {}, "bad-type")
 
     def test_create_queue_bad_schema(self):
-        registry = ChannelRegistry()
+        test_app = Plugin("test", "test", "test-token")
+        apps = ApplicationRegistry()
+        registry = ChannelRegistry(apps)
         with pytest.raises(SchemaValidationFailed):
-            registry.create_queue("queue_name", "test", {}, "fifo")
+            registry.create_queue("queue_name", test_app, "test", {}, "fifo")
 
         with pytest.raises(SchemaValidationFailed):
-            registry.create_queue("queue_name", {}, "test", "fifo")
+            registry.create_queue("queue_name", test_app, {}, "test", "fifo")
 
     def test_queue_already_exists(self):
-        registry = ChannelRegistry()
-        queue = registry.create_queue("queue_name", {}, {}, "sessionized")
+        test_app = Plugin("test", "test", "test-token")
+        apps = ApplicationRegistry()
+        registry = ChannelRegistry(apps)
+        queue = registry.create_queue("queue_name", test_app, {}, {},
+                                      "sessionized")
         assert isinstance(queue, SessionizedQueue)
 
         with pytest.raises(ObjectAlreadyExists):
-            registry.create_queue("queue_name", {}, {}, "fifo")
+            registry.create_queue("queue_name", test_app, {}, {}, "fifo")
 
     def test_get_queue_invalid(self):
-        registry = ChannelRegistry()
+        test_app = Plugin("test", "test", "test-token")
+        apps = ApplicationRegistry()
+        registry = ChannelRegistry(apps)
         with pytest.raises(ObjectNotFound):
             registry.get_channel("test_queue")
 
@@ -49,16 +62,22 @@ class TestChannelRegistry(object):
         backup = FIFOQueue.connect
         FIFOQueue.connect = lambda self: False
 
-        registry = ChannelRegistry()
+        test_app = Plugin("test", "test", "test-token")
+        apps = ApplicationRegistry()
+        registry = ChannelRegistry(apps)
         with pytest.raises(InternalError):
-            registry.create_queue("queue_name", {}, {}, "fifo")
+            registry.create_queue("queue_name", test_app, {}, {}, "fifo")
 
         FIFOQueue.connect = backup
 
     def test_shutdown(self):
-        registry = ChannelRegistry()
-        queue1 = registry.create_queue("queue1", {}, {}, "fifo")
-        queue2 = registry.create_queue("queue2", {}, {}, "sessionized")
+        test_app = Plugin("test", "test", "test-token")
+        apps = ApplicationRegistry()
+        registry = ChannelRegistry(apps)
+
+        queue1 = registry.create_queue("queue1", test_app, {}, {}, "fifo")
+        queue2 = registry.create_queue("queue2", test_app, {}, {},
+                                       "sessionized")
 
         flag = []
         def disconnect_fn():
@@ -72,4 +91,4 @@ class TestChannelRegistry(object):
         assert len(flag) == 2
 
         with pytest.raises(ObjectClosed):
-            registry.create_queue("queue3", {}, {}, "fifo")
+            registry.create_queue("queue3", test_app, {}, {}, "fifo")

@@ -12,8 +12,9 @@ from weavelib.messaging import Sender, Receiver, read_message
 from weavelib.messaging import ensure_ok_message, WeaveConnection
 
 from messaging.server import MessageServer
-from messaging.application_registry import ApplicationRegistry
+from messaging.application_registry import ApplicationRegistry, Plugin
 from messaging.queue_manager import ChannelRegistry
+from messaging.synonyms import SynonymRegistry
 
 
 import logging
@@ -65,21 +66,28 @@ class TestMessageServer(object):
             "required": ["foo"]
         }
 
-        registry = ChannelRegistry()
-        registry.create_queue("/a.b.c", schema, {}, 'fifo')
-        registry.create_queue("/test.sessionized", {"type": "string"}, {},
-                              'sessionized')
-        registry.create_queue("/test.sessionized2", {"type": "string"}, {},
-                              'sessionized')
-        registry.create_queue("/test.sessionized/several", {"type": "string"},
-                              {}, 'sessionized')
-        registry.create_queue("/test.fifo/simple", {"type": "string"}, {},
-                              'fifo')
-        registry.create_multicast('/multicast/1', {"type": "string"}, {})
-
+        test_app = Plugin("test", "test", "test-token")
         apps = ApplicationRegistry()
+        registry = ChannelRegistry(apps)
+        registry.create_queue("/a.b.c", test_app, schema, {}, 'fifo')
+        registry.create_queue("/test.sessionized", test_app, {"type": "string"},
+                              {}, 'sessionized')
+        registry.create_queue("/test.sessionized2", test_app,
+                              {"type": "string"}, {}, 'sessionized')
+        registry.create_queue("/test.sessionized/several", test_app,
+                              {"type": "string"}, {}, 'sessionized')
+        registry.create_queue("/test.fifo/simple", test_app, {"type": "string"},
+                              {}, 'fifo')
+        registry.create_multicast('/multicast/1', test_app, {"type": "string"},
+                                  {})
+        registry.create_multicast('/multicast/2', test_app, {"type": "string"},
+                                  {})
 
-        cls.server = MessageServer(11023, apps, registry, event.set)
+        synonym_registry = SynonymRegistry()
+        synonym_registry.register("/multi", "/multicast/2")
+
+        cls.server = MessageServer(11023, apps, registry, synonym_registry,
+                                   event.set)
         cls.server_thread = Thread(target=cls.server.run)
         cls.server_thread.start()
         event.wait()
@@ -329,6 +337,23 @@ class TestMessageServer(object):
         for receiver in receivers:
             receiver.stop()
 
+    def test_multicast_with_synonym(self):
+        msgs = []
+        sem = Semaphore(0)
+        receiver = Receiver(self.conn, "/synonyms/multi")
+        receiver.on_message = make_receiver(1, msgs, sem, receiver)
+        receiver.start()
+        Thread(target=receiver.run).start()
+
+        sender = Sender(self.conn, "/synonyms/multi")
+        sender.start()
+        sender.send("test")
+
+        assert sem.acquire(timeout=10)
+        assert msgs[-1] == "test"
+        assert not sem.acquire(timeout=2)
+
+
 class TestMessageServerClosure(object):
 
     @pytest.mark.parametrize("queue_type,cookie",
@@ -336,12 +361,14 @@ class TestMessageServerClosure(object):
                               ("sessionized", (x for x in ("a", "b")))])
     def test_queue_closure(self, queue_type, cookie):
         event = Event()
-        registry = ChannelRegistry()
-        registry.create_queue("/fifo-closure", {"type": "string"}, {},
+        test_app = Plugin("test", "test", "test-token")
+        apps = ApplicationRegistry()
+        registry = ChannelRegistry(apps)
+        registry.create_queue("/fifo-closure", test_app, {"type": "string"}, {},
                               queue_type)
 
         server = MessageServer(11023, ApplicationRegistry(), registry,
-                               event.set)
+                               SynonymRegistry(), event.set)
         thread = Thread(target=server.run)
         thread.start()
         event.wait()

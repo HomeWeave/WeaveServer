@@ -11,6 +11,7 @@ from messaging.appmgr import MessagingRPCHub
 from messaging.queue_manager import ChannelRegistry
 from messaging.server import MessageServer
 from messaging.service import DummyMessagingService
+from messaging.synonyms import SynonymRegistry
 
 
 TEST_APP_TOKEN = "test-app"
@@ -29,14 +30,15 @@ class TestMessagingRPCHub(object):
             ("Test", "Test URL", TEST_APP_TOKEN),
             ("MessagingServer", MESSAGING_SERVER_URL, messaging_token),
         ])
-        channel_registry = ChannelRegistry()
+        channel_registry = ChannelRegistry(app_registry)
 
+        synonym_registry = SynonymRegistry()
         self.message_server = MessageServer(PORT, app_registry,
-                                            channel_registry,
+                                            channel_registry, synonym_registry,
                                             message_server_started.set)
         self.message_server_thread = Thread(target=self.message_server.run)
         rpc_hub = MessagingRPCHub(self.dummy_service, channel_registry,
-                                  app_registry)
+                                  app_registry, synonym_registry)
 
         self.message_server_thread.start()
         message_server_started.wait()
