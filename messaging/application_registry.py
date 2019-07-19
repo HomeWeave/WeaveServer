@@ -22,21 +22,27 @@ class Plugin(BaseApplication):
 class ApplicationRegistry(object):
     def __init__(self, apps=None):
         self.apps_by_token = {}
+        self.apps_by_url = {}
         self.apps_lock = RLock()
 
         for name, url, token in (apps or []):
-            self.apps_by_token[token] = SystemApplication(name, url, token)
+            app = SystemApplication(name, url, token)
+            self.apps_by_token[token] = app
+            self.apps_by_url[url] = app
 
     def register_plugin(self, name, url):
+        token = "app-token-" + str(uuid4())
+        plugin = Plugin(name, url, token)
         with self.apps_lock:
-            token = "app-token-" + str(uuid4())
-            self.apps_by_token[token] = Plugin(name, url, token)
-            return token
+            self.apps_by_token[token] = plugin
+            self.apps_by_url[url] = plugin
+        return token
 
     def unregister_plugin(self, token):
         with self.apps_lock:
             try:
-                self.apps_by_token.pop(token)
+                app = self.apps_by_token.pop(token)
+                self.apps_by_url.pop(app.url)
             except KeyError:
                 raise ObjectNotFound(token)
 
@@ -52,3 +58,10 @@ class ApplicationRegistry(object):
             "app_type": "plugin" if isinstance(app, Plugin) else "system",
             "app_url": app.url,
         }
+
+    def get_app_by_url(self, url):
+        with self.apps_lock:
+            try:
+                return self.apps_by_url[url]
+            except KeyError:
+                raise ObjectNotFound(url)
