@@ -20,8 +20,8 @@ def get_rpc_response_queue(base_queue):
     return base_queue.rstrip('/') + "/response"
 
 
-def create_rpc_queues(base_queue, request_schema, response_schema, registry,
-                      app_url, allowed_requestor_urls):
+def create_rpc_queues(base_queue, owner_app, request_schema, response_schema,
+                      registry, app_url, allowed_requestor_urls):
         request_queue = get_rpc_request_queue(base_queue)
         response_queue = get_rpc_response_queue(base_queue)
 
@@ -41,9 +41,9 @@ def create_rpc_queues(base_queue, request_schema, response_schema, registry,
         }
 
         # World enqueues into the request queue:
-        registry.create_queue(request_queue, request_schema, {}, 'fifo',
-                              authorizers=request_authorizers)
-        registry.create_queue(response_queue, response_schema, {},
+        registry.create_queue(request_queue, owner_app, request_schema, {},
+                              'fifo', authorizers=request_authorizers)
+        registry.create_queue(response_queue, owner_app, response_schema, {},
                               'sessionized', authorizers=response_authorizers)
         return dict(request_queue=request_queue, response_queue=response_queue)
 
@@ -83,20 +83,22 @@ class RPCInfo(object):
 class RootRPCServer(RPCServer):
     MAX_RPC_WORKERS = 1  # Ensures single-thread to create all queues.
 
-    def __init__(self, name, desc, apis, service, channel_registry):
+    def __init__(self, name, desc, apis, service, channel_registry, owner_app):
         super(RootRPCServer, self).__init__(name, desc, apis, service)
+        self.owner_app = owner_app
         self.channel_registry = channel_registry
 
     def register_rpc(self):
-        return create_rpc_queues(SYSTEM_REGISTRY_BASE_QUEUE, {}, {},
-                                 self.channel_registry, MESSAGING_SERVER_URL,
-                                 [])
+        return create_rpc_queues(SYSTEM_REGISTRY_BASE_QUEUE, self.owner_app,
+                                 {}, {}, self.channel_registry,
+                                 MESSAGING_SERVER_URL, [])
 
 
 class MessagingRPCHub(object):
     APIS_SCHEMA = {"type": "object"}
 
     def __init__(self, service, channel_registry, app_registry):
+        owner_app = app_registry.get_app_by_url(MESSAGING_SERVER_URL)
         self.rpc = RootRPCServer("app_manager", "Application Manager", [
             ServerAPI("register_rpc", "Register new RPC", [
                 ArgParameter("name", "Name of the RPC", str),
@@ -118,7 +120,7 @@ class MessagingRPCHub(object):
                 ArgParameter("app_url", "Plugin URL", str),
                 ArgParameter("rpc_name", "RPC Name", str),
             ], self.rpc_info),
-        ], service, channel_registry)
+        ], service, channel_registry, owner_app)
         self.channel_registry = channel_registry
         self.app_registry = app_registry
         self.rpc_registry = {}
@@ -150,8 +152,9 @@ class MessagingRPCHub(object):
             }
         }
         response_schema = {}
-        res = create_rpc_queues(base_queue, request_schema, response_schema,
-                                self.channel_registry, app_url,
+        owner_app = self.app_registry.get_app_by_url(app_url)
+        res = create_rpc_queues(base_queue, owner_app, request_schema,
+                                response_schema, self.channel_registry, app_url,
                                 allowed_requestors)
 
         rpc_info = RPCInfo(app_url, name, description, apis, base_queue,
