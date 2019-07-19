@@ -101,7 +101,7 @@ class TestMessageServer(object):
 
     def test_required_fields_missing(self):
         with pytest.raises(ProtocolError):
-            send_raw("HDR enqueue\nMSG blah\n\n")
+            send_raw("HDR push\nMSG blah\n\n")
 
     def test_bad_operation(self):
         with pytest.raises(BadOperation):
@@ -109,41 +109,41 @@ class TestMessageServer(object):
 
     def test_bad_json(self):
         with pytest.raises(ProtocolError):
-            send_raw('MSG {a": "b"}\nOP enqueue\nQ a.b.c\n\n')
+            send_raw('MSG {a": "b"}\nOP push\nQ a.b.c\n\n')
 
-    def test_enqueue_without_queue_header(self):
+    def test_push_without_queue_header(self):
         with pytest.raises(ProtocolError):
-            send_raw('MSG {"a": "b"}\nOP enqueue\n\n')
+            send_raw('MSG {"a": "b"}\nOP push\n\n')
 
-    def test_enqueue_without_task(self):
+    def test_push_without_task(self):
         s = Sender(self.conn, "/a.b.c")
         s.start()
         with pytest.raises(ProtocolError):
             s.send(None)
 
-    def test_enqueue_to_unknown_queue(self):
+    def test_push_to_unknown_queue(self):
         s = Sender(self.conn, "unknown.queue")
         s.start()
         with pytest.raises(ObjectNotFound):
             s.send({"a": "b"})
 
-    def test_dequeue_from_unknown_queue(self):
+    def test_pop_from_unknown_queue(self):
         r = Receiver(self.conn, "unknown.queue")
         r.start()
         with pytest.raises(ObjectNotFound):
             r.receive()
 
-    def test_dequeue_without_required_header(self):
+    def test_pop_without_required_header(self):
         with pytest.raises(ProtocolError):
-            send_raw('OP dequeue\n\n')
+            send_raw('OP pop\n\n')
 
-    def test_enqueue_with_bad_schema(self):
+    def test_push_with_bad_schema(self):
         s = Sender(self.conn, "/a.b.c")
         s.start()
         with pytest.raises(SchemaValidationFailed):
             s.send({"foo": [1, 2]})
 
-    def test_simple_enqueue_dequeue(self):
+    def test_simple_push_pop(self):
         msgs = []
 
         s = Sender(self.conn, "/a.b.c")
@@ -160,7 +160,7 @@ class TestMessageServer(object):
 
         assert msgs == [{"foo": "bar"}]
 
-    def test_multiple_enqueue_dequeue(self):
+    def test_multiple_push_pop(self):
         obj = {"foo": "bar"}
 
         s = Sender(self.conn, "/a.b.c")
@@ -185,7 +185,7 @@ class TestMessageServer(object):
 
         thread.join()
 
-    def test_enqueue_sessionized_without_key(self):
+    def test_push_sessionized_without_key(self):
         sender = Sender(self.conn, "/test.sessionized")
         sender.start()
         with pytest.raises(ProtocolError):
@@ -197,7 +197,7 @@ class TestMessageServer(object):
         with pytest.raises(ProtocolError):
             receiver.receive()
 
-    def test_simple_sessionized_enqueue_dequeue(self):
+    def test_simple_sessionized_push_pop(self):
         sender1 = Sender(self.conn, "/test.sessionized2")
         sender1.start()
         sender1.send("test", headers={"COOKIE": "xyz"})
@@ -264,7 +264,7 @@ class TestMessageServer(object):
         for i in range(10):
             assert texts[i] == receivers[i].receive().task
 
-    def test_fifo_enqueue_dequeue(self):
+    def test_fifo_push_pop(self):
         msgs1 = []
         sem1 = Semaphore(0)
         receiver1 = Receiver(self.conn, "/test.fifo/simple")

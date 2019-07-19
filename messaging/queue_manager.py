@@ -42,7 +42,7 @@ class QueueInfo(ChannelInfo):
         if not self.queue_cls:
             raise BadArguments(queue_type)
 
-    def create_queue(self):
+    def create_channel(self):
         return self.queue_cls(self)
 
 
@@ -64,7 +64,7 @@ class ChannelRegistry(object):
             if queue_info.channel_name in self.channel_map:
                 raise ObjectAlreadyExists(queue_info.channel_name)
 
-            queue = queue_info.create_queue()
+            queue = queue_info.create_channel()
             self.channel_map[queue_info.channel_name] = queue
 
         if not queue.connect():
@@ -73,13 +73,13 @@ class ChannelRegistry(object):
         logger.info("Created queue: %s", queue_name)
         return queue
 
-    def get_queue(self, queue_name):
+    def get_channel(self, channel_name):
         # TODO: Change to reader-writer lock.
         with self.channel_map_lock:
             try:
-                return self.channel_map[queue_name]
+                return self.channel_map[channel_name]
             except KeyError:
-                raise ObjectNotFound(queue_name)
+                raise ObjectNotFound(channel_name)
 
     def shutdown(self):
         with self.channel_map_lock:

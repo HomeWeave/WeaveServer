@@ -17,7 +17,7 @@ class TestChannelRegistry(object):
         queue = registry.create_queue("queue_name", {}, {}, queue_type)
 
         assert isinstance(queue, expected_cls)
-        assert registry.get_queue("queue_name") is queue
+        assert registry.get_channel("queue_name") is queue
 
     def test_create_queue_bad_queue_type(self):
         registry = ChannelRegistry()
@@ -43,7 +43,7 @@ class TestChannelRegistry(object):
     def test_get_queue_invalid(self):
         registry = ChannelRegistry()
         with pytest.raises(ObjectNotFound):
-            registry.get_queue("test_queue")
+            registry.get_channel("test_queue")
 
     def test_queue_connect_fail(self):
         backup = FIFOQueue.connect

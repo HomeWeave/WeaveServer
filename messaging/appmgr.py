@@ -28,16 +28,16 @@ def create_rpc_queues(base_queue, request_schema, response_schema, registry,
         # Request Queue: allowed_requestor_urls can enqueue but only the app can
         # dequeue.
         request_authorizers = {
-            "enqueue": WhitelistAuthorizer(allowed_requestor_urls)
+            "push": WhitelistAuthorizer(allowed_requestor_urls)
                        if allowed_requestor_urls else AllowAllAuthorizer(),
-            "dequeue": WhitelistAuthorizer([app_url])
+            "pop": WhitelistAuthorizer([app_url])
         }
 
         # Response Queue: This is a sessionized queue, so anyone can dequeue,
         # but only the app can enqueue.
         response_authorizers = {
-            "enqueue": WhitelistAuthorizer(app_url),
-            "dequeue": AllowAllAuthorizer(),
+            "push": WhitelistAuthorizer(app_url),
+            "pop": AllowAllAuthorizer(),
         }
 
         # World enqueues into the request queue:

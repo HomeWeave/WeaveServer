@@ -91,17 +91,17 @@ class MessageServer(ThreadingTCPServer):
         session_id = get_required_field(msg.headers, "SESS")
         self.preprocess(msg)
 
-        def handle_dequeue(obj):
+        def handle_pop(obj):
             task, headers = obj
             msg = Message("inform", task)
             msg.headers.update(headers)
             msg.headers["SESS"] = session_id
             out_queue.put(msg)
 
-        if msg.operation == "dequeue":
-            self.handle_dequeue(msg, handle_dequeue)
-        elif msg.operation == "enqueue":
-            self.handle_enqueue(msg)
+        if msg.operation == "pop":
+            self.handle_pop(msg, handle_pop)
+        elif msg.operation == "push":
+            self.handle_push(msg)
             msg = Message("result")
             msg.headers["RES"] = "OK"
             msg.headers["SESS"] = session_id
@@ -109,23 +109,23 @@ class MessageServer(ThreadingTCPServer):
         else:
             raise BadOperation(msg.operation)
 
-    def handle_enqueue(self, msg):
+    def handle_push(self, msg):
         if msg.task is None:
-            raise ProtocolError("Task is required for enqueue.")
-        queue_name = get_required_field(msg.headers, "Q")
-        queue = self.channel_registry.get_queue(queue_name)
+            raise ProtocolError("Task is required for push.")
+        channel_name = get_required_field(msg.headers, "C")
+        channel = self.channel_registry.get_channel(channel_name)
 
         try:
-            queue.enqueue(msg.task, msg.headers)
+            channel.push(msg.task, msg.headers)
         except ValidationError:
-            msg = "Schema: {}, on instance: {}, for queue: {}".format(
-                queue.queue_info.request_schema, msg.task, queue)
+            msg = "Schema: {}, on instance: {}, for channel: {}".format(
+                channel.channel_info.request_schema, msg.task, channel)
             raise SchemaValidationFailed(msg)
 
-    def handle_dequeue(self, msg, out_queue):
-        queue_name = get_required_field(msg.headers, "Q")
-        queue = self.channel_registry.get_queue(queue_name)
-        queue.dequeue(msg.headers, out_queue)
+    def handle_pop(self, msg, out_queue):
+        channel_name = get_required_field(msg.headers, "C")
+        channel = self.channel_registry.get_channel(channel_name)
+        channel.pop(msg.headers, out_queue)
 
     def preprocess(self, msg):
         if "AUTH" in msg.headers:

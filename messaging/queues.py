@@ -10,9 +10,9 @@ from .messaging_utils import get_required_field
 from .authorizers import AllowAllAuthorizer
 
 
-class BaseQueue(object):
-    def __init__(self, queue_info):
-        self.queue_info = queue_info
+class BaseChannel(object):
+    def __init__(self, channel_info):
+        self.channel_info = channel_info
 
     def connect(self):
         return True
@@ -21,22 +21,28 @@ class BaseQueue(object):
         return True
 
     def validate_schema(self, msg):
-        validate(msg, self.queue_info.request_schema)
+        validate(msg, self.channel_info.request_schema)
 
     def check_auth(self, op, headers):
-        authorizer = self.queue_info.authorizers.get(op, AllowAllAuthorizer())
+        authorizer = self.channel_info.authorizers.get(op, AllowAllAuthorizer())
 
         # headers.get("AUTH") == ApplicationRegistry.get_app_info().
         app_info = headers.get("AUTH", {})
 
         default_app_url = object()
         app_url = app_info.get("app_url", default_app_url)
-        res = authorizer.authorize(app_url, op, self.queue_info.channel_name)
+        res = authorizer.authorize(app_url, op, self.channel_info.channel_name)
         if not res:
             if app_url is default_app_url:
                 raise AuthenticationFailed()
             raise Unauthorized("Action is not authorized.")
 
+    def __repr__(self):
+        return (self.__class__.__name__ +
+                "({})".format(self.channel_info.channel_name))
+
+
+class BaseQueue(BaseChannel):
     def pack_message(self, task, headers):
         reqd = {"AUTH": json.dumps}
         headers = {x: f(headers[x]) for x, f in reqd.items() if x in headers}
@@ -47,10 +53,6 @@ class BaseQueue(object):
 
     def unpack_message(self, obj):
         return obj["task"], obj["headers"]
-
-    def __repr__(self):
-        return (self.__class__.__name__ +
-                "({})".format(self.queue_info.channel_name))
 
 
 class SynchronousQueue(BaseQueue):
@@ -71,43 +73,43 @@ class SynchronousQueue(BaseQueue):
     def pack_attributes(self, task, headers):
         return {}
 
-    def enqueue(self, task, headers):
+    def push(self, task, headers):
         self.validate_schema(task)
-        self.check_auth('enqueue', headers)
+        self.check_auth('push', headers)
 
         msg = self.pack_message(task, headers)
         msg.update(self.pack_attributes(task, headers))
 
-        self.on_enqueue(msg)
+        self.on_push(msg)
 
         for requestor, out in self.current_requestors.items():
-            value = self.dequeue_condition(requestor)
+            value = self.pop_condition(requestor)
             if value:
-                msg = self.on_dequeue(requestor, value)
+                msg = self.on_pop(requestor, value)
                 out(self.unpack_message(msg))
 
-    def on_enqueue(self, msg):
+    def on_push(self, msg):
         raise NotImplementedError
 
-    def before_dequeue(self, requestor_id):
+    def before_pop(self, requestor_id):
         pass
 
-    def dequeue_condition(self, requestor_id):
+    def pop_condition(self, requestor_id):
         raise NotImplementedError
 
-    def on_dequeue(self, requestor_id, condition_value):
+    def on_pop(self, requestor_id, condition_value):
         raise NotImplementedError
 
-    def dequeue(self, headers, out):
+    def pop(self, headers, out):
         requestor_id = get_required_field(headers, self.REQUESTOR_ID_FIELD)
-        self.check_auth('dequeue', headers)
+        self.check_auth('pop', headers)
 
         self.current_requestors[requestor_id] = out
-        self.before_dequeue(requestor_id)
+        self.before_pop(requestor_id)
 
-        condition_value = self.dequeue_condition(requestor_id)
+        condition_value = self.pop_condition(requestor_id)
         if condition_value:
-            msg = self.on_dequeue(requestor_id, condition_value)
+            msg = self.on_pop(requestor_id, condition_value)
             out(self.unpack_message(msg))
 
 
@@ -126,12 +128,12 @@ class SessionizedQueue(SynchronousQueue):
             "time": time.time()
         }
 
-    def on_enqueue(self, obj):
+    def on_push(self, obj):
         self.latest_version += 1
         obj["version"] = self.latest_version
         self.messages.append(obj)
 
-    def dequeue_condition(self, requestor_id):
+    def pop_condition(self, requestor_id):
         cur_version = self.requestor_version_map[requestor_id]
         for msg in self.messages:
             if msg["version"] <= cur_version:
@@ -140,7 +142,7 @@ class SessionizedQueue(SynchronousQueue):
                 return msg
         return None
 
-    def on_dequeue(self, requestor_id, condition_value):
+    def on_pop(self, requestor_id, condition_value):
         self.requestor_version_map[requestor_id] = condition_value["version"]
         return condition_value
 
@@ -151,16 +153,16 @@ class FIFOQueue(SynchronousQueue):
         self.queue = []
         self.requestors = []
 
-    def on_enqueue(self, obj):
+    def on_push(self, obj):
         self.queue.append(obj)
 
-    def dequeue_condition(self, requestor_id):
+    def pop_condition(self, requestor_id):
         return self.queue and self.requestors and \
                self.requestors[0] == requestor_id
 
-    def before_dequeue(self, requestor_id):
+    def before_pop(self, requestor_id):
         self.requestors.append(requestor_id)
 
-    def on_dequeue(self, requestor_id, condition_value):
+    def on_pop(self, requestor_id, condition_value):
         self.requestors.pop(0)
         return self.queue.pop(0)
