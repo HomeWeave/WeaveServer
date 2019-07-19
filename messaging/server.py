@@ -78,12 +78,14 @@ class MessageServer(ThreadingTCPServer):
     allow_reuse_address = True
     daemon_threads = True
 
-    def __init__(self, port, apps_registry, channel_registry, notify_start):
+    def __init__(self, port, apps_registry, channel_registry, synonym_registry,
+                 notify_start):
         super().__init__(("", port), MessageHandler)
         self.notify_start = notify_start
         self.sent_start_notification = False
         self.channel_registry = channel_registry
         self.apps_registry = apps_registry
+        self.synonym_registry = synonym_registry
         self.active_connections = {}
         self.active_connections_lock = RLock()
 
@@ -113,6 +115,7 @@ class MessageServer(ThreadingTCPServer):
         if msg.task is None:
             raise ProtocolError("Task is required for push.")
         channel_name = get_required_field(msg.headers, "C")
+        channel_name = self.synonym_registry.translate(channel_name)
         channel = self.channel_registry.get_channel(channel_name)
 
         try:
@@ -124,6 +127,7 @@ class MessageServer(ThreadingTCPServer):
 
     def handle_pop(self, msg, out_queue):
         channel_name = get_required_field(msg.headers, "C")
+        channel_name = self.synonym_registry.translate(channel_name)
         channel = self.channel_registry.get_channel(channel_name)
         channel.pop(msg.headers, out_queue)
 

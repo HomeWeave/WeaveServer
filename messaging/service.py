@@ -10,6 +10,7 @@ from messaging.discovery import DiscoveryServer
 from messaging.application_registry import ApplicationRegistry
 from messaging.queue_manager import ChannelRegistry
 from messaging.appmgr import MessagingRPCHub
+from messaging.synonyms import SynonymRegistry
 
 
 PORT = 11023
@@ -35,22 +36,24 @@ class CoreService(BackgroundProcessServiceStart, BaseService):
                                                    WeaveConnection.local())
         self.message_server_started = Event()
         self.shutdown_event = Event()
+
         app_registry = ApplicationRegistry([
             ("WeaveEnv", "https://github.com/HomeWeave/WeaveEnv.git",
              weave_env_token),
             ("MessagingServer", "https://github.com/HomeWeave/WeaveServer.git",
              messaging_token),
         ])
-        channel_registry = ChannelRegistry()
+        channel_registry = ChannelRegistry(app_registry)
+        synonym_registry = SynonymRegistry()
 
         self.message_server = MessageServer(PORT, app_registry,
-                                            channel_registry,
+                                            channel_registry, synonym_registry,
                                             self.message_server_started.set)
         self.message_server_thread = Thread(target=self.message_server.run)
         self.discovery_server = DiscoveryServer(PORT)
         self.discovery_server_thread = Thread(target=self.discovery_server.run)
         self.rpc_hub = MessagingRPCHub(self.dummy_service, channel_registry,
-                                       app_registry)
+                                       app_registry, synonym_registry)
 
     def before_service_start(self):
         """Need to override to prevent rpc_client connecting."""

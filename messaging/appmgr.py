@@ -2,6 +2,7 @@ import logging
 from uuid import uuid4
 
 from weavelib.exceptions import ObjectNotFound, AuthenticationFailed
+from weavelib.exceptions import Unauthorized
 from weavelib.rpc import RPCServer, ServerAPI, ArgParameter, get_rpc_caller
 
 from messaging.authorizers import WhitelistAuthorizer, AllowAllAuthorizer
@@ -97,7 +98,8 @@ class RootRPCServer(RPCServer):
 class MessagingRPCHub(object):
     APIS_SCHEMA = {"type": "object"}
 
-    def __init__(self, service, channel_registry, app_registry):
+    def __init__(self, service, channel_registry, app_registry,
+                 synonym_registry):
         owner_app = app_registry.get_app_by_url(MESSAGING_SERVER_URL)
         self.rpc = RootRPCServer("app_manager", "Application Manager", [
             ServerAPI("register_rpc", "Register new RPC", [
@@ -120,9 +122,14 @@ class MessagingRPCHub(object):
                 ArgParameter("app_url", "Plugin URL", str),
                 ArgParameter("rpc_name", "RPC Name", str),
             ], self.rpc_info),
+            ServerAPI("register_synonym", "Register a synonym for a channel.", [
+                ArgParameter("synonym", "Name of requested synonym", str),
+                ArgParameter("target", "Name of channel to map to", str),
+            ], self.register_synonym),
         ], service, channel_registry, owner_app)
         self.channel_registry = channel_registry
         self.app_registry = app_registry
+        self.synonym_registry = synonym_registry
         self.rpc_registry = {}
 
     def start(self):
@@ -186,3 +193,12 @@ class MessagingRPCHub(object):
             if rpc_info.app_url == url and rpc_info.name == rpc_name:
                 return rpc_info.to_json()
         raise ObjectNotFound("RPC not found: " + rpc_name)
+
+    def register_synonym(self, synonym, target):
+        caller_app = get_rpc_caller()
+        channel = self.channel_registry.get_channel(target)
+
+        if caller_app["app_url"] != channel.channel_info.owner_app.url:
+            raise Unauthorized("Only creator can perform this operation.")
+
+        return self.synonym_registry.register(synonym, target)
