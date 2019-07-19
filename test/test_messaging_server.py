@@ -75,6 +75,7 @@ class TestMessageServer(object):
                               {}, 'sessionized')
         registry.create_queue("/test.fifo/simple", {"type": "string"}, {},
                               'fifo')
+        registry.create_multicast('/multicast/1', {"type": "string"}, {})
 
         apps = ApplicationRegistry()
 
@@ -306,6 +307,27 @@ class TestMessageServer(object):
         assert msgs2[-1] == "test4"
         assert not sem1.acquire(timeout=2)
 
+    def test_multicast(self):
+        msgs = [[] for _ in range(5)]
+        sems = [Semaphore(0) for _ in range(5)]
+        receivers = [Receiver(self.conn, '/multicast/1') for _ in range(5)]
+        for receiver, sem, msg in zip(receivers, sems, msgs):
+            receiver.on_message = make_receiver(1, msg, sem, receiver)
+            receiver.start()
+            Thread(target=receiver.run).start()
+
+        sender = Sender(self.conn, '/multicast/1')
+        sender.start()
+        sender.send("test")
+
+        for msg, sem in zip(msgs, sems):
+            assert sem.acquire(timeout=10)
+            assert msg[-1] == "test"
+            assert not sem.acquire(timeout=2)
+
+        sender.close()
+        for receiver in receivers:
+            receiver.stop()
 
 class TestMessageServerClosure(object):
 

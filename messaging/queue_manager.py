@@ -7,7 +7,7 @@ from weavelib.exceptions import ObjectNotFound, ObjectAlreadyExists
 from weavelib.exceptions import ObjectClosed, SchemaValidationFailed
 from weavelib.exceptions import InternalError, BadArguments
 
-from .queues import FIFOQueue, SessionizedQueue
+from .queues import FIFOQueue, SessionizedQueue, Multicast
 
 
 logger = logging.getLogger(__name__)
@@ -30,6 +30,9 @@ class ChannelInfo(object):
         self.response_schema = response_schema
         self.authorizers = authorizers or {}
 
+    def create_channel(self):
+        raise NotImplementedError
+
 
 class QueueInfo(ChannelInfo):
     def __init__(self, queue_name, request_schema, response_schema, queue_type,
@@ -44,6 +47,16 @@ class QueueInfo(ChannelInfo):
 
     def create_channel(self):
         return self.queue_cls(self)
+
+
+class MulticastInfo(ChannelInfo):
+    def __init__(self, multicast_name, request_schema, response_schema,
+                 authorizers=None):
+        super().__init__(multicast_name, request_schema, response_schema,
+                         authorizers=authorizers)
+
+    def create_channel(self):
+        return Multicast(self)
 
 
 class ChannelRegistry(object):
@@ -72,6 +85,27 @@ class ChannelRegistry(object):
 
         logger.info("Created queue: %s", queue_name)
         return queue
+
+    def create_multicast(self, multicast_name, request_schema, response_schema,
+                         authorizers=None):
+        multicast_info = MulticastInfo(multicast_name, request_schema,
+                                       response_schema, authorizers)
+
+        with self.channel_map_lock:
+            if not self.active:
+                raise ObjectClosed("Server shutting down.")
+
+            if multicast_name in self.channel_map:
+                raise ObjectAlreadyExists(multicast_name)
+
+            multicast = multicast_info.create_channel()
+            self.channel_map[multicast_name] = multicast
+
+        if not multicast.connect():
+            raise InternalError("Can't connect to multicast: " + multicast_name)
+
+        logger.info("Created multicast: %s", multicast_name)
+        return multicast
 
     def get_channel(self, channel_name):
         # TODO: Change to reader-writer lock.

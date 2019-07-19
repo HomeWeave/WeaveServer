@@ -1,6 +1,7 @@
 import json
 import time
 from collections import defaultdict
+from threading import RLock
 
 from jsonschema import validate
 
@@ -166,3 +167,37 @@ class FIFOQueue(SynchronousQueue):
     def on_pop(self, requestor_id, condition_value):
         self.requestors.pop(0)
         return self.queue.pop(0)
+
+
+class Multicast(BaseChannel):
+    def __init__(self, multicast_info):
+        super().__init__(multicast_info)
+        self.active = False
+        self.requestors = {}
+        self.requestors_lock = RLock()
+
+    def connect(self):
+        self.active = True
+        return True
+
+    def disconnect(self):
+        self.active = False
+
+    def push(self, task, headers):
+        self.validate_schema(task)
+        self.check_auth('push', headers)
+        current_requestor = get_required_field(headers, 'SESS')
+
+        with self.requestors_lock:
+            requestors = list(self.requestors.items())
+
+        for requestor_id, out_fn in requestors:
+            if requestor_id != current_requestor:
+                out_fn((task, headers))
+
+    def pop(self, headers, out_fn):
+        requestor_id = get_required_field(headers, 'SESS')
+        self.check_auth('pop', headers)
+
+        with self.requestors_lock:
+            self.requestors[requestor_id] = out_fn
