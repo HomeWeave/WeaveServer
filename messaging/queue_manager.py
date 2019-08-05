@@ -97,6 +97,20 @@ class ChannelRegistry(object):
         logger.info("Created channel: %s", channel)
         return channel
 
+    def update_channel_schema(self, channel_name, request_schema,
+                              response_schema):
+        with self.channel_map_lock:
+            try:
+                channel_info = self.channel_map[channel_name].channel_info
+            except KeyError:
+                raise ObjectNotFound(channel_name)
+
+        # TODO: This might need to be protected by a lock.
+        channel_info.request_schema = request_schema
+        channel_info.response_schema = response_schema
+        logger.info(channel_info.request_schema)
+        return True
+
     def remove_channel(self, channel_name):
         with self.channel_map_lock:
             try:

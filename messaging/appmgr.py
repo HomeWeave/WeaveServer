@@ -123,6 +123,10 @@ class MessagingRPCHub(object):
                              "list to allow everyone.",
                              {"type": "array", "items": {"type": "string"}})
             ], self.register_rpc),
+            ServerAPI("update_rpc", "Update RPC with latest schema.", [
+                ArgParameter("name", "Name of the RPC", str),
+                ArgParameter("apis", "Maps of all APIs", self.APIS_SCHEMA),
+            ], self.update_rpc),
             ServerAPI("unregister_rpc", "Unregister an RPC", [
                 ArgParameter("name", "Name of the RPC", str),
             ], self.unregister_rpc),
@@ -181,6 +185,20 @@ class MessagingRPCHub(object):
         self.rpc_registry[(app_url, name)] = rpc_info
         logger.info("Registered RPC: %s(%s)", name, app_url)
         return res
+
+    def update_rpc(self, name, apis):
+        caller_app = get_rpc_caller()
+        app_url = caller_app["app_url"]
+        rpc_info = self.find_rpc(app_url, name)
+        request_queue = get_rpc_request_queue(rpc_info.base_queue)
+        response_queue = get_rpc_response_queue(rpc_info.base_queue)
+        request_schema = self.get_request_schema_from_apis(apis)
+        response_schema = {}
+        self.channel_registry.update_channel_schema(request_queue,
+                                                    request_schema, {})
+        self.channel_registry.update_channel_schema(response_queue,
+                                                    response_schema, {})
+        return True
 
     def unregister_rpc(self, name):
         caller_app = get_rpc_caller()
