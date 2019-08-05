@@ -13,6 +13,10 @@ SYSTEM_REGISTRY_BASE_QUEUE = "/_system/registry"
 MESSAGING_SERVER_URL = "https://github.com/HomeWeave/WeaveServer.git"
 
 
+def get_rpc_base_queue(app_url, name):
+    return "/plugins/{}/rpcs/{}".format(app_url, name)
+
+
 def get_rpc_request_queue(base_queue):
     return base_queue.rstrip('/') + "/request"
 
@@ -101,6 +105,8 @@ class RootRPCServer(RPCServer):
 
         return DummyClient()
 
+# This class should be thread-safe since RootRPCServer has a single worker to
+# process all requests.
 class MessagingRPCHub(object):
     APIS_SCHEMA = {"type": "object"}
 
@@ -117,6 +123,9 @@ class MessagingRPCHub(object):
                              "list to allow everyone.",
                              {"type": "array", "items": {"type": "string"}})
             ], self.register_rpc),
+            ServerAPI("unregister_rpc", "Unregister an RPC", [
+                ArgParameter("name", "Name of the RPC", str),
+            ], self.unregister_rpc),
             ServerAPI("register_plugin", "Register Plugin", [
                 ArgParameter("name", "Plugin Name", str),
                 ArgParameter("url", "Plugin URL (GitHub)", str),
@@ -153,10 +162,14 @@ class MessagingRPCHub(object):
     def register_rpc(self, name, description, apis, allowed_requestors):
         caller_app = get_rpc_caller()
         app_url = caller_app["app_url"]
-        base_queue = "/plugins/{}/rpcs/{}".format(app_url, name)
+        base_queue = get_rpc_base_queue(app_url, name)
         request_schema = self.get_request_schema_from_apis(apis)
         response_schema = {}
         owner_app = self.app_registry.get_app_by_url(app_url)
+
+        if (app_url, name) in self.rpc_registry:
+            raise ObjectAlreadyExists(name)
+
         res = create_rpc_queues(base_queue, owner_app, request_schema,
                                 response_schema, self.channel_registry, app_url,
                                 allowed_requestors)
@@ -168,6 +181,14 @@ class MessagingRPCHub(object):
         self.rpc_registry[(app_url, name)] = rpc_info
         logger.info("Registered RPC: %s(%s)", name, app_url)
         return res
+
+    def unregister_rpc(self, name):
+        caller_app = get_rpc_caller()
+        app_url = caller_app["app_url"]
+        base_queue = get_rpc_base_queue(app_url, name)
+        self.channel_registry.remove_channel(get_rpc_request_queue(base_queue))
+        self.channel_registry.remove_channel(get_rpc_response_queue(base_queue))
+        return True
 
     def register_plugin(self, name, url):
         caller_app = get_rpc_caller()

@@ -97,6 +97,15 @@ class ChannelRegistry(object):
         logger.info("Created channel: %s", channel)
         return channel
 
+    def remove_channel(self, channel_name):
+        with self.channel_map_lock:
+            try:
+                channel = self.channel_map.pop(channel_name)
+            except KeyError:
+                raise ObjectNotFound(channel_name)
+        channel.disconnect()
+        return True
+
     def get_channel(self, channel_name):
         # TODO: Change to reader-writer lock.
         with self.channel_map_lock:
