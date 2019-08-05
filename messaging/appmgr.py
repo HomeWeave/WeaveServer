@@ -148,15 +148,7 @@ class MessagingRPCHub(object):
         caller_app = get_rpc_caller()
         app_url = caller_app["app_url"]
         base_queue = "/plugins/{}/rpcs/{}".format(app_url, name)
-        request_schema = {
-            "type": "object",
-            "properties": {
-                "invocation": {
-                    "anyOf": [ServerAPI.from_info(x).schema
-                              for x in apis.values()]
-                }
-            }
-        }
+        request_schema = self.get_request_schema_from_apis(apis)
         response_schema = {}
         owner_app = self.app_registry.get_app_by_url(app_url)
         res = create_rpc_queues(base_queue, owner_app, request_schema,
@@ -205,3 +197,14 @@ class MessagingRPCHub(object):
             return self.rpc_registry[(url, name)]
         except KeyError:
             raise ObjectNotFound("RPC not found: " + rpc_name)
+
+    def get_request_schema_from_apis(self, apis):
+        return {
+            "type": "object",
+            "properties": {
+                "invocation": {
+                    "anyOf": [ServerAPI.from_info(x).schema
+                              for x in apis.values()]
+                }
+            }
+        }
