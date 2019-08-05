@@ -138,7 +138,7 @@ class MessagingRPCHub(object):
                            self.rpc.description,
                            {x: y.info for x, y in self.rpc.apis.items()},
                            SYSTEM_REGISTRY_BASE_QUEUE, {}, {})
-        self.rpc_registry["rpc-" + str(uuid4())] = rpc_info
+        self.rpc_registry[(MESSAGING_SERVER_URL, self.rpc.name)] = rpc_info
         self.rpc.start()
 
     def stop(self):
@@ -147,8 +147,7 @@ class MessagingRPCHub(object):
     def register_rpc(self, name, description, apis, allowed_requestors):
         caller_app = get_rpc_caller()
         app_url = caller_app["app_url"]
-        rpc_id = "rpc-" + str(uuid4())
-        base_queue = "/plugins/{}/rpcs/{}".format(app_url, rpc_id)
+        base_queue = "/plugins/{}/rpcs/{}".format(app_url, name)
         request_schema = {
             "type": "object",
             "properties": {
@@ -168,7 +167,7 @@ class MessagingRPCHub(object):
                            request_schema, response_schema)
 
         # Thread safe because MAX_RPC_WORKERS == 1.
-        self.rpc_registry[rpc_id] = rpc_info
+        self.rpc_registry[(app_url, name)] = rpc_info
         logger.info("Registered RPC: %s(%s)", name, app_url)
         return res
 
@@ -189,10 +188,8 @@ class MessagingRPCHub(object):
         return True
 
     def rpc_info(self, url, rpc_name):
-        for rpc_info in self.rpc_registry.values():
-            if rpc_info.app_url == url and rpc_info.name == rpc_name:
-                return rpc_info.to_json()
-        raise ObjectNotFound("RPC not found: " + rpc_name)
+        rpc_info = self.find_rpc(url, rpc_name)
+        return rpc_info.to_json()
 
     def register_synonym(self, synonym, target):
         caller_app = get_rpc_caller()
@@ -202,3 +199,9 @@ class MessagingRPCHub(object):
             raise Unauthorized("Only creator can perform this operation.")
 
         return self.synonym_registry.register(synonym, target)
+
+    def find_rpc(self, url, name):
+        try:
+            return self.rpc_registry[(url, name)]
+        except KeyError:
+            raise ObjectNotFound("RPC not found: " + rpc_name)
