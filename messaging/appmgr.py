@@ -94,6 +94,12 @@ class RootRPCServer(RPCServer):
                                  {}, {}, self.channel_registry,
                                  MESSAGING_SERVER_URL, [])
 
+    def get_appmgr_client(self):
+        class DummyClient(object):
+            def start(self): pass
+            def stop(self): pass
+
+        return DummyClient()
 
 class MessagingRPCHub(object):
     APIS_SCHEMA = {"type": "object"}
