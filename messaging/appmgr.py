@@ -2,7 +2,7 @@ import logging
 from uuid import uuid4
 
 from weavelib.exceptions import ObjectNotFound, AuthenticationFailed
-from weavelib.exceptions import Unauthorized
+from weavelib.exceptions import Unauthorized, ObjectAlreadyExists
 from weavelib.rpc import RPCServer, ServerAPI, ArgParameter, get_rpc_caller
 
 from messaging.authorizers import WhitelistAuthorizer, AllowAllAuthorizer
