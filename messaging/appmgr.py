@@ -203,7 +203,9 @@ class MessagingRPCHub(object):
     def unregister_rpc(self, name):
         caller_app = get_rpc_caller()
         app_url = caller_app["app_url"]
-        base_queue = get_rpc_base_queue(app_url, name)
+        rpc_info = self.rpc_registry.pop((app_url, name))
+
+        base_queue = rpc_info.base_queue
         self.channel_registry.remove_channel(get_rpc_request_queue(base_queue))
         self.channel_registry.remove_channel(get_rpc_response_queue(base_queue))
         return True
