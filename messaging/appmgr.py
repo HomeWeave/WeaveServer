@@ -1,9 +1,11 @@
 import logging
+import os
 from uuid import uuid4
 
 from weavelib.exceptions import ObjectNotFound, AuthenticationFailed
 from weavelib.exceptions import Unauthorized, ObjectAlreadyExists
 from weavelib.rpc import RPCServer, ServerAPI, ArgParameter, get_rpc_caller
+from weavelib.rpc import OneOf, Type, ListOf
 
 from messaging.authorizers import WhitelistAuthorizer, AllowAllAuthorizer
 
@@ -51,6 +53,10 @@ def create_rpc_queues(base_queue, owner_app, request_schema, response_schema,
         registry.create_queue(response_queue, owner_app, response_schema, {},
                               'sessionized', authorizers=response_authorizers)
         return dict(request_queue=request_queue, response_queue=response_queue)
+
+
+def get_authorizer(urls):
+    return WhitelistAuthorizer(urls) if urls else AllowAllAuthorizer()
 
 
 class RPCInfo(object):
@@ -130,6 +136,16 @@ class MessagingRPCHub(object):
             ServerAPI("unregister_rpc", "Unregister an RPC", [
                 ArgParameter("name", "Name of the RPC", str),
             ], self.unregister_rpc),
+            ServerAPI("register_queue", "Register a new queue", [
+                ArgParameter("channel_name", "Basename of the queue", str),
+                ArgParameter("queue_type", "Type of the queue",
+                             OneOf("fifo", "sessionized")),
+                ArgParameter("schema", "JSONSchema of the messages pushed", {}),
+                ArgParameter("push_whitelist", "Whitelisted plugin URLs array",
+                             ListOf(Type(str))),
+                ArgParameter("pop_whitelist", "Whitelisted plugin URLs array",
+                             ListOf(Type(str))),
+            ], self.register_queue),
             ServerAPI("register_plugin", "Register Plugin", [
                 ArgParameter("name", "Plugin Name", str),
                 ArgParameter("url", "Plugin URL (GitHub)", str),
@@ -229,6 +245,22 @@ class MessagingRPCHub(object):
     def rpc_info(self, url, rpc_name):
         rpc_info = self.find_rpc(url, rpc_name)
         return rpc_info.to_json()
+
+    def register_queue(self, queue_name, queue_type, schema, push_whitelist,
+                       pop_whitelist, prefix="/channels"):
+        caller_app = get_rpc_caller()
+        app_url = caller_app["app_url"]
+        owner_app = self.app_registry.get_app_by_url(app_url)
+        channel = os.path.join(prefix, app_url, queue_name.lstrip('/'))
+        channel = channel.rstrip('/')
+
+        auth = {
+            "push": get_authorizer(push_whitelist),
+            "pop": get_authorizer(pop_whitelist)
+        }
+        self.channel_registry.create_queue(channel, owner_app, schema, {},
+                                           queue_type, authorizers=auth)
+        return channel
 
     def register_synonym(self, synonym, target):
         caller_app = get_rpc_caller()

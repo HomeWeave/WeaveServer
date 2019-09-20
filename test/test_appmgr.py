@@ -3,7 +3,7 @@ from threading import Thread, Event
 import pytest
 
 from weavelib.exceptions import Unauthorized, AuthenticationFailed
-from weavelib.messaging import WeaveConnection
+from weavelib.messaging import WeaveConnection, Sender, Receiver
 from weavelib.rpc import find_rpc, RPCClient, RPCServer, ServerAPI, ArgParameter
 
 from messaging.application_registry import ApplicationRegistry
@@ -15,20 +15,20 @@ from messaging.synonyms import SynonymRegistry
 
 
 TEST_APP_TOKEN = "test-app"
+MESSAGING_APP_TOKEN = "app-token"
 PORT = 11023
 MESSAGING_SERVER_URL = "https://github.com/HomeWeave/WeaveServer.git"
+TEST_URL = "test-url"
 
 
 class TestMessagingRPCHub(object):
     def setup_method(self):
-        messaging_token = "app-token"
-
-        self.dummy_service = DummyMessagingService(messaging_token,
+        self.dummy_service = DummyMessagingService(MESSAGING_APP_TOKEN,
                                                    WeaveConnection.local())
         message_server_started = Event()
         app_registry = ApplicationRegistry([
-            ("Test", "Test URL", TEST_APP_TOKEN),
-            ("MessagingServer", MESSAGING_SERVER_URL, messaging_token),
+            ("Test", TEST_URL, TEST_APP_TOKEN),
+            ("MessagingServer", MESSAGING_SERVER_URL, MESSAGING_APP_TOKEN),
         ])
         channel_registry = ChannelRegistry(app_registry)
 
@@ -144,7 +144,6 @@ class TestMessagingRPCHub(object):
             ("3", "3")
         ]
 
-        print("==========="*25)
         for source, target in allowed_requestors:
             plugin_client = RPCClient(conn, data[target]["rpc_info"],
                                       data[source]["token"])
@@ -166,4 +165,31 @@ class TestMessagingRPCHub(object):
         client.stop()
         conn.close()
 
+    def test_register_queue(self):
+        conn = WeaveConnection.local()
+        conn.connect()
+        client = RPCClient(conn, self.appmgr_rpc_info, TEST_APP_TOKEN)
+        client.start()
+
+        res = client["register_queue"]("test_queue/", "fifo", {"type": "string"},
+                                       [MESSAGING_SERVER_URL], [TEST_URL],
+                                       _block=True)
+        assert res == "/channels/{}/test_queue".format(TEST_URL)
+
+        sender_no_auth = Sender(conn, res, auth=TEST_APP_TOKEN)
+        sender_no_auth.start()
+        with pytest.raises(Unauthorized):
+            sender_no_auth.send("test")
+
+        sender_auth = Sender(conn, res, auth=MESSAGING_APP_TOKEN)
+        sender_auth.send("test")
+
+        receiver_no_auth = Receiver(conn, res, auth=MESSAGING_APP_TOKEN)
+        with pytest.raises(Unauthorized):
+            receiver_no_auth.receive()
+
+        receiver_auth = Receiver(conn, res, auth=TEST_APP_TOKEN)
+        assert "test" == receiver_auth.receive().task
+
+        client.stop()
 
