@@ -242,11 +242,15 @@ class MessagingRPCHub(object):
         self.app_registry.unregister_plugin(url)
 
         # Unregister all the RPC Queues.
+        keys_to_remove = []
         for (app_url, name), rpc_info in self.rpc_registry.items():
             if app_url == url:
-                self.rpc_registry.pop((app_url, name))
+                keys_to_remove.append((app_url, name))
                 self.channel_registry.remove_channel(rpc_info.request_queue)
                 self.channel_registry.remove_channel(rpc_info.response_queue)
+
+        for key in keys_to_remove:
+            self.rpc_registry.pop(key)
 
         return True
 
