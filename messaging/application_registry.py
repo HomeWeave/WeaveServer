@@ -38,13 +38,13 @@ class ApplicationRegistry(object):
             self.apps_by_url[url] = plugin
         return token
 
-    def unregister_plugin(self, token):
+    def unregister_plugin(self, url):
         with self.apps_lock:
             try:
-                app = self.apps_by_token.pop(token)
-                self.apps_by_url.pop(app.url)
+                app = self.apps_by_url.pop(url)
+                self.apps_by_token.pop(app.app_token)
             except KeyError:
-                raise ObjectNotFound(token)
+                raise ObjectNotFound(url)
 
     def get_app_info(self, app_token):
         with self.apps_lock:

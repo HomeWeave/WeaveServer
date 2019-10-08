@@ -27,7 +27,7 @@ class TestApplicationService(object):
 
         assert app.get_app_info(token) == expected
 
-        app.unregister_plugin(token)
+        app.unregister_plugin("url")
 
         with pytest.raises(ObjectNotFound):
             app.get_app_info(token)

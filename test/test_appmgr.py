@@ -66,7 +66,7 @@ class TestMessagingRPCHub(object):
         token = client["register_plugin"]("name", "url1", _block=True)
         assert token
 
-        assert client["unregister_plugin"](token, _block=True)
+        assert client["unregister_plugin"]("url1", _block=True)
 
         client.stop()
         conn.close()

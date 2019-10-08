@@ -151,7 +151,7 @@ class MessagingRPCHub(object):
                 ArgParameter("url", "Plugin URL (GitHub)", str),
             ], self.register_plugin),
             ServerAPI("unregister_plugin", "Unregister Plugin", [
-                ArgParameter("token", "Plugin Token", str)
+                ArgParameter("url", "Plugin URL (GitHub)", str)
             ], self.unregister_plugin),
             ServerAPI("rpc_info", "Get RPCInfo object.", [
                 ArgParameter("app_url", "Plugin URL", str),
@@ -233,13 +233,21 @@ class MessagingRPCHub(object):
 
         return self.app_registry.register_plugin(name, url)
 
-    def unregister_plugin(self, token):
+    def unregister_plugin(self, url):
         caller_app = get_rpc_caller()
 
         if caller_app.get("app_type") != "system":
             raise AuthenticationFailed("Only system apps can stop plugins.")
 
-        self.app_registry.unregister_plugin(token)
+        self.app_registry.unregister_plugin(url)
+
+        # Unregister all the RPC Queues.
+        for (app_url, name), rpc_info in self.rpc_registry.items():
+            if app_url == url:
+                self.rpc_registry.pop((app_url, name))
+                self.channel_registry.remove_channel(rpc_info.request_queue)
+                self.channel_registry.remove_channel(rpc_info.response_queue)
+
         return True
 
     def rpc_info(self, url, rpc_name):
