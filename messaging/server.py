@@ -148,11 +148,11 @@ class MessageServer(ThreadingTCPServer):
                 channel.channel_info.request_schema, msg.task, channel)
             raise SchemaValidationFailed(msg)
 
-    def handle_pop(self, msg, out_queue):
+    def handle_pop(self, msg, out_fn):
         channel_name = get_required_field(msg.headers, "C")
         channel_name = self.synonym_registry.translate(channel_name)
         channel = self.channel_registry.get_channel(channel_name)
-        channel.pop(msg.headers, out_queue)
+        channel.pop(msg.headers, out_fn)
 
     def preprocess(self, msg):
         if "AUTH" in msg.headers:
