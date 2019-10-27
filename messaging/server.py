@@ -22,20 +22,15 @@ from .messaging_utils import get_required_field
 logger = logging.getLogger(__name__)
 
 
-def safe_close(obj):
-    try:
-        obj.close()
-    except (IOError, OSError):
-        pass
-
 
 class MessageHandler(StreamRequestHandler):
     def handle(self):
         response_queue = Queue()
         thread = Thread(target=self.process_queue, args=(response_queue,))
         thread.start()
-        fileno = self.request.fileno()
-        self.server.add_connection(self.request, self.rfile, self.wfile)
+
+        conn = Connection(self.request, self.rfile, self.wfile)
+        self.server.add_connection(conn)
 
         try:
             while True:
@@ -54,7 +49,7 @@ class MessageHandler(StreamRequestHandler):
         finally:
             response_queue.put(None)
             thread.join()
-            self.server.remove_connection(fileno)
+            self.server.remove_connection(conn)
 
     def process_queue(self, response_queue):
         while True:
@@ -74,6 +69,34 @@ class MessageHandler(StreamRequestHandler):
         self.wfile.flush()
 
 
+class Connection(object):
+    def __init__(self, sock, rfile, wfile):
+        self.sock = sock
+        self.rfile = rfile
+        self.wfile = wfile
+
+    def __hash__(self):
+        return hash(self.sock.fileno())
+
+    def __eq__(self, other):
+        return self.sock.fileno() == other.sock.fileno()
+
+    def close(self):
+        def safe_close(obj):
+            try:
+                obj.close()
+            except (IOError, OSError):
+                pass
+
+        try:
+            self.sock.shutdown(socket.SHUT_RDWR)
+        except (IOError, OSError):
+            pass
+        safe_close(self.sock)
+        safe_close(self.rfile)
+        safe_close(self.wfile)
+
+
 class MessageServer(ThreadingTCPServer):
     allow_reuse_address = True
     daemon_threads = True
@@ -86,7 +109,7 @@ class MessageServer(ThreadingTCPServer):
         self.channel_registry = channel_registry
         self.apps_registry = apps_registry
         self.synonym_registry = synonym_registry
-        self.active_connections = {}
+        self.active_connections = set()
         self.active_connections_lock = RLock()
 
     def handle_message(self, msg, out_queue):
@@ -147,26 +170,20 @@ class MessageServer(ThreadingTCPServer):
             self.notify_start()
             self.sent_start_notification = True
 
-    def add_connection(self, sock, rfile, wfile):
+    def add_connection(self, conn):
         with self.active_connections_lock:
-            self.active_connections[sock.fileno()] = sock, rfile, wfile
+            self.active_connections.add(conn)
 
-    def remove_connection(self, fileno):
+    def remove_connection(self, conn):
         with self.active_connections_lock:
-            self.active_connections.pop(fileno)
+            self.active_connections.remove(conn)
 
     def shutdown(self):
         self.channel_registry.shutdown()
 
         with self.active_connections_lock:
-            for sock, rfile, wfile in self.active_connections.values():
-                try:
-                    sock.shutdown(socket.SHUT_RDWR)
-                except (IOError, OSError):
-                    pass
-                safe_close(sock)
-                safe_close(rfile)
-                safe_close(wfile)
+            for conn in self.active_connections:
+                conn.close()
 
         super().shutdown()
         super().server_close()
