@@ -224,6 +224,7 @@ class MessagingRPCHub(object):
         base_queue = rpc_info.base_queue
         self.channel_registry.remove_channel(get_rpc_request_queue(base_queue))
         self.channel_registry.remove_channel(get_rpc_response_queue(base_queue))
+        logger.info("Unregistered RPC: %s(%s)", name, app_url)
         return True
 
     def register_plugin(self, name, url):
