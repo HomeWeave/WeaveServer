@@ -1,5 +1,4 @@
 import json
-import time
 from collections import defaultdict
 from threading import RLock
 
@@ -126,7 +125,6 @@ class SessionizedQueue(SynchronousQueue):
     def pack_attributes(self, task, headers):
         return {
             "cookie": get_required_field(headers, "COOKIE"),
-            "time": time.time()
         }
 
     def on_push(self, obj):
