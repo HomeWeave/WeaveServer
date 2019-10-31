@@ -7,12 +7,10 @@ import socket
 from socketserver import ThreadingTCPServer, StreamRequestHandler
 from threading import RLock, Thread
 
-from jsonschema import ValidationError
 
 from weavelib.exceptions import WeaveException, ObjectNotFound
 from weavelib.exceptions import AuthenticationFailed
 from weavelib.exceptions import ProtocolError, BadOperation
-from weavelib.exceptions import SchemaValidationFailed
 from weavelib.messaging import read_message, serialize_message, Message
 from weavelib.messaging import exception_to_message
 
@@ -20,7 +18,6 @@ from .messaging_utils import get_required_field
 
 
 logger = logging.getLogger(__name__)
-
 
 
 class MessageHandler(StreamRequestHandler):
@@ -141,12 +138,7 @@ class MessageServer(ThreadingTCPServer):
         channel_name = self.synonym_registry.translate(channel_name)
         channel = self.channel_registry.get_channel(channel_name)
 
-        try:
-            channel.push(msg.task, msg.headers)
-        except ValidationError:
-            msg = "Schema: {}, on instance: {}, for channel: {}".format(
-                channel.channel_info.request_schema, msg.task, channel)
-            raise SchemaValidationFailed(msg)
+        channel.push(msg.task, msg.headers)
 
     def handle_pop(self, msg, out_fn):
         channel_name = get_required_field(msg.headers, "C")

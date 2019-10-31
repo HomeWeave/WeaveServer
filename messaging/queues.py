@@ -2,9 +2,10 @@ import json
 from collections import defaultdict
 from threading import RLock
 
-from jsonschema import validate
+from jsonschema import validate, ValidationError
 
 from weavelib.exceptions import AuthenticationFailed, Unauthorized
+from weavelib.exceptions import SchemaValidationFailed
 
 from .messaging_utils import get_required_field
 from .authorizers import AllowAllAuthorizer
@@ -21,7 +22,12 @@ class BaseChannel(object):
         return True
 
     def validate_schema(self, msg):
-        validate(msg, self.channel_info.request_schema)
+        try:
+            validate(msg.task, self.channel_info.request_schema)
+        except ValidationError:
+            msg = "Schema: {}, on instance: {}, for channel: {}".format(
+                self.channel_info.request_schema, msg.task, self)
+            raise SchemaValidationFailed(msg)
 
     def check_auth(self, op, headers):
         authorizer = self.channel_info.authorizers.get(op, AllowAllAuthorizer())
