@@ -111,40 +111,32 @@ class MessageServer(ThreadingTCPServer):
 
     def handle_message(self, msg, out_queue):
         session_id = get_required_field(msg.headers, "SESS")
+        channel_name = get_required_field(msg.headers, "C")
+        channel_name = self.synonym_registry.translate(channel_name)
+        channel = self.channel_registry.get_channel(channel_name)
+
         self.preprocess(msg)
 
-        def handle_pop(obj):
-            task, headers = obj
+        def handle_pop(task, headers):
             msg = Message("inform", task)
             msg.headers.update(headers)
             msg.headers["SESS"] = session_id
             out_queue.put(msg)
 
         if msg.operation == "pop":
-            self.handle_pop(msg, handle_pop)
+            channel.pop(msg, handle_pop)
         elif msg.operation == "push":
-            self.handle_push(msg)
+            if msg.task is None:
+                raise ProtocolError("Task is required for push.")
+
+            channel.push(msg)
+
             msg = Message("result")
             msg.headers["RES"] = "OK"
             msg.headers["SESS"] = session_id
             out_queue.put(msg)
         else:
             raise BadOperation(msg.operation)
-
-    def handle_push(self, msg):
-        if msg.task is None:
-            raise ProtocolError("Task is required for push.")
-        channel_name = get_required_field(msg.headers, "C")
-        channel_name = self.synonym_registry.translate(channel_name)
-        channel = self.channel_registry.get_channel(channel_name)
-
-        channel.push(msg.task, msg.headers)
-
-    def handle_pop(self, msg, out_fn):
-        channel_name = get_required_field(msg.headers, "C")
-        channel_name = self.synonym_registry.translate(channel_name)
-        channel = self.channel_registry.get_channel(channel_name)
-        channel.pop(msg.headers, out_fn)
 
     def preprocess(self, msg):
         if "AUTH" in msg.headers:
