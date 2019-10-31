@@ -146,7 +146,7 @@ class SessionizedQueue(SynchronousQueue):
         return condition_value
 
 
-class FIFOQueue(SynchronousQueue):
+class RoundRobinQueue(SynchronousQueue):
     def __init__(self, queue_info):
         super().__init__(queue_info)
         self.queue = []
@@ -167,7 +167,7 @@ class FIFOQueue(SynchronousQueue):
         return self.queue.pop(0)
 
 
-class Multicast(BaseChannel):
+class Multicast(SynchronousQueue):
     def __init__(self, multicast_info):
         super().__init__(multicast_info)
         self.active = False

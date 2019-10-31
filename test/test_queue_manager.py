@@ -6,13 +6,13 @@ from weavelib.exceptions import BadArguments
 
 from messaging.application_registry import ApplicationRegistry, Plugin
 from messaging.queue_manager import ChannelRegistry
-from messaging.queues import SessionizedQueue, FIFOQueue
+from messaging.queues import SessionizedQueue, RoundRobinQueue
 
 
 class TestChannelRegistry(object):
     @pytest.mark.parametrize("queue_type,expected_cls",
                              [("sessionized", SessionizedQueue),
-                              ("fifo", FIFOQueue)])
+                              ("fifo", RoundRobinQueue)])
     def test_create_queue_simple(self, queue_type, expected_cls):
         test_app = Plugin("test", "test", "test-token")
         apps = ApplicationRegistry()
@@ -59,8 +59,8 @@ class TestChannelRegistry(object):
             registry.get_channel("test_queue")
 
     def test_queue_connect_fail(self):
-        backup = FIFOQueue.connect
-        FIFOQueue.connect = lambda self: False
+        backup = RoundRobinQueue.connect
+        RoundRobinQueue.connect = lambda self: False
 
         test_app = Plugin("test", "test", "test-token")
         apps = ApplicationRegistry()
@@ -68,7 +68,7 @@ class TestChannelRegistry(object):
         with pytest.raises(InternalError):
             registry.create_queue("queue_name", test_app, {}, {}, "fifo")
 
-        FIFOQueue.connect = backup
+        RoundRobinQueue.connect = backup
 
     def test_shutdown(self):
         test_app = Plugin("test", "test", "test-token")

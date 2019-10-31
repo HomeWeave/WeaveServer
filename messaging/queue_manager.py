@@ -7,7 +7,7 @@ from weavelib.exceptions import ObjectNotFound, ObjectAlreadyExists
 from weavelib.exceptions import ObjectClosed, SchemaValidationFailed
 from weavelib.exceptions import InternalError, BadArguments
 
-from .queues import FIFOQueue, SessionizedQueue, Multicast
+from .queues import RoundRobinQueue, SessionizedQueue, Multicast
 
 
 logger = logging.getLogger(__name__)
@@ -40,23 +40,17 @@ class QueueInfo(ChannelInfo):
                  queue_type, authorizers=None):
         super().__init__(queue_name, owner_app, request_schema, response_schema,
                          authorizers=authorizers)
-        channel_map = {"fifo": FIFOQueue, "sessionized": SessionizedQueue}
+        channel_map = {
+            "fifo": RoundRobinQueue,
+            "sessionized": SessionizedQueue,
+            "multicast": Multicast
+        }
         self.queue_cls = channel_map.get(queue_type)
         if not self.queue_cls:
             raise BadArguments(queue_type)
 
     def create_channel(self):
         return self.queue_cls(self)
-
-
-class MulticastInfo(ChannelInfo):
-    def __init__(self, multicast_name, owner_app, request_schema,
-                 response_schema, authorizers=None):
-        super().__init__(multicast_name, owner_app, request_schema,
-                         response_schema, authorizers=authorizers)
-
-    def create_channel(self):
-        return Multicast(self)
 
 
 class ChannelRegistry(object):
@@ -68,19 +62,9 @@ class ChannelRegistry(object):
 
     def create_queue(self, queue_name, owner_app, request_schema,
                      response_schema, queue_type, authorizers=None):
-        queue_info = QueueInfo(queue_name, owner_app, request_schema,
+        channel_info = QueueInfo(queue_name, owner_app, request_schema,
                                response_schema, queue_type, authorizers)
 
-        return self.create_channel_internal(queue_info)
-
-    def create_multicast(self, multicast_name, owner_app, request_schema,
-                         response_schema, authorizers=None):
-        multicast_info = MulticastInfo(multicast_name, owner_app,
-                                       request_schema, response_schema,
-                                       authorizers)
-        return self.create_channel_internal(multicast_info)
-
-    def create_channel_internal(self, channel_info):
         with self.channel_map_lock:
             if not self.active:
                 raise ObjectClosed("Server shutting down.")

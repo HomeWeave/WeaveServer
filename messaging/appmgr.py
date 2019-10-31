@@ -139,7 +139,7 @@ class MessagingRPCHub(object):
             ServerAPI("register_queue", "Register a new queue", [
                 ArgParameter("channel_name", "Basename of the queue", str),
                 ArgParameter("queue_type", "Type of the queue",
-                             OneOf("fifo", "sessionized")),
+                             OneOf("fifo", "sessionized", "multicast")),
                 ArgParameter("schema", "JSONSchema of the messages pushed", {}),
                 ArgParameter("push_whitelist", "Whitelisted plugin URLs array",
                              ListOf(Type(str))),

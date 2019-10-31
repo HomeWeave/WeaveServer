@@ -78,10 +78,17 @@ class TestMessageServer(object):
                               {"type": "string"}, {}, 'sessionized')
         registry.create_queue("/test.fifo/simple", test_app, {"type": "string"},
                               {}, 'fifo')
+<<<<<<< Updated upstream
         registry.create_multicast('/multicast/1', test_app, {"type": "string"},
                                   {})
         registry.create_multicast('/multicast/2', test_app, {"type": "string"},
                                   {})
+=======
+        registry.create_queue('/multicast/1', test_app, {"type": "string"}, {},
+                              'multicast')
+        registry.create_queue('/multicast/2', test_app, {"type": "string"}, {},
+                              'multicast')
+>>>>>>> Stashed changes
 
         synonym_registry = SynonymRegistry()
         synonym_registry.register("/multi", "/multicast/2")
