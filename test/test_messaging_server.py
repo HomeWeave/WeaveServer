@@ -78,17 +78,12 @@ class TestMessageServer(object):
                               {"type": "string"}, {}, 'sessionized')
         registry.create_queue("/test.fifo/simple", test_app, {"type": "string"},
                               {}, 'fifo')
-<<<<<<< Updated upstream
-        registry.create_multicast('/multicast/1', test_app, {"type": "string"},
-                                  {})
-        registry.create_multicast('/multicast/2', test_app, {"type": "string"},
-                                  {})
-=======
+        registry.create_queue("/test.fifo/test-disconnect", test_app,
+                              {"type": "string"}, {}, 'fifo')
         registry.create_queue('/multicast/1', test_app, {"type": "string"}, {},
                               'multicast')
         registry.create_queue('/multicast/2', test_app, {"type": "string"}, {},
                               'multicast')
->>>>>>> Stashed changes
 
         synonym_registry = SynonymRegistry()
         synonym_registry.register("/multi", "/multicast/2")
@@ -121,7 +116,7 @@ class TestMessageServer(object):
 
     def test_bad_operation(self):
         with pytest.raises(BadOperation):
-            send_raw('MSG {"a": "b"}\nSESS 1\nOP bad-operation\nQ a.b.c\n\n')
+            send_raw('MSG {"a": "b"}\nSESS 1\nOP bad-operation\nC /a.b.c\n\n')
 
     def test_bad_json(self):
         with pytest.raises(ProtocolError):
@@ -359,6 +354,36 @@ class TestMessageServer(object):
         assert sem.acquire(timeout=10)
         assert msgs[-1] == "test"
         assert not sem.acquire(timeout=2)
+
+    def tet_queue_waits_removed_after_client_disconnects(self):
+        conn1 = WeaveConnection.local()
+        conn2 = WeaveConnection.local()
+        conn1.connect()
+        conn2.connect()
+
+        msgs1 = []
+        sem1 = Semaphore(0)
+        receiver1 = Receiver(conn1, "/test.fifo/test-disconnect")
+        receiver1.on_message = make_receiver(1, msgs1, sem1, receiver1)
+        receiver1.start()
+        Thread(target=receiver1.run).start()
+
+        msgs2 = []
+        sem2 = Semaphore(0)
+        receiver2 = Receiver(conn2, "/test.fifo/test-disconnect")
+        receiver2.on_message = make_receiver(1, msgs2, sem2, receiver2)
+        receiver2.start()
+        Thread(target=receiver2.run).start()
+
+        conn1.close()
+
+        sender1 = Sender(self.conn, "/test.fifo/test-disconnect")
+        sender1.start()
+
+        sender1.send("test")
+
+        assert sem2.acquire(timeout=5)
+        assert msgs2[-1] == "test"
 
 
 class TestMessageServerClosure(object):

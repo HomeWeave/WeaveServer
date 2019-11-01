@@ -5,8 +5,7 @@ except ImportError:
     from Queue import Queue
 import socket
 from socketserver import ThreadingTCPServer, StreamRequestHandler
-from threading import RLock, Thread
-
+from threading import RLock, Lock, Thread
 
 from weavelib.exceptions import WeaveException, ObjectNotFound
 from weavelib.exceptions import AuthenticationFailed
@@ -34,8 +33,8 @@ class MessageHandler(StreamRequestHandler):
                 session_id = "NO-SESSION-ID"
                 try:
                     msg = read_message(self.rfile)
-                    session_id = msg.headers.get("SESS", session_id)
-                    self.server.handle_message(msg, response_queue)
+                    session_id = get_required_field(msg.headers, "SESS")
+                    self.server.handle_message(conn, msg, response_queue)
                 except WeaveException as e:
                     response = exception_to_message(e)
                     response.headers["SESS"] = session_id
@@ -47,6 +46,7 @@ class MessageHandler(StreamRequestHandler):
             response_queue.put(None)
             thread.join()
             self.server.remove_connection(conn)
+            conn.close()
 
     def process_queue(self, response_queue):
         while True:
@@ -71,12 +71,22 @@ class Connection(object):
         self.sock = sock
         self.rfile = rfile
         self.wfile = wfile
+        self.pop_waiters = {}
+        self.pop_waiter_lock = Lock()
 
     def __hash__(self):
         return hash(self.sock.fileno())
 
     def __eq__(self, other):
         return self.sock.fileno() == other.sock.fileno()
+
+    def add_waiter(self, session_id, channel):
+        with self.pop_waiter_lock:
+            self.pop_waiters[session_id] = channel
+
+    def remove_waiter(self, session_id):
+        with self.pop_waiter_lock:
+            self.pop_waiters.pop(session_id)
 
     def close(self):
         def safe_close(obj):
@@ -92,6 +102,10 @@ class Connection(object):
         safe_close(self.sock)
         safe_close(self.rfile)
         safe_close(self.wfile)
+
+        with self.pop_waiter_lock:
+            for session_id, channel in self.pop_waiters.items():
+                channel.remove_requestor(session_id)
 
 
 class MessageServer(ThreadingTCPServer):
@@ -109,7 +123,7 @@ class MessageServer(ThreadingTCPServer):
         self.active_connections = set()
         self.active_connections_lock = RLock()
 
-    def handle_message(self, msg, out_queue):
+    def handle_message(self, conn, msg, out_queue):
         session_id = get_required_field(msg.headers, "SESS")
         channel_name = get_required_field(msg.headers, "C")
         channel_name = self.synonym_registry.translate(channel_name)
@@ -118,12 +132,14 @@ class MessageServer(ThreadingTCPServer):
         self.preprocess(msg)
 
         def handle_pop(task, headers):
+            conn.remove_waiter(session_id)
             msg = Message("inform", task)
             msg.headers.update(headers)
             msg.headers["SESS"] = session_id
             out_queue.put(msg)
 
         if msg.operation == "pop":
+            conn.add_waiter(session_id, channel)
             channel.pop(msg, handle_pop)
         elif msg.operation == "push":
             if msg.task is None:
