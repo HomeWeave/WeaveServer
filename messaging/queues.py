@@ -98,6 +98,7 @@ class RoundRobinQueue(SynchronousQueue):
         self.retain_headers = {"AUTH"}
         self.queue = []
         self.requestors = []
+        self.requestors_by_session_id = {}
         self.lock = Lock()
 
     def on_push(self, obj):
@@ -119,9 +120,12 @@ class RoundRobinQueue(SynchronousQueue):
             else:
                 msg = None
                 self.requestors.append(out)
+                self.requestors_by_session_id[dequeue_msg.headers["SESS"]] = out
 
         if msg:
             out(msg.task, filter_headers(msg.headers, self.retain_headers))
+            return True
+        return False
 
     def get_queue_size(self):
         with self.lock:
@@ -131,8 +135,11 @@ class RoundRobinQueue(SynchronousQueue):
         with self.lock:
             return len(self.requestors)
 
-    def remove_requestor(self, requestor_id):
-        pass
+    def remove_requestor(self, session_id):
+        with self.lock:
+            requestor = self.requestors_by_session_id.pop(session_id, None)
+            if requestor:
+                self.requestors.remove(requestor)
 
 
 class SessionizedQueue(SynchronousQueue):
@@ -147,6 +154,7 @@ class SessionizedQueue(SynchronousQueue):
             return queue
 
         self.queues = defaultdict(new_fifo_queue)
+        self.session_id_to_cookie_map = {}
         self.lock = Lock()
 
     def on_push(self, msg):
@@ -160,14 +168,21 @@ class SessionizedQueue(SynchronousQueue):
         with self.lock:
             queue = self.queues[cookie]
 
-        queue.on_pop(dequeue_msg, out)
+        item_was_popped = queue.on_pop(dequeue_msg, out)
+
+        with self.lock:
+            if not item_was_popped:
+                session_id = dequeue_msg.headers["SESS"]
+                self.session_id_to_cookie_map[session_id] = cookie
 
         with self.lock:
             if not queue.get_queue_size() and not queue.get_requestors_size():
                 self.queues.pop(cookie)
 
-    def remove_requestor(self, requestor_id):
-        pass
+    def remove_requestor(self, session_id):
+        with self.lock:
+            cookie = self.session_id_to_cookie_map.pop(session_id, None)
+            self.queues[cookie].remove_requestor(session_id)
 
 
 class Multicast(SynchronousQueue):

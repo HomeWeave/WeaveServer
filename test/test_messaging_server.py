@@ -80,6 +80,8 @@ class TestMessageServer(object):
                               {}, 'fifo')
         registry.create_queue("/test.fifo/test-disconnect", test_app,
                               {"type": "string"}, {}, 'fifo')
+        registry.create_queue("/test.sessionized/test-disconnect", test_app,
+                              {"type": "string"}, {}, 'sessionized')
         registry.create_queue('/multicast/1', test_app, {"type": "string"}, {},
                               'multicast')
         registry.create_queue('/multicast/2', test_app, {"type": "string"}, {},
@@ -355,35 +357,45 @@ class TestMessageServer(object):
         assert msgs[-1] == "test"
         assert not sem.acquire(timeout=2)
 
-    def tet_queue_waits_removed_after_client_disconnects(self):
+    @pytest.mark.parametrize("queue_name",
+                             ["/test.fifo/test-disconnect",
+                              "/test.sessionized/test-disconnect"])
+    def test_queue_waits_removed_after_client_disconnects(self, queue_name):
         conn1 = WeaveConnection.local()
         conn2 = WeaveConnection.local()
+        conn3 = WeaveConnection.local()
         conn1.connect()
         conn2.connect()
+        conn3.connect()
 
         msgs1 = []
         sem1 = Semaphore(0)
-        receiver1 = Receiver(conn1, "/test.fifo/test-disconnect")
+        receiver1 = Receiver(conn1,queue_name, cookie="a")
         receiver1.on_message = make_receiver(1, msgs1, sem1, receiver1)
         receiver1.start()
         Thread(target=receiver1.run).start()
 
         msgs2 = []
         sem2 = Semaphore(0)
-        receiver2 = Receiver(conn2, "/test.fifo/test-disconnect")
+        receiver2 = Receiver(conn2, queue_name, cookie="b")
         receiver2.on_message = make_receiver(1, msgs2, sem2, receiver2)
         receiver2.start()
         Thread(target=receiver2.run).start()
 
         conn1.close()
 
-        sender1 = Sender(self.conn, "/test.fifo/test-disconnect")
+        import time; time.sleep(1)
+
+        sender1 = Sender(conn3, queue_name)
         sender1.start()
 
-        sender1.send("test")
+        sender1.send("test", headers={"COOKIE": "b"})
 
         assert sem2.acquire(timeout=5)
         assert msgs2[-1] == "test"
+
+        conn2.close()
+        conn3.close()
 
 
 class TestMessageServerClosure(object):

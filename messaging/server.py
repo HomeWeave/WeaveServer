@@ -45,8 +45,8 @@ class MessageHandler(StreamRequestHandler):
         finally:
             response_queue.put(None)
             thread.join()
-            self.server.remove_connection(conn)
             conn.close()
+            self.server.remove_connection(conn)
 
     def process_queue(self, response_queue):
         while True:
@@ -73,12 +73,6 @@ class Connection(object):
         self.wfile = wfile
         self.pop_waiters = {}
         self.pop_waiter_lock = Lock()
-
-    def __hash__(self):
-        return hash(self.sock.fileno())
-
-    def __eq__(self, other):
-        return self.sock.fileno() == other.sock.fileno()
 
     def add_waiter(self, session_id, channel):
         with self.pop_waiter_lock:
